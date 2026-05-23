@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +27,8 @@ import com.example.ui.theme.GoldAccent
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.LedgerViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
@@ -58,23 +61,37 @@ fun MainLayout(viewModel: LedgerViewModel) {
     var activeTab by remember { mutableStateOf(0) } // 0 = Dashboard, 1 = CoA, 2 = Customers, 3 = Vouchers, 4 = Account Statement, 5 = Reports, 6 = Settings
     var showEditor by remember { mutableStateOf(false) }
 
-    val snackbarHostState = remember { SnackbarHostState() }
+    var activeToast by remember { mutableStateOf<CustomToast?>(null) }
+
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(uiMessage) {
-        uiMessage?.let {
-            val translated = com.example.ui.Localization.getLocalizedNotification(it, lang)
-            snackbarHostState.showSnackbar(translated)
+        uiMessage?.let { msg ->
+            val translated = com.example.ui.Localization.getLocalizedNotification(msg, lang)
+            val type = when {
+                msg.contains("failed", true) || msg.contains("error", true) || msg.contains("فشل", true) || msg.contains("غير", true) || msg.contains("مطلوب", true) -> ToastType.ERROR
+                msg.contains("success", true) || msg.contains("created", true) || msg.contains("saved", true) || msg.contains("تم", true) || msg.contains("نجاح", true) || msg.contains("سجل", true) || msg.contains("مضافة", true) -> ToastType.SUCCESS
+                else -> ToastType.INFO
+            }
+            activeToast = CustomToast(translated, type)
             viewModel.clearMessage()
+        }
+    }
+
+    LaunchedEffect(activeToast) {
+        if (activeToast != null) {
+            delay(3500)
+            activeToast = null
         }
     }
 
     val layoutDirection = com.example.ui.Localization.getLayoutDirection(lang)
 
     androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides layoutDirection) {
-        when {
-            isSeeding -> {
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                isSeeding -> {
                 // Seed Loader screen
                 Box(
                     modifier = Modifier
@@ -224,7 +241,6 @@ fun MainLayout(viewModel: LedgerViewModel) {
                 ) {
                     Scaffold(
                         modifier = Modifier.fillMaxSize(),
-                        snackbarHost = { SnackbarHost(snackbarHostState) },
                         topBar = {
                             CenterAlignedTopAppBar(
                                 title = {
@@ -313,6 +329,100 @@ fun MainLayout(viewModel: LedgerViewModel) {
                         }
                     }
                 }
+            }
+        } // Closes when {
+
+        // High-fidelity top toast notifications
+        AnimatedVisibility(
+                visible = activeToast != null,
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 48.dp)
+                    .zIndex(9999f)
+            ) {
+                activeToast?.let { toast ->
+                    ToastPill(toast = toast, onDismiss = { activeToast = null }, lang = lang)
+                }
+            }
+        }
+    }
+}
+
+enum class ToastType {
+    SUCCESS, ERROR, INFO
+}
+
+data class CustomToast(
+    val message: String,
+    val type: ToastType = ToastType.INFO
+)
+
+@Composable
+fun ToastPill(
+    toast: CustomToast,
+    onDismiss: () -> Unit,
+    lang: String
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(0.9f)
+            .shadow(16.dp, shape = RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xEE1E1E24) // Charcoal black translucent profile
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = when (toast.type) {
+                ToastType.SUCCESS -> Color(0xFF4CAF50).copy(alpha = 0.5f)
+                ToastType.ERROR -> Color(0xFFF44336).copy(alpha = 0.5f)
+                ToastType.INFO -> Color(0xFF2196F3).copy(alpha = 0.5f)
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = when (toast.type) {
+                    ToastType.SUCCESS -> Icons.Filled.CheckCircle
+                    ToastType.ERROR -> Icons.Filled.Error
+                    ToastType.INFO -> Icons.Filled.Info
+                },
+                contentDescription = null,
+                tint = when (toast.type) {
+                    ToastType.SUCCESS -> Color(0xFF4CAF50)
+                    ToastType.ERROR -> Color(0xFFF44336)
+                    ToastType.INFO -> Color(0xFF2196F3)
+                },
+                modifier = Modifier.size(24.dp)
+            )
+
+            Spacer(Modifier.width(12.dp))
+
+            Text(
+                text = toast.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Dismiss",
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }

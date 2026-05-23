@@ -183,11 +183,17 @@ fun AccountTreeRow(
 ) {
     val lang by viewModel.currentLanguage.collectAsState()
     val isLibyan by viewModel.isLibyanMode.collectAsState()
+    val cashBoxes by viewModel.cashBoxes.collectAsState()
+    val bankAccounts by viewModel.allBankAccounts.collectAsState()
+
     var isExpanded by remember { mutableStateOf(depth < 1) } // Default expand roots
     val subAccounts = remember(allAccounts, account) {
         allAccounts.filter { it.parentId == account.id }
     }
     val hasSub = subAccounts.isNotEmpty()
+
+    val linkedCashBox = remember(account.id, cashBoxes) { cashBoxes.find { it.accountId == account.id } }
+    val linkedBankAccount = remember(account.id, bankAccounts) { bankAccounts.find { it.accountId == account.id } }
 
     val balance = remember(account.id, snapshots) {
         snapshots.find { it.accountId == account.id }?.balance ?: 0L
@@ -235,7 +241,7 @@ fun AccountTreeRow(
                     )
                 }
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
                     AssistChip(
                         onClick = {},
                         label = { Text(account.accountType.name, style = MaterialTheme.typography.labelSmall) },
@@ -251,6 +257,46 @@ fun AccountTreeRow(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium
+                        )
+                    }
+                    if (linkedCashBox != null) {
+                        Spacer(Modifier.width(6.dp))
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(if (lang == "ar") "صندوق: ${linkedCashBox.name}" else "Box: ${linkedCashBox.name}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.AccountBalanceWallet,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(11.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                            modifier = Modifier.height(18.dp)
+                        )
+                    }
+                    if (linkedBankAccount != null) {
+                        Spacer(Modifier.width(6.dp))
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(if (lang == "ar") "حساب بنكي: ${linkedBankAccount.accountName}" else "Bank: ${linkedBankAccount.accountName}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.AccountBalance,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(11.dp),
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                                labelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
+                            modifier = Modifier.height(18.dp)
                         )
                     }
                 }
