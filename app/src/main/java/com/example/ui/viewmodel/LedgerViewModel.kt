@@ -642,81 +642,84 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             cashFlowLoading.value = true
             try {
-                val cashAccounts = accounts.value.filter { it.accountCode.startsWith("1101") || it.accountCode.startsWith("1102") }
-                val cashIds = cashAccounts.map { it.id }.toSet()
-                
-                val headers = vouchers.value.filter { it.isPosted }
-                val allLines = repository.getAllVoucherLines()
-                
-                // 1. Calculate opening balance (all cash entries before start date)
-                val openingCash = allLines.filter { line ->
-                    line.accountId in cashIds && headers.find { it.id == line.headerId }?.let { h -> h.date < trialBalanceStart.value } == true
-                }.sumOf { if (it.debit > 0) it.amountBase else -it.amountBase }
-                
-                // 2. Identify all lines of posted vouchers in the current period
-                val periodHeaders = headers.filter { it.date in trialBalanceStart.value..trialBalanceEnd.value }
-                val periodHeaderIds = periodHeaders.map { it.id }.toSet()
-                val periodLines = allLines.filter { it.headerId in periodHeaderIds }
-                
-                var opIn = 0L
-                var opOut = 0L
-                var invIn = 0L
-                var invOut = 0L
-                var finIn = 0L
-                var finOut = 0L
-                
-                // Group period lines by voucher
-                val voucherGroups = periodLines.groupBy { it.headerId }
-                
-                for ((voucherId, lines) in voucherGroups) {
-                    val cashLinesInVoucher = lines.filter { it.accountId in cashIds }
-                    if (cashLinesInVoucher.isEmpty()) continue
+                val statement = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    val cashAccounts = accounts.value.filter { it.accountCode.startsWith("1101") || it.accountCode.startsWith("1102") }
+                    val cashIds = cashAccounts.map { it.id }.toSet()
                     
-                    val netCashChange = cashLinesInVoucher.sumOf { if (it.debit > 0) it.amountBase else -it.amountBase }
-                    if (netCashChange == 0L) continue
+                    val headers = vouchers.value.filter { it.isPosted }
+                    val allLines = repository.getAllVoucherLines()
                     
-                    val companionLines = lines.filter { it.accountId !in cashIds }
+                    // 1. Calculate opening balance (all cash entries before start date)
+                    val openingCash = allLines.filter { line ->
+                        line.accountId in cashIds && headers.find { it.id == line.headerId }?.let { h -> h.date < trialBalanceStart.value } == true
+                    }.sumOf { if (it.debit > 0) it.amountBase else -it.amountBase }
                     
-                    for (line in companionLines) {
-                        val acc = accounts.value.find { it.id == line.accountId } ?: continue
-                        when (acc.accountType) {
-                            AccountType.REVENUE -> {
-                                if (netCashChange > 0) opIn += line.amountBase else opOut += line.amountBase
-                            }
-                            AccountType.EXPENSE -> {
-                                if (netCashChange < 0) opOut += line.amountBase else opIn += line.amountBase
-                            }
-                            AccountType.ASSET -> {
-                                if (acc.accountCode.startsWith("12") || acc.accountCode.startsWith("13")) {
-                                    if (netCashChange < 0) invOut += line.amountBase else invIn += line.amountBase
-                                } else {
+                    // 2. Identify all lines of posted vouchers in the current period
+                    val periodHeaders = headers.filter { it.date in trialBalanceStart.value..trialBalanceEnd.value }
+                    val periodHeaderIds = periodHeaders.map { it.id }.toSet()
+                    val periodLines = allLines.filter { it.headerId in periodHeaderIds }
+                    
+                    var opIn = 0L
+                    var opOut = 0L
+                    var invIn = 0L
+                    var invOut = 0L
+                    var finIn = 0L
+                    var finOut = 0L
+                    
+                    // Group period lines by voucher
+                    val voucherGroups = periodLines.groupBy { it.headerId }
+                    
+                    for ((voucherId, lines) in voucherGroups) {
+                        val cashLinesInVoucher = lines.filter { it.accountId in cashIds }
+                        if (cashLinesInVoucher.isEmpty()) continue
+                        
+                        val netCashChange = cashLinesInVoucher.sumOf { if (it.debit > 0) it.amountBase else -it.amountBase }
+                        if (netCashChange == 0L) continue
+                        
+                        val companionLines = lines.filter { it.accountId !in cashIds }
+                        
+                        for (line in companionLines) {
+                            val acc = accounts.value.find { it.id == line.accountId } ?: continue
+                            when (acc.accountType) {
+                                AccountType.REVENUE -> {
                                     if (netCashChange > 0) opIn += line.amountBase else opOut += line.amountBase
                                 }
-                            }
-                            AccountType.LIABILITY -> {
-                                if (acc.accountCode.startsWith("22") || acc.accountCode.startsWith("23")) {
+                                AccountType.EXPENSE -> {
+                                    if (netCashChange < 0) opOut += line.amountBase else opIn += line.amountBase
+                                }
+                                AccountType.ASSET -> {
+                                    if (acc.accountCode.startsWith("12") || acc.accountCode.startsWith("13")) {
+                                        if (netCashChange < 0) invOut += line.amountBase else invIn += line.amountBase
+                                    } else {
+                                        if (netCashChange > 0) opIn += line.amountBase else opOut += line.amountBase
+                                    }
+                                }
+                                AccountType.LIABILITY -> {
+                                    if (acc.accountCode.startsWith("22") || acc.accountCode.startsWith("23")) {
+                                        if (netCashChange > 0) finIn += line.amountBase else finOut += line.amountBase
+                                    } else {
+                                        if (netCashChange > 0) opIn += line.amountBase else opOut += line.amountBase
+                                    }
+                                }
+                                AccountType.EQUITY -> {
                                     if (netCashChange > 0) finIn += line.amountBase else finOut += line.amountBase
-                                } else {
-                                    if (netCashChange > 0) opIn += line.amountBase else opOut += line.amountBase
                                 }
-                            }
-                            AccountType.EQUITY -> {
-                                if (netCashChange > 0) finIn += line.amountBase else finOut += line.amountBase
                             }
                         }
                     }
+                    
+                    CashFlowStatement(
+                        openingBalance = openingCash,
+                        operatingInflow = opIn,
+                        operatingOutflow = opOut,
+                        investingInflow = invIn,
+                        investingOutflow = invOut,
+                        financingInflow = finIn,
+                        financingOutflow = finOut,
+                        closingBalance = openingCash + (opIn - opOut) + (invIn - invOut) + (finIn - finOut)
+                    )
                 }
-                
-                cashFlowStatement.value = CashFlowStatement(
-                    openingBalance = openingCash,
-                    operatingInflow = opIn,
-                    operatingOutflow = opOut,
-                    investingInflow = invIn,
-                    investingOutflow = invOut,
-                    financingInflow = finIn,
-                    financingOutflow = finOut,
-                    closingBalance = openingCash + (opIn - opOut) + (invIn - invOut) + (finIn - finOut)
-                )
+                cashFlowStatement.value = statement
             } catch (e: Exception) {
                 _uiMessage.value = "Cash Flow report generation failed: ${e.localizedMessage}"
             } finally {

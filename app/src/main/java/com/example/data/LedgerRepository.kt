@@ -255,16 +255,9 @@ class LedgerRepository(private val db: AppDatabase) {
      */
     suspend fun recalculateSnapshots() = withContext(Dispatchers.IO) {
         snapshotDao.clearAll()
-        val accounts = accountDao.getAllAccountsSuspend()
-        val snapshots = mutableListOf<AccountBalanceSnapshot>()
-
-        for (acc in accounts) {
-            // Retrieve current recursive balance
-            val bal = accountDao.getRecursiveAccountBalanceSuspend(acc.id) ?: 0L
-            snapshots.add(AccountBalanceSnapshot(accountId = acc.id, balance = bal))
-        }
-        snapshotDao.insertAll(snapshots)
-        Log.d("LedgerRepository", "Account list cached. Total records: ${snapshots.size}")
+        val calculatedSnapshots = snapshotDao.calculateRecursiveBalances(System.currentTimeMillis())
+        snapshotDao.insertAll(calculatedSnapshots)
+        Log.d("LedgerRepository", "Account list cached. Total records: ${calculatedSnapshots.size}")
     }
 
     // Report Queries
