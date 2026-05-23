@@ -445,64 +445,34 @@ fun AddCustomerDialog(
                 if (linkStrategy == 2) {
                     Spacer(Modifier.height(10.dp))
                     
-                    val filteredAccounts = remember(accountSearchQuery, leafAccounts) {
-                        leafAccounts.filter { acc ->
-                            acc.accountCode.contains(accountSearchQuery, ignoreCase = true) ||
-                            acc.name.contains(accountSearchQuery, ignoreCase = true)
-                        }
-                    }
+                    val currentSelection = leafAccounts.find { it.id == selectedExistAccountId }
+                    var showAccountSearchDialog by remember { mutableStateOf(false) }
 
-                    ExposedDropdownMenuBox(
-                        expanded = menuExpanded,
-                        onExpandedChange = { menuExpanded = !menuExpanded }
-                    ) {
-                        val currentSelection = leafAccounts.find { it.id == selectedExistAccountId }
-                        OutlinedTextField(
-                            value = accountSearchQuery,
-                            onValueChange = { 
-                                accountSearchQuery = it
-                                menuExpanded = true
-                            },
-                            label = { 
-                                Text(
-                                    currentSelection?.let { "${it.accountCode} - ${it.name}" } 
-                                        ?: Localization.translate(Localization.Key.SELECT_EXISTING_COA, lang)
-                                ) 
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor()
-                                .testTag("cust_select_exist_trigger"),
-                            trailingIcon = { 
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (accountSearchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { accountSearchQuery = "" }) {
-                                            Icon(Icons.Filled.Clear, contentDescription = "Clear")
-                                        }
-                                    }
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpanded)
-                                }
-                            },
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = menuExpanded && filteredAccounts.isNotEmpty(),
-                            onDismissRequest = { menuExpanded = false }
-                        ) {
-                            filteredAccounts.forEach { acc ->
-                                DropdownMenuItem(
-                                    text = { Text("${acc.accountCode} - ${acc.name}") },
-                                    onClick = {
-                                        selectedExistAccountId = acc.id
-                                        accountSearchQuery = "${acc.accountCode} - ${acc.name}"
-                                        menuExpanded = false
-                                    },
-                                    modifier = Modifier.testTag("cust_select_exist_option_${acc.id}")
-                                )
+                    OutlinedTextField(
+                        value = currentSelection?.let { "${it.accountCode} - ${it.name}" } ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(Localization.translate(Localization.Key.SELECT_EXISTING_COA, lang)) },
+                        trailingIcon = {
+                            IconButton(onClick = { showAccountSearchDialog = true }) {
+                                Icon(Icons.Filled.Search, contentDescription = "Search")
                             }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showAccountSearchDialog = true }
+                            .testTag("cust_select_exist_trigger")
+                    )
+
+                    AccountSearchDialog(
+                        show = showAccountSearchDialog,
+                        onDismiss = { showAccountSearchDialog = false },
+                        accounts = leafAccounts,
+                        lang = lang,
+                        onSelect = { acc ->
+                            selectedExistAccountId = acc.id
                         }
-                    }
+                    )
                 }
 
                 Spacer(Modifier.height(24.dp))

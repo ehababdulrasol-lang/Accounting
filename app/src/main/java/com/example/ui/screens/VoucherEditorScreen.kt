@@ -435,10 +435,7 @@ fun VoucherLineRowItem(
     val activeCurrency = currencies.find { it.id == line.currencyId } ?: currencies.firstOrNull()
 
     val activeAcc = leafAccounts.find { it.id == line.accountId }
-    val initialText = activeAcc?.let { 
-        "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" 
-    } ?: ""
-    var searchAccountQuery by remember(line.accountId) { mutableStateOf(initialText) }
+    var showAccountSearchDialog by remember { mutableStateOf(false) }
 
     Card(
         shape = RoundedCornerShape(8.dp),
@@ -475,70 +472,35 @@ fun VoucherLineRowItem(
                 Spacer(Modifier.width(8.dp))
 
                 // Account Selection
-                ExposedDropdownMenuBox(
-                    expanded = accountDropdownExpanded,
-                    onExpandedChange = { accountDropdownExpanded = !accountDropdownExpanded },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    OutlinedTextField(
-                        value = searchAccountQuery,
-                        onValueChange = { newValue ->
-                            searchAccountQuery = newValue
-                            accountDropdownExpanded = true
-                        },
-                        label = { Text(if (lang == "ar") "الحساب المستهدف" else "Target Account") },
-                        trailingIcon = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (searchAccountQuery.isNotEmpty()) {
-                                    IconButton(onClick = { searchAccountQuery = "" }) {
-                                        Icon(Icons.Filled.Clear, contentDescription = "Clear")
-                                    }
-                                }
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountDropdownExpanded)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                            .testTag("voucher_row_account_input_$index")
-                    )
+                val activeSelectionText = activeAcc?.let {
+                    "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}"
+                } ?: (if (lang == "ar") "حدد حساباً محاسبياً" else "Select Account")
 
-                    val filteredAccounts = remember(searchAccountQuery, leafAccounts) {
-                        if (searchAccountQuery == initialText) {
-                            leafAccounts
-                        } else {
-                            leafAccounts.filter { acc ->
-                                val localizedName = com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)
-                                acc.accountCode.contains(searchAccountQuery, ignoreCase = true) ||
-                                localizedName.contains(searchAccountQuery, ignoreCase = true)
-                            }
+                OutlinedTextField(
+                    value = activeSelectionText,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(if (lang == "ar") "الحساب المستهدف" else "Target Account") },
+                    trailingIcon = {
+                        IconButton(onClick = { showAccountSearchDialog = true }) {
+                            Icon(Icons.Filled.Search, contentDescription = "Search")
                         }
-                    }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showAccountSearchDialog = true }
+                        .testTag("voucher_row_account_input_$index")
+                )
 
-                    ExposedDropdownMenu(
-                        expanded = accountDropdownExpanded && filteredAccounts.isNotEmpty(),
-                        onDismissRequest = { accountDropdownExpanded = false }
-                    ) {
-                        filteredAccounts.forEach { acc ->
-                            val localizedName = com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)
-                            val typeLabel = when (acc.accountType) {
-                                AccountType.ASSET -> if (lang == "ar") "أصول" else "ASSET"
-                                AccountType.LIABILITY -> if (lang == "ar") "التزامات" else "LIABILITY"
-                                AccountType.EQUITY -> if (lang == "ar") "حقوق ملكية" else "EQUITY"
-                                AccountType.REVENUE -> if (lang == "ar") "إيرادات" else "REVENUE"
-                                AccountType.EXPENSE -> if (lang == "ar") "مصروفات" else "EXPENSE"
-                            }
-                            DropdownMenuItem(
-                                text = { Text("${acc.accountCode} - $localizedName ($typeLabel)") },
-                                onClick = {
-                                    onUpdate(line.copy(accountId = acc.id, currencyId = acc.currencyId))
-                                    searchAccountQuery = "${acc.accountCode} - $localizedName"
-                                    accountDropdownExpanded = false
-                                }
-                            )
-                        }
+                AccountSearchDialog(
+                    show = showAccountSearchDialog,
+                    onDismiss = { showAccountSearchDialog = false },
+                    accounts = leafAccounts,
+                    lang = lang,
+                    onSelect = { acc ->
+                        onUpdate(line.copy(accountId = acc.id, currencyId = acc.currencyId))
                     }
-                }
+                )
 
                 Spacer(Modifier.width(8.dp))
 
@@ -668,4 +630,97 @@ fun VoucherLineRowItem(
             }
         }
     }
+}
+
+@Composable
+fun AccountSearchDialog(
+    show: Boolean,
+    onDismiss: () -> Unit,
+    accounts: List<Account>,
+    lang: String,
+    onSelect: (Account) -> Unit
+) {
+    if (!show) return
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(query, accounts) {
+        accounts.filter { acc ->
+            acc.accountCode.contains(query, ignoreCase = true) ||
+            com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang).contains(query, ignoreCase = true)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { 
+            Text(
+                if (lang == "ar") "البحث واختيار حساب" else "Search & Select Account",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            ) 
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text(if (lang == "ar") "اكتب اسم الحساب أو الرمز..." else "Type account name or code...") },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    singleLine = true,
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { query = "" }) {
+                                Icon(Icons.Filled.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    }
+                )
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 280.dp)
+                ) {
+                    if (filtered.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (lang == "ar") "لا توجد نتائج مطابقة" else "No matching results",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+                    items(filtered.size) { idx ->
+                        val acc = filtered[idx]
+                        val localizedName = com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)
+                        val typeLabel = when (acc.accountType) {
+                            AccountType.ASSET -> if (lang == "ar") "أصول" else "ASSET"
+                            AccountType.LIABILITY -> if (lang == "ar") "التزامات" else "LIABILITY"
+                            AccountType.EQUITY -> if (lang == "ar") "حقوق ملكية" else "EQUITY"
+                            AccountType.REVENUE -> if (lang == "ar") "إيرادات" else "REVENUE"
+                            AccountType.EXPENSE -> if (lang == "ar") "مصروفات" else "EXPENSE"
+                        }
+                        DropdownMenuItem(
+                            text = { Text("${acc.accountCode} - $localizedName ($typeLabel)") },
+                            onClick = {
+                                onSelect(acc)
+                                onDismiss()
+                            }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (lang == "ar") "إلغاء" else "Cancel")
+            }
+        }
+    )
 }

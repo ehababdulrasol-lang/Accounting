@@ -545,62 +545,33 @@ fun AddSupplierDialog(
                 if (linkStrategy == 2) {
                     Spacer(Modifier.height(10.dp))
 
-                    val filteredAccounts = remember(accountSearchQuery, leafAccounts) {
-                        leafAccounts.filter { acc ->
-                            acc.accountCode.contains(accountSearchQuery, ignoreCase = true) ||
-                            Localization.getAccountName(acc.accountCode, acc.name, lang).contains(accountSearchQuery, ignoreCase = true)
-                        }
-                    }
+                    val currentSelection = leafAccounts.find { it.id == selectedExistAccountId }
+                    var showAccountSearchDialog by remember { mutableStateOf(false) }
 
-                    ExposedDropdownMenuBox(
-                        expanded = menuExpanded,
-                        onExpandedChange = { menuExpanded = !menuExpanded }
-                    ) {
-                        val currentSelection = leafAccounts.find { it.id == selectedExistAccountId }
-                        OutlinedTextField(
-                            value = accountSearchQuery,
-                            onValueChange = { 
-                                accountSearchQuery = it
-                                menuExpanded = true
-                            },
-                            label = { 
-                                Text(
-                                    currentSelection?.let { "${it.accountCode} - ${Localization.getAccountName(it.accountCode, it.name, lang)}" } 
-                                        ?: (if (lang == "ar") "الحساب المقترن يدوياً" else "Manual AP Account")
-                                ) 
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                            trailingIcon = { 
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (accountSearchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { accountSearchQuery = "" }) {
-                                            Icon(Icons.Filled.Clear, contentDescription = "Clear")
-                                        }
-                                    }
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpanded)
-                                }
-                            },
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = menuExpanded && filteredAccounts.isNotEmpty(),
-                            onDismissRequest = { menuExpanded = false }
-                        ) {
-                            filteredAccounts.forEach { item ->
-                                val nameStr = "${item.accountCode} - ${Localization.getAccountName(item.accountCode, item.name, lang)}"
-                                DropdownMenuItem(
-                                    text = { Text(nameStr, style = MaterialTheme.typography.bodySmall) },
-                                    onClick = {
-                                        selectedExistAccountId = item.id
-                                        accountSearchQuery = nameStr
-                                        menuExpanded = false
-                                    }
-                                )
+                    OutlinedTextField(
+                        value = currentSelection?.let { "${it.accountCode} - ${Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(if (lang == "ar") "الحساب المقترن يدوياً" else "Manual AP Account") },
+                        trailingIcon = {
+                            IconButton(onClick = { showAccountSearchDialog = true }) {
+                                Icon(Icons.Filled.Search, contentDescription = "Search")
                             }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showAccountSearchDialog = true }
+                    )
+
+                    AccountSearchDialog(
+                        show = showAccountSearchDialog,
+                        onDismiss = { showAccountSearchDialog = false },
+                        accounts = leafAccounts,
+                        lang = lang,
+                        onSelect = { acc ->
+                            selectedExistAccountId = acc.id
                         }
-                    }
+                    )
                 }
 
                 Spacer(Modifier.height(24.dp))
@@ -612,22 +583,31 @@ fun AddSupplierDialog(
                     TextButton(onClick = onDismiss) {
                         Text(if (lang == "ar") "إلغاء" else "Cancel")
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val accIdToLink = when (linkStrategy) {
-                                1 -> matchExist?.id
-                                2 -> selectedExistAccountId
-                                else -> null
-                            }
-                            onConfirm(name, phone, email, accIdToLink)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent)
-                    ) {
+                    Spac                     ) {
                         Text(if (lang == "ar") "تسجيل وحفظ" else "Save Supplier")
                     }
                 }
             }
         }
     }
+}�ت" else "EXPENSE"
+                        }
+                        DropdownMenuItem(
+                            text = { Text("${acc.accountCode} - $localizedName ($typeLabel)") },
+                            onClick = {
+                                onSelect(acc)
+                                onDismiss()
+                            }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (lang == "ar") "إلغاء" else "Cancel")
+            }
+        }
+    )
 }
