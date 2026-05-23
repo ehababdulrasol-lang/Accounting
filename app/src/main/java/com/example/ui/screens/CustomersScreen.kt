@@ -270,7 +270,7 @@ fun CustomerCard(
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

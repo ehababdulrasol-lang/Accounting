@@ -418,7 +418,7 @@ fun AccountTreeRow(
             }
         }
 
-        Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
 
         if (account.isGroup && isExpanded) {
             Column(
@@ -555,7 +555,7 @@ fun AddAccountDialog(
                         label = { Text(Localization.translate(Localization.Key.TYPE, lang)) },
                         leadingIcon = { Icon(Icons.Filled.Category, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeMenuExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable),
                         shape = RoundedCornerShape(12.dp)
                     )
                     ExposedDropdownMenu(
@@ -601,7 +601,7 @@ fun AddAccountDialog(
                     label = { Text(Localization.translate(Localization.Key.CURRENCY, lang)) },
                     leadingIcon = { Icon(Icons.Filled.Payments, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyMenuExpanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable),
                     shape = RoundedCornerShape(12.dp)
                 )
                 ExposedDropdownMenu(
