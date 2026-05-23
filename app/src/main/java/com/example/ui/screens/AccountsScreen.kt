@@ -41,11 +41,15 @@ fun AccountsScreen(
     val allAccounts by viewModel.accounts.collectAsState()
     val rootAccounts = remember(allAccounts) { allAccounts.filter { it.parentId == null } }
     val snapshots by viewModel.accountSnapshots.collectAsState()
+    val cashBoxes by viewModel.cashBoxes.collectAsState()
+    val bankAccounts by viewModel.allBankAccounts.collectAsState()
     
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedParentAccount by remember { mutableStateOf<Account?>(null) }
     var statementAccount by remember { mutableStateOf<Account?>(null) }
     var editAccount by remember { mutableStateOf<Account?>(null) }
+    var accountToDelete by remember { mutableStateOf<Account?>(null) }
+    var showSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -93,11 +97,15 @@ fun AccountsScreen(
                                 depth = 0,
                                 viewModel = viewModel,
                                 snapshots = snapshots,
+                                lang = lang,
+                                isLibyan = isLibyan,
+                                cashBoxes = cashBoxes,
+                                bankAccounts = bankAccounts,
                                 onAddSub = {
                                     selectedParentAccount = it
                                     showAddDialog = true
                                 },
-                                onDelete = { viewModel.deleteAccount(it) },
+                                onDelete = { accountToDelete = it },
                                 onViewStatement = {
                                     statementAccount = it
                                 },
@@ -141,6 +149,7 @@ fun AccountsScreen(
                             isGroup = isGroup
                         )
                         showAddDialog = false
+                        showSuccessMessage = if (lang == "ar") "تم إضافة الحساب الجديد بنجاح" else "Account added successfully!"
                     },
                     viewModel = viewModel
                 )
@@ -161,8 +170,33 @@ fun AccountsScreen(
                     onSave = { code, name ->
                         viewModel.updateAccount(editAccount!!, name, code)
                         editAccount = null
+                        showSuccessMessage = if (lang == "ar") "تم تعديل بيانات الحساب بنجاح" else "Account updated successfully!"
                     },
                     viewModel = viewModel
+                )
+            }
+
+            if (accountToDelete != null) {
+                val accName = Localization.getAccountName(accountToDelete!!.accountCode, accountToDelete!!.name, lang)
+                AnimatedDeleteConfirmDialog(
+                    title = if (lang == "ar") "تأكيد حذف الحساب" else "Confirm Deletion",
+                    message = if (lang == "ar") "هل أنت متأكد من رغبتك في حذف الحساب: $accName (رمز: ${accountToDelete!!.accountCode})؟" else "Are you sure you want to delete account: $accName (Code: ${accountToDelete!!.accountCode})?",
+                    lang = lang,
+                    onConfirm = {
+                        val toDel = accountToDelete!!
+                        viewModel.deleteAccount(toDel)
+                        accountToDelete = null
+                        showSuccessMessage = if (lang == "ar") "تم حذف الحساب بنجاح" else "Account deleted successfully!"
+                    },
+                    onDismiss = { accountToDelete = null }
+                )
+            }
+
+            if (showSuccessMessage != null) {
+                SuccessTickDialog(
+                    message = showSuccessMessage!!,
+                    lang = lang,
+                    onDismiss = { showSuccessMessage = null }
                 )
             }
         }
@@ -176,16 +210,15 @@ fun AccountTreeRow(
     depth: Int,
     viewModel: LedgerViewModel,
     snapshots: List<AccountBalanceSnapshot>,
+    lang: String,
+    isLibyan: Boolean,
+    cashBoxes: List<com.example.data.CashBox>,
+    bankAccounts: List<com.example.data.BankAccount>,
     onAddSub: (Account) -> Unit,
     onDelete: (Account) -> Unit,
     onViewStatement: (Account) -> Unit,
     onEdit: (Account) -> Unit
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val isLibyan by viewModel.isLibyanMode.collectAsState()
-    val cashBoxes by viewModel.cashBoxes.collectAsState()
-    val bankAccounts by viewModel.allBankAccounts.collectAsState()
-
     var isExpanded by remember { mutableStateOf(depth < 1) } // Default expand roots
     val subAccounts = remember(allAccounts, account) {
         allAccounts.filter { it.parentId == account.id }
@@ -400,6 +433,10 @@ fun AccountTreeRow(
                         depth = depth + 1,
                         viewModel = viewModel,
                         snapshots = snapshots,
+                        lang = lang,
+                        isLibyan = isLibyan,
+                        cashBoxes = cashBoxes,
+                        bankAccounts = bankAccounts,
                         onAddSub = onAddSub,
                         onDelete = onDelete,
                         onViewStatement = onViewStatement,
@@ -430,163 +467,226 @@ fun AddAccountDialog(
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var currencyMenuExpanded by remember { mutableStateOf(false) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+
+    val onDismissWithHide = {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        onDismiss()
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismissWithHide,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp, top = 8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (parentAccount != null) {
-                        if (lang == "ar") "إضافة حساب فرعي تحت ${parentAccount.name}" else "Add Account under ${parentAccount.name}"
-                    } else {
-                        if (lang == "ar") "إضافة حساب رئيسي جديد" else "Add New Base Account"
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                Icon(
+                    Icons.Filled.AccountTree,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
                 )
-                Spacer(Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { code = it },
-                    label = { Text(if (lang == "ar") "رمز الحساب (رقمي مثال: 1101)" else "Account Code (Numeric e.g. 1101)") },
-                    modifier = Modifier.fillMaxWidth().testTag("add_account_code_input")
-                )
-                Spacer(Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(Localization.translate(Localization.Key.NAME, lang)) },
-                    modifier = Modifier.fillMaxWidth().testTag("add_account_name_input")
-                )
-                Spacer(Modifier.height(12.dp))
-
-                // If no parent, allow choosing accounting type. If parent exists, freeze it to parent's type
-                if (parentAccount == null) {
-                    ExposedDropdownMenuBox(
-                        expanded = typeMenuExpanded,
-                        onExpandedChange = { typeMenuExpanded = !typeMenuExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedType.name,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(Localization.translate(Localization.Key.TYPE, lang)) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeMenuExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = typeMenuExpanded,
-                            onDismissRequest = { typeMenuExpanded = false }
-                        ) {
-                            AccountType.values().forEach { type ->
-                                DropdownMenuItem(
-                                    text = { Text(type.name) },
-                                    onClick = {
-                                        selectedType = type
-                                        typeMenuExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                } else {
-                    OutlinedTextField(
-                        value = if (lang == "ar") "موروث: ${selectedType.name}" else "Inherited: ${selectedType.name}",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(if (lang == "ar") "نوع الحساب" else "Account Type (Inherited)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = false
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = if (parentAccount != null) {
+                            if (lang == "ar") "إضافة حساب فرعي تحت ${parentAccount.name}" else "Add Account under ${parentAccount.name}"
+                        } else {
+                            if (lang == "ar") "إضافة حساب رئيسي جديد" else "Add New Base Account"
+                        },
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = if (lang == "ar") "أدخل معلومات الحساب المالي الجديد وإعداده لشجرة الحسابات" else "Configure a new ledger or category node in the Chart of Accounts",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
                 }
+            }
 
-                // Currency selector
+            Spacer(Modifier.height(24.dp))
+
+            OutlinedTextField(
+                value = code,
+                onValueChange = { code = it },
+                label = { Text(if (lang == "ar") "رمز الحساب (رقمي مثال: 1101)" else "Account Code (Numeric e.g. 1101)") },
+                leadingIcon = { Icon(Icons.Filled.Numbers, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier.fillMaxWidth().testTag("add_account_code_input"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+            Spacer(Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(Localization.translate(Localization.Key.NAME, lang)) },
+                leadingIcon = { Icon(Icons.Filled.Label, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier.fillMaxWidth().testTag("add_account_name_input"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+            Spacer(Modifier.height(14.dp))
+
+            // If no parent, allow choosing accounting type. If parent exists, freeze it to parent's type
+            if (parentAccount == null) {
                 ExposedDropdownMenuBox(
-                    expanded = currencyMenuExpanded,
-                    onExpandedChange = { currencyMenuExpanded = !currencyMenuExpanded }
+                    expanded = typeMenuExpanded,
+                    onExpandedChange = { typeMenuExpanded = !typeMenuExpanded }
                 ) {
-                    val activeCurrency = currencies.find { it.id == selectedCurrencyId } ?: currencies.firstOrNull()
                     OutlinedTextField(
-                        value = activeCurrency?.let { "${it.code} (${it.name})" } ?: (if (lang == "ar") "اختر العملة" else "Select Currency"),
+                        value = selectedType.name,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text(Localization.translate(Localization.Key.CURRENCY, lang)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyMenuExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                        label = { Text(Localization.translate(Localization.Key.TYPE, lang)) },
+                        leadingIcon = { Icon(Icons.Filled.Category, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeMenuExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     ExposedDropdownMenu(
-                        expanded = currencyMenuExpanded,
-                        onDismissRequest = { currencyMenuExpanded = false }
+                        expanded = typeMenuExpanded,
+                        onDismissRequest = { typeMenuExpanded = false }
                     ) {
-                        currencies.forEach { curr ->
+                        AccountType.values().forEach { type ->
                             DropdownMenuItem(
-                                text = { Text("${curr.code} - ${curr.name}") },
+                                text = { Text(type.name) },
                                 onClick = {
-                                    selectedCurrencyId = curr.id
-                                    currencyMenuExpanded = false
+                                    selectedType = type
+                                    typeMenuExpanded = false
                                 }
                             )
                         }
                     }
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(14.dp))
+            } else {
+                OutlinedTextField(
+                    value = if (lang == "ar") "موروث: ${selectedType.name}" else "Inherited: ${selectedType.name}",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(if (lang == "ar") "نوع الحساب" else "Account Type (Inherited)") },
+                    leadingIcon = { Icon(Icons.Filled.Lock, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Spacer(Modifier.height(14.dp))
+            }
 
-                // Account vs Group selector
+            // Currency selector
+            ExposedDropdownMenuBox(
+                expanded = currencyMenuExpanded,
+                onExpandedChange = { currencyMenuExpanded = !currencyMenuExpanded }
+            ) {
+                val activeCurrency = currencies.find { it.id == selectedCurrencyId } ?: currencies.firstOrNull()
+                OutlinedTextField(
+                    value = activeCurrency?.let { "${it.code} (${it.name})" } ?: (if (lang == "ar") "اختر العملة" else "Select Currency"),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(Localization.translate(Localization.Key.CURRENCY, lang)) },
+                    leadingIcon = { Icon(Icons.Filled.Payments, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyMenuExpanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                ExposedDropdownMenu(
+                    expanded = currencyMenuExpanded,
+                    onDismissRequest = { currencyMenuExpanded = false }
+                ) {
+                    currencies.forEach { curr ->
+                        DropdownMenuItem(
+                            text = { Text("${curr.code} - ${curr.name}") },
+                            onClick = {
+                                selectedCurrencyId = curr.id
+                                currencyMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+
+            // Account vs Group selector card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isGroup) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = if (isGroup) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isGroup = !isGroup }
+            ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isGroup = !isGroup }
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
                         checked = isGroup,
                         onCheckedChange = { isGroup = it }
                     )
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(8.dp))
                     Column {
                         Text(
                             text = if (lang == "ar") "هل هو حساب فئة (رئيسي)؟" else "Is Group Account",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
                             text = if (lang == "ar") "عند تفعيله، سيعمل هذا الحساب كمجلد فئات ولا يمكن تسجيل قيود ومعاملات مالية عليه مباشرة." else "If checked, this account acts as a category folder and cannot receive transactions directly.",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                 }
+            }
 
-                Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(30.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onDismissWithHide,
+                    modifier = Modifier.height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(Localization.translate(Localization.Key.CANCEL, lang))
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = { onSave(code, name, selectedType, selectedCurrencyId, isGroup) },
-                        enabled = code.isNotBlank() && name.isNotBlank(),
-                        modifier = Modifier.testTag("save_account_button")
-                    ) {
-                        Text(Localization.translate(Localization.Key.CREATE, lang))
-                    }
+                    Text(Localization.translate(Localization.Key.CANCEL, lang))
+                }
+                Spacer(Modifier.width(12.dp))
+                Button(
+                    onClick = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                        onSave(code, name, selectedType, selectedCurrencyId, isGroup)
+                    },
+                    enabled = code.isNotBlank() && name.isNotBlank(),
+                    modifier = Modifier.testTag("save_account_button").height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Filled.Check, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(Localization.translate(Localization.Key.CREATE, lang))
                 }
             }
         }
@@ -866,58 +966,103 @@ fun EditAccountDialog(
     var code by remember { mutableStateOf(account.accountCode) }
     var name by remember { mutableStateOf(account.name) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+
+    val onDismissWithHide = {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        onDismiss()
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismissWithHide,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp, top = 8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (lang == "ar") "تعديل الحساب: ${account.name}" else "Edit Account: ${account.name}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = if (lang == "ar") "تعديل الحساب المالي" else "Edit Account Details",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (lang == "ar") "تحديث رمز الحساب واسمه في شجرة الحسابات العامة" else "Update account name and coding structure in the system catalog",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
 
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { code = it },
-                    label = { Text(if (lang == "ar") "رمز الحساب" else "Account Code") },
-                    modifier = Modifier.fillMaxWidth().testTag("edit_account_code_input")
-                )
-                Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(24.dp))
 
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(if (lang == "ar") "اسم الحساب" else "Account Name") },
-                    modifier = Modifier.fillMaxWidth().testTag("edit_account_name_input")
-                )
-                Spacer(Modifier.height(20.dp))
+            OutlinedTextField(
+                value = code,
+                onValueChange = { code = it },
+                label = { Text(if (lang == "ar") "رمز الحساب" else "Account Code") },
+                leadingIcon = { Icon(Icons.Filled.Numbers, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier.fillMaxWidth().testTag("edit_account_code_input"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+            Spacer(Modifier.height(14.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(if (lang == "ar") "اسم الحساب" else "Account Name") },
+                leadingIcon = { Icon(Icons.Filled.Label, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier.fillMaxWidth().testTag("edit_account_name_input"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+            Spacer(Modifier.height(30.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onDismissWithHide,
+                    modifier = Modifier.height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(if (lang == "ar") "إلغاء الأمر" else "Cancel")
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = { onSave(code, name) },
-                        modifier = Modifier.testTag("edit_account_save_button")
-                    ) {
-                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
-                    }
+                    Text(if (lang == "ar") "إلغاء الحفظ" else "Cancel")
+                }
+                Spacer(Modifier.width(12.dp))
+                Button(
+                    onClick = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                        onSave(code, name)
+                    },
+                    modifier = Modifier.testTag("edit_account_save_button").height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = code.isNotBlank() && name.isNotBlank()
+                ) {
+                    Icon(Icons.Filled.Check, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
                 }
             }
         }

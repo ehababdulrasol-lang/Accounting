@@ -46,6 +46,8 @@ fun CustomersScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var editingCustomer by remember { mutableStateOf<Customer?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var customerToDelete by remember { mutableStateOf<Customer?>(null) }
+    var showSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -142,7 +144,7 @@ fun CustomersScreen(
                                 customer = customer,
                                 account = linkedAccount,
                                 balance = balance,
-                                onDelete = { viewModel.deleteCustomer(customer) },
+                                onDelete = { customerToDelete = customer },
                                 onEdit = { editingCustomer = customer },
                                 onViewStatement = {
                                     viewModel.statementTargetAccountId.value = customer.accountId
@@ -174,6 +176,7 @@ fun CustomersScreen(
                     onConfirm = { name, phone, email, linkAccId ->
                         viewModel.addCustomer(name, phone, email, linkAccId)
                         showAddDialog = false
+                        showSuccessMessage = if (lang == "ar") "تم تسجيل ملف العميل بنجاح" else "Customer registered successfully!"
                     },
                     leafAccounts = leafAccounts,
                     lang = lang
@@ -187,8 +190,33 @@ fun CustomersScreen(
                     onConfirm = { name, phone, email ->
                         viewModel.updateCustomer(editingCustomer!!.copy(name = name, phone = phone, email = email))
                         editingCustomer = null
+                        showSuccessMessage = if (lang == "ar") "تم تعديل بيانات العميل بنجاح" else "Customer details updated successfully!"
                     },
                     lang = lang
+                )
+            }
+
+            if (customerToDelete != null) {
+                val cName = customerToDelete!!.name
+                AnimatedDeleteConfirmDialog(
+                    title = if (lang == "ar") "تأكيد حذف العميل" else "Confirm Customer Deletion",
+                    message = if (lang == "ar") "هل أنت متأكد من رغبتك في حذف ملف العميل: $cName؟" else "Are you sure you want to delete customer profile: $cName?",
+                    lang = lang,
+                    onConfirm = {
+                        val toDel = customerToDelete!!
+                        viewModel.deleteCustomer(toDel)
+                        customerToDelete = null
+                        showSuccessMessage = if (lang == "ar") "تم حذف ملف العميل بنجاح" else "Customer deleted successfully!"
+                    },
+                    onDismiss = { customerToDelete = null }
+                )
+            }
+
+            if (showSuccessMessage != null) {
+                SuccessTickDialog(
+                    message = showSuccessMessage!!,
+                    lang = lang,
+                    onDismiss = { showSuccessMessage = null }
                 )
             }
         }
@@ -213,9 +241,7 @@ fun CustomerCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
         ),
-        border = java.lang.Deprecated().let {
-            androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-        }
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
     ) {
         Column(
             modifier = Modifier
@@ -358,98 +384,116 @@ fun EditCustomerDialog(
     var phone by remember { mutableStateOf(customer.phone) }
     var email by remember { mutableStateOf(customer.email) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
             modifier = Modifier
-                .width(400.dp)
-                .wrapContentHeight()
-                .padding(8.dp)
-                .testTag("edit_customer_dialog"),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp, top = 8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Filled.Edit,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(8.dp))
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Column {
                     Text(
                         text = if (lang == "ar") "تعديل بيانات العميل" else "Edit Customer Details",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (lang == "ar") "تحديث معلومات الاتصال والربط المالي بالعميل" else "Update customer contact and ledger details",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
+            }
 
-                Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(Localization.translate(Localization.Key.CUSTOMER_NAME, lang)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("edit_cust_input_name"),
-                    singleLine = true
-                )
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(Localization.translate(Localization.Key.CUSTOMER_NAME, lang)) },
+                leadingIcon = { Icon(Icons.Filled.Person, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("edit_cust_input_name"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
 
-                Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(14.dp))
 
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text(Localization.translate(Localization.Key.PHONE, lang)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("edit_cust_input_phone"),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                )
+            OutlinedTextField(
+                value = phone,
+                onValueChange = { phone = it },
+                label = { Text(Localization.translate(Localization.Key.PHONE, lang)) },
+                leadingIcon = { Icon(Icons.Filled.Phone, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("edit_cust_input_phone"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+            )
 
-                Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(14.dp))
 
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text(Localization.translate(Localization.Key.EMAIL, lang)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("edit_cust_input_email"),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                )
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text(Localization.translate(Localization.Key.EMAIL, lang)) },
+                leadingIcon = { Icon(Icons.Filled.Email, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("edit_cust_input_email"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+            )
 
-                Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(30.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.testTag("edit_cust_btn_cancel").height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    TextButton(onClick = onDismiss, modifier = Modifier.testTag("edit_cust_btn_cancel")) {
-                        Text(Localization.translate(Localization.Key.CANCEL, lang))
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (name.isNotBlank()) {
-                                onConfirm(name, phone, email)
-                            }
-                        },
-                        enabled = name.isNotBlank(),
-                        modifier = Modifier.testTag("edit_cust_btn_save")
-                    ) {
-                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
-                    }
+                    Text(Localization.translate(Localization.Key.CANCEL, lang))
+                }
+                Spacer(Modifier.width(12.dp))
+                Button(
+                    onClick = {
+                        if (name.isNotBlank()) {
+                            onConfirm(name, phone, email)
+                        }
+                    },
+                    enabled = name.isNotBlank(),
+                    modifier = Modifier.testTag("edit_cust_btn_save").height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Filled.Check, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
                 }
             }
         }
@@ -471,210 +515,284 @@ fun AddCustomerDialog(
     // Strategies: 0 = Auto-open new, 1 = Link to existing matching name, 2 = Choose exist manually
     var linkStrategy by remember { mutableStateOf(0) }
     var selectedExistAccountId by remember { mutableStateOf<Long?>(null) }
-    var menuExpanded by remember { mutableStateOf(false) }
-    var accountSearchQuery by remember { mutableStateOf("") }
 
     // Match checking
     val matchExist = remember(name) {
         leafAccounts.find { it.name.trim().equals(name.trim(), ignoreCase = true) }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
             modifier = Modifier
-                .width(420.dp)
-                .wrapContentHeight()
-                .padding(8.dp)
-                .testTag("add_customer_dialog"),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp, top = 8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Filled.PersonAdd,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(8.dp))
+                Icon(
+                    Icons.Filled.PersonAdd,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Column {
                     Text(
                         text = Localization.translate(Localization.Key.ADD_NEW_CUSTOMER, lang),
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (lang == "ar") "أدخل معلومات العميل الجديد لإنشاء ملف وربطه محاسبياً" else "Add new customer profile to track receivables and audit trails",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
+            }
 
-                Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(Localization.translate(Localization.Key.CUSTOMER_NAME, lang)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("cust_input_name"),
-                    singleLine = true
-                )
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(Localization.translate(Localization.Key.CUSTOMER_NAME, lang)) },
+                leadingIcon = { Icon(Icons.Filled.Person, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("cust_input_name"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
 
-                Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(14.dp))
 
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text(Localization.translate(Localization.Key.PHONE, lang)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("cust_input_phone"),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                )
+            OutlinedTextField(
+                value = phone,
+                onValueChange = { phone = it },
+                label = { Text(Localization.translate(Localization.Key.PHONE, lang)) },
+                leadingIcon = { Icon(Icons.Filled.Phone, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("cust_input_phone"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+            )
 
-                Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(14.dp))
 
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text(Localization.translate(Localization.Key.EMAIL, lang)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("cust_input_email"),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                )
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text(Localization.translate(Localization.Key.EMAIL, lang)) },
+                leadingIcon = { Icon(Icons.Filled.Email, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("cust_input_email"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+            )
 
-                Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
-                Text(
-                    text = Localization.translate(Localization.Key.C_ACCOUNT_LINKING, lang),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
-                )
+            Text(
+                text = Localization.translate(Localization.Key.C_ACCOUNT_LINKING, lang),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
-                Spacer(Modifier.height(8.dp))
-
-                // Options
-                // 1. Auto-open
+            // Selectable Custom cards for strategies
+            // 1. Auto-open
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (linkStrategy == 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = if (linkStrategy == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { linkStrategy = 0 }
+                    .padding(vertical = 4.dp)
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { linkStrategy = 0 }
-                        .padding(vertical = 4.dp),
+                    modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(selected = linkStrategy == 0, onClick = { linkStrategy = 0 })
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = Localization.translate(Localization.Key.AUTO_OPEN_ACCOUNT, lang),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Column {
+                        Text(
+                            text = Localization.translate(Localization.Key.AUTO_OPEN_ACCOUNT, lang),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = if (lang == "ar") "سيقوم النظام بإنشاء حساب أستاذ مستقل بالدليل بشكل آلي تمامًا" else "System will auto-create a ledger account in CoA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
                 }
+            }
 
-                // 2. Link existing matching
-                if (matchExist != null) {
+            // 2. Link existing matching
+            if (matchExist != null) {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (linkStrategy == 1) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = if (linkStrategy == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { linkStrategy = 1 }
+                        .padding(vertical = 4.dp)
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { linkStrategy = 1 }
-                            .padding(vertical = 4.dp),
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(selected = linkStrategy == 1, onClick = { linkStrategy = 1 })
                         Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "${Localization.translate(Localization.Key.LINK_EXISTING_MATCH, lang)} (${matchExist.accountCode})",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = EmeraldGreen
-                        )
+                        Column {
+                            Text(
+                                text = "${Localization.translate(Localization.Key.LINK_EXISTING_MATCH, lang)} (${matchExist.accountCode})",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = EmeraldGreen
+                            )
+                            Text(
+                                text = if (lang == "ar") "ربط الملف بحساب مالي مطابق الاسم مسجل مسبقاً بالشجرة" else "Link to an existing ledger account with matching name",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
                     }
                 }
+            }
 
-                // 3. Link existing manually
+            // 3. Link existing manually
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (linkStrategy == 2) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = if (linkStrategy == 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { linkStrategy = 2 }
+                    .padding(vertical = 4.dp)
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { linkStrategy = 2 }
-                        .padding(vertical = 4.dp),
+                    modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(selected = linkStrategy == 2, onClick = { linkStrategy = 2 })
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = Localization.translate(Localization.Key.LINK_EXISTING, lang),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Column {
+                        Text(
+                            text = Localization.translate(Localization.Key.LINK_EXISTING, lang),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = if (lang == "ar") "تحديد حساب يدويًا من شجرة الحسابات دون قيود مطابقة الاسم" else "Choose any manual active account from Chart of Accounts",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
                 }
+            }
 
-                if (linkStrategy == 2) {
-                    Spacer(Modifier.height(10.dp))
-                    
-                    val currentSelection = leafAccounts.find { it.id == selectedExistAccountId }
-                    var showAccountSearchDialog by remember { mutableStateOf(false) }
+            if (linkStrategy == 2) {
+                Spacer(Modifier.height(14.dp))
+                
+                val currentSelection = leafAccounts.find { it.id == selectedExistAccountId }
+                var showAccountSearchDialog by remember { mutableStateOf(false) }
 
-                    OutlinedTextField(
-                        value = currentSelection?.let { "${it.accountCode} - ${it.name}" } ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(Localization.translate(Localization.Key.SELECT_EXISTING_COA, lang)) },
-                        trailingIcon = {
-                            IconButton(onClick = { showAccountSearchDialog = true }) {
-                                Icon(Icons.Filled.Search, contentDescription = "Search")
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showAccountSearchDialog = true }
-                            .testTag("cust_select_exist_trigger")
-                    )
-
-                    AccountSearchDialog(
-                        show = showAccountSearchDialog,
-                        onDismiss = { showAccountSearchDialog = false },
-                        accounts = leafAccounts,
-                        lang = lang,
-                        onSelect = { acc ->
-                            selectedExistAccountId = acc.id
+                OutlinedTextField(
+                    value = currentSelection?.let { "${it.accountCode} - ${it.name}" } ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(Localization.translate(Localization.Key.SELECT_EXISTING_COA, lang)) },
+                    leadingIcon = { Icon(Icons.Filled.AccountBalance, null, tint = MaterialTheme.colorScheme.primary) },
+                    trailingIcon = {
+                        IconButton(onClick = { showAccountSearchDialog = true }) {
+                            Icon(Icons.Filled.Search, contentDescription = "Search")
                         }
-                    )
-                }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showAccountSearchDialog = true }
+                        .testTag("cust_select_exist_trigger"),
+                    shape = RoundedCornerShape(12.dp)
+                )
 
-                Spacer(Modifier.height(24.dp))
+                AccountSearchDialog(
+                    show = showAccountSearchDialog,
+                    onDismiss = { showAccountSearchDialog = false },
+                    accounts = leafAccounts,
+                    lang = lang,
+                    onSelect = { acc ->
+                        selectedExistAccountId = acc.id
+                    }
+                )
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+            Spacer(Modifier.height(30.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.testTag("cust_btn_cancel").height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    TextButton(onClick = onDismiss, modifier = Modifier.testTag("cust_btn_cancel")) {
-                        Text(Localization.translate(Localization.Key.CANCEL, lang))
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (name.isNotBlank()) {
-                                val linkId = when (linkStrategy) {
-                                    1 -> matchExist?.id
-                                    2 -> selectedExistAccountId
-                                    else -> null // Auto open
-                                }
-                                onConfirm(name, phone, email, linkId)
+                    Text(Localization.translate(Localization.Key.CANCEL, lang))
+                }
+                Spacer(Modifier.width(12.dp))
+                Button(
+                    onClick = {
+                        if (name.isNotBlank()) {
+                            val linkId = when (linkStrategy) {
+                                1 -> matchExist?.id
+                                2 -> selectedExistAccountId
+                                else -> null // Auto open
                             }
-                        },
-                        enabled = name.isNotBlank() && (linkStrategy != 2 || selectedExistAccountId != null),
-                        modifier = Modifier.testTag("cust_btn_save")
-                    ) {
-                        Text(Localization.translate(Localization.Key.SAVE_CUSTOMER, lang))
-                    }
+                            onConfirm(name, phone, email, linkId)
+                        }
+                    },
+                    enabled = name.isNotBlank() && (linkStrategy != 2 || selectedExistAccountId != null),
+                    modifier = Modifier.testTag("cust_btn_save").height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Filled.Check, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(Localization.translate(Localization.Key.SAVE_CUSTOMER, lang))
                 }
             }
         }

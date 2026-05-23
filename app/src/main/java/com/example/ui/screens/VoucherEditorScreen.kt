@@ -65,6 +65,9 @@ fun VoucherEditorScreen(
     val creditTotalBase = validationTriple.second
     val isBalanced = validationTriple.third
 
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+
     var fyDropdownExpanded by remember { mutableStateOf(false) }
     var isHeaderCollapsed by remember { mutableStateOf(false) }
 
@@ -86,7 +89,11 @@ fun VoucherEditorScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = onNavigateBack,
+                onClick = {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                    onNavigateBack()
+                },
                 modifier = Modifier
                     .size(40.dp)
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
@@ -121,15 +128,22 @@ fun VoucherEditorScreen(
             // Save Draft master CTA
             Button(
                 onClick = {
-                    viewModel.saveActiveVoucher()
-                    onNavigateBack()
+                    if (isBalanced) {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                        viewModel.saveActiveVoucher()
+                        onNavigateBack()
+                    }
                 },
+                enabled = isBalanced,
                 modifier = Modifier
                     .testTag("save_voucher_button")
-                    .shadow(4.dp, RoundedCornerShape(12.dp)),
+                    .shadow(if (isBalanced) 4.dp else 0.dp, RoundedCornerShape(12.dp)),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = if (isBalanced) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                 )
             ) {
                 Icon(Icons.Filled.Save, contentDescription = null, modifier = Modifier.size(16.dp))

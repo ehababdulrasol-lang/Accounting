@@ -45,16 +45,21 @@ import java.util.Locale
 fun VouchersScreen(
     viewModel: LedgerViewModel,
     onNavigateToEditor: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    forcedType: VoucherType? = null
 ) {
     val headers by viewModel.vouchers.collectAsState()
     val fyList by viewModel.fiscalYears.collectAsState()
     val lang by viewModel.currentLanguage.collectAsState()
     val isLibyan by viewModel.isLibyanMode.collectAsState()
 
-    var selectedTypeFilter by remember { mutableStateOf<VoucherType?>(null) }
+    var selectedTypeFilter by remember { mutableStateOf<VoucherType?>(forcedType) }
     var selectedStatusFilter by remember { mutableStateOf<Boolean?>(null) } // true for Posted, false for Draft
     var searchTxt by remember { mutableStateOf("") }
+
+    LaunchedEffect(forcedType) {
+        selectedTypeFilter = forcedType
+    }
 
     val filteredHeaders = remember(headers, selectedTypeFilter, selectedStatusFilter, searchTxt) {
         headers.filter { header ->
@@ -81,8 +86,20 @@ fun VouchersScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    val customTitle = when (forcedType) {
+                        VoucherType.RECEIPT -> if (lang == "ar") "سندات القبض المالي" else "Receipt Vouchers"
+                        VoucherType.PAYMENT -> if (lang == "ar") "سندات الصرف والدفع" else "Payment Vouchers"
+                        VoucherType.JOURNAL -> if (lang == "ar") "قيود اليومية والتسوية" else "Journal Entries"
+                        null -> Localization.translate(Localization.Key.VOUCHER_TX_JOURNAL, lang)
+                    }
+                    val customSubtitle = when (forcedType) {
+                        VoucherType.RECEIPT -> if (lang == "ar") "إدارة وتتبع المقبوضات النقدية والبنكية المسجلة بالنظام" else "Manage and track recorded cash & bank receipts"
+                        VoucherType.PAYMENT -> if (lang == "ar") "إدارة وتتبع المصروفات والمدفوعات النقدية والصيرفة" else "Manage and track payments and cash disbursements"
+                        VoucherType.JOURNAL -> if (lang == "ar") "توثيق القيود المزدوجة والتسويات العامة في الحسابات" else "Manage and document double-entries and adjustments"
+                        null -> if (lang == "ar") "أرشيف القيود وسندات اليومية العامة للنظام ماليًا" else "General ledger entries and daily voucher registry"
+                    }
                     Text(
-                        text = Localization.translate(Localization.Key.VOUCHER_TX_JOURNAL, lang),
+                        text = customTitle,
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onBackground,
@@ -90,7 +107,7 @@ fun VouchersScreen(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = if (lang == "ar") "أرشيف القيود وسندات اليومية العامة للنظام ماليًا" else "General ledger entries and daily voucher registry",
+                        text = customSubtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
@@ -99,7 +116,7 @@ fun VouchersScreen(
                 // Add Quick Voucher shortcut header
                 IconButton(
                     onClick = {
-                        viewModel.createNewVoucherForm()
+                        viewModel.createNewVoucherForm(selectedTypeFilter)
                         onNavigateToEditor()
                     },
                     modifier = Modifier
@@ -115,9 +132,9 @@ fun VouchersScreen(
                 }
             }
 
-            val draftCount = remember(headers) { headers.count { !it.isPosted } }
-            val postedCount = remember(headers) { headers.count { it.isPosted } }
-            val totalAmount = remember(headers) { headers.sumOf { it.totalAmountBase } }
+            val draftCount = remember(headers, selectedTypeFilter) { headers.count { !it.isPosted && (selectedTypeFilter == null || it.type == selectedTypeFilter) } }
+            val postedCount = remember(headers, selectedTypeFilter) { headers.count { it.isPosted && (selectedTypeFilter == null || it.type == selectedTypeFilter) } }
+            val totalAmount = remember(headers, selectedTypeFilter) { headers.filter { selectedTypeFilter == null || it.type == selectedTypeFilter }.sumOf { it.totalAmountBase } }
 
             // High Fidelity Unified Statistical Deck
             Card(
@@ -252,53 +269,55 @@ fun VouchersScreen(
 
             // Horizontal Pill filtering layout (Unified Row Filters)
             Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                // Voucher Type Tabs Scroll row
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val types = listOf(null) + VoucherType.values()
-                    types.forEach { t ->
-                        val selected = selectedTypeFilter == t
-                        val typeLabel = when (t) {
-                            null -> if (lang == "ar") "كل التصاميم" else "All Entries"
-                            VoucherType.JOURNAL -> Localization.translate(Localization.Key.ST_JOURNAL, lang)
-                            VoucherType.RECEIPT -> Localization.translate(Localization.Key.ST_RECEIPT, lang)
-                            VoucherType.PAYMENT -> Localization.translate(Localization.Key.ST_PAYMENT, lang)
-                        }
-
-                        val containerColor = if (selected) {
-                            when (t) {
-                                null -> MaterialTheme.colorScheme.primary
-                                VoucherType.JOURNAL -> MaterialTheme.colorScheme.primary
-                                VoucherType.RECEIPT -> EmeraldGreen
-                                VoucherType.PAYMENT -> RoseRed
+                if (forcedType == null) {
+                    // Voucher Type Tabs Scroll row
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val types = listOf(null) + VoucherType.values()
+                        types.forEach { t ->
+                            val selected = selectedTypeFilter == t
+                            val typeLabel = when (t) {
+                                null -> if (lang == "ar") "كل التصاميم" else "All Entries"
+                                VoucherType.JOURNAL -> Localization.translate(Localization.Key.ST_JOURNAL, lang)
+                                VoucherType.RECEIPT -> Localization.translate(Localization.Key.ST_RECEIPT, lang)
+                                VoucherType.PAYMENT -> Localization.translate(Localization.Key.ST_PAYMENT, lang)
                             }
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                        }
 
-                        val contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            val containerColor = if (selected) {
+                                when (t) {
+                                    null -> MaterialTheme.colorScheme.primary
+                                    VoucherType.JOURNAL -> MaterialTheme.colorScheme.primary
+                                    VoucherType.RECEIPT -> EmeraldGreen
+                                    VoucherType.PAYMENT -> RoseRed
+                                }
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            }
 
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(containerColor)
-                                .clickable { selectedTypeFilter = t }
-                                .padding(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = typeLabel,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                color = contentColor
-                            )
+                            val contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(containerColor)
+                                    .clickable { selectedTypeFilter = t }
+                                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = typeLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    color = contentColor
+                                )
+                            }
                         }
                     }
-                }
 
-                Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(8.dp))
+                }
 
                 // Voucher Status Filter Row
                 Row(
@@ -425,7 +444,7 @@ fun VouchersScreen(
         // Floating Action Button to create a new double-entry voucher
         SmallFloatingActionButton(
             onClick = {
-                viewModel.createNewVoucherForm()
+                viewModel.createNewVoucherForm(selectedTypeFilter)
                 onNavigateToEditor()
             },
             modifier = Modifier

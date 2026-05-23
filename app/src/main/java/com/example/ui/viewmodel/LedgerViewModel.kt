@@ -73,6 +73,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val isLibyanMode = MutableStateFlow(true) // Set default to Libyan local style!
     val isDarkMode = MutableStateFlow(true) // Track Dark Theme, true by default
     val currentThemeStyle = MutableStateFlow(com.example.ui.theme.ThemeStyle.CLASSIC_SKY)
+    val localBackups = MutableStateFlow<List<java.io.File>>(emptyList())
     val leafAccounts = accounts.map { list -> list.filter { !it.isGroup } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Feedback States
@@ -237,10 +238,16 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     )
 
     // Voucher Actions
-    fun createNewVoucherForm() {
-        formVoucherNo.value = "VCH-${System.currentTimeMillis().toString().takeLast(6)}"
+    fun createNewVoucherForm(forcedType: com.example.data.VoucherType? = null) {
+        val finalType = forcedType ?: com.example.data.VoucherType.JOURNAL
+        val prefix = when (finalType) {
+            com.example.data.VoucherType.JOURNAL -> "JRN"
+            com.example.data.VoucherType.RECEIPT -> "REC"
+            com.example.data.VoucherType.PAYMENT -> "PAY"
+        }
+        formVoucherNo.value = "$prefix-${System.currentTimeMillis().toString().takeLast(6)}"
         formDescription.value = ""
-        formVoucherType.value = VoucherType.JOURNAL
+        formVoucherType.value = finalType
         formDate.value = System.currentTimeMillis()
         editingVoucherId.value = null
         
@@ -362,7 +369,14 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
 
                 // Validation check for draft saves optionally, but let's notify if entries are incomplete
                 if (domainLines.any { it.accountId == 0L }) {
-                    _uiMessage.value = "All line items must have a valid account selected."
+                    _uiMessage.value = if (currentLanguage.value == "ar") "يجب اختيار حساب صالح لكل بند من بنود القيد." else "All line items must have a valid account selected."
+                    return@launch
+                }
+
+                // Enforce that the journal entry must be balanced to be saved/added
+                val isBalanced = liveValidationState.value.third
+                if (!isBalanced) {
+                    _uiMessage.value = if (currentLanguage.value == "ar") "لا يمكن حفظ القيد لأنه غير متوازن الحسابات!" else "Cannot save: Journal entry is not balanced!"
                     return@launch
                 }
 
@@ -492,7 +506,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         return result
     }
 
-    suspend fun getAccountStatement(accountId: Long): List<AccountStatementRow> {
+    suspend fun getAccountStatement(accountId: Long): List<AccountStatementRow> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val allAccounts = accounts.value
         val targetIds = getRecursiveSubAccountIds(accountId, allAccounts)
         
@@ -509,7 +523,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         }.sortedWith(compareBy<Pair<VoucherHeader, VoucherLine>> { it.first.date }.thenBy { it.first.id }.thenBy { it.second.id })
         
         var running = 0L
-        return rowsWithHeader.map { (header, line) ->
+        rowsWithHeader.map { (header, line) ->
             val debitVal = if (line.debit > 0) line.amountBase else 0L
             val creditVal = if (line.credit > 0) line.amountBase else 0L
             running += (debitVal - creditVal)
@@ -904,6 +918,83 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                 _uiMessage.value = "Bank account deleted."
             } catch (e: Exception) {
                 _uiMessage.value = "Deletion failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    // Backup & Restore operations
+    fun refreshLocalBackups(context: android.content.Context) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val files = com.example.data.DatabaseBackupHelper.getLocalBackupFiles(context)
+            localBackups.value = files
+        }
+    }
+
+    fun createBackup(context: android.content.Context) {
+        viewModelScope.launch {
+            val file = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.example.data.DatabaseBackupHelper.backupDatabaseLocal(context)
+            }
+            if (file != null) {
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم إنشاء النسخة الاحتياطية بنجاح" else "Backup created successfully"
+                refreshLocalBackups(context)
+            } else {
+                _uiMessage.value = if (currentLanguage.value == "ar") "فشل إنشاء النسخة الاحتياطية" else "Backup creation failed"
+            }
+        }
+    }
+
+    fun restoreBackup(context: android.content.Context, file: java.io.File, onDone: () -> Unit) {
+        viewModelScope.launch {
+            val success = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.example.data.DatabaseBackupHelper.restoreDatabaseLocal(context, file)
+            }
+            if (success) {
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم استعادة البيانات بنجاح، جاري إعادة تشغيل التطبيق..." else "Data restored successfully, restarting app..."
+                onDone()
+            } else {
+                _uiMessage.value = if (currentLanguage.value == "ar") "فشل استعادة البيانات" else "Restore failed"
+            }
+        }
+    }
+
+    fun deleteBackup(context: android.content.Context, file: java.io.File) {
+        viewModelScope.launch {
+            val success = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.example.data.DatabaseBackupHelper.deleteLocalBackup(file)
+            }
+            if (success) {
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم حذف النسخة الاحتياطية" else "Backup deleted"
+                refreshLocalBackups(context)
+            } else {
+                _uiMessage.value = if (currentLanguage.value == "ar") "فشل حذف النسخة الاحتياطية" else "Failed to delete backup"
+            }
+        }
+    }
+
+    fun exportBackupToUri(context: android.content.Context, uri: android.net.Uri) {
+        viewModelScope.launch {
+            val success = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.example.data.DatabaseBackupHelper.exportDatabaseToUri(context, uri)
+            }
+            if (success) {
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم تصدير النسخة الاحتياطية بنجاح" else "Backup exported successfully"
+            } else {
+                _uiMessage.value = if (currentLanguage.value == "ar") "فشل تصدير النسخة الاحتياطية" else "Failed to export backup"
+            }
+        }
+    }
+
+    fun importBackupFromUri(context: android.content.Context, uri: android.net.Uri, onDone: () -> Unit) {
+        viewModelScope.launch {
+            val success = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.example.data.DatabaseBackupHelper.importDatabaseFromUri(context, uri)
+            }
+            if (success) {
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم استيراد النسخة الاحتياطية بنجاح، جاري إعادة تشغيل التطبيق..." else "Backup imported successfully, restarting app..."
+                onDone()
+            } else {
+                _uiMessage.value = if (currentLanguage.value == "ar") "فشل استيراد النسخة الاحتياطية" else "Failed to import backup"
             }
         }
     }

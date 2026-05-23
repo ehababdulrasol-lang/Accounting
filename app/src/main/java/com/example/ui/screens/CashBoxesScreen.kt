@@ -47,6 +47,8 @@ fun CashBoxesScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var editingCashBox by remember { mutableStateOf<CashBox?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var cashBoxToDelete by remember { mutableStateOf<CashBox?>(null) }
+    var showSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -143,7 +145,7 @@ fun CashBoxesScreen(
                                 cashBox = cashBox,
                                 account = linkedAccount,
                                 balance = balance,
-                                onDelete = { viewModel.deleteCashBox(cashBox) },
+                                onDelete = { cashBoxToDelete = cashBox },
                                 onEdit = { editingCashBox = cashBox },
                                 lang = lang
                             )
@@ -171,6 +173,7 @@ fun CashBoxesScreen(
                     onConfirm = { name, manager, phone, accountId ->
                         viewModel.addCashBox(name, manager, phone, accountId)
                         showAddDialog = false
+                        showSuccessMessage = if (lang == "ar") "تم تسجيل الصندوق بنجاح" else "Cash box registered successfully!"
                     },
                     leafAccounts = leafAccounts,
                     lang = lang
@@ -184,8 +187,33 @@ fun CashBoxesScreen(
                     onConfirm = { name, custodian, phone ->
                         viewModel.updateCashBox(editingCashBox!!.copy(name = name, managerName = custodian, phone = phone))
                         editingCashBox = null
+                        showSuccessMessage = if (lang == "ar") "تم تعديل بيانات الصندوق بنجاح" else "Cash box details updated successfully!"
                     },
                     lang = lang
+                )
+            }
+
+            if (cashBoxToDelete != null) {
+                val cbName = cashBoxToDelete!!.name
+                AnimatedDeleteConfirmDialog(
+                    title = if (lang == "ar") "تأكيد حذف الصندوق" else "Confirm Cash Box Deletion",
+                    message = if (lang == "ar") "هل أنت متأكد من رغبتك في حذف الصندوق/الخزينة: $cbName؟" else "Are you sure you want to delete cash box: $cbName?",
+                    lang = lang,
+                    onConfirm = {
+                        val toDel = cashBoxToDelete!!
+                        viewModel.deleteCashBox(toDel)
+                        cashBoxToDelete = null
+                        showSuccessMessage = if (lang == "ar") "تم حذف الصندوق بنجاح" else "Cash box deleted successfully!"
+                    },
+                    onDismiss = { cashBoxToDelete = null }
+                )
+            }
+
+            if (showSuccessMessage != null) {
+                SuccessTickDialog(
+                    message = showSuccessMessage!!,
+                    lang = lang,
+                    onDismiss = { showSuccessMessage = null }
                 )
             }
         }

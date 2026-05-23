@@ -55,6 +55,10 @@ fun BanksScreen(
     var editingBranch by remember { mutableStateOf<BankBranch?>(null) }
     var editingBankAccount by remember { mutableStateOf<BankAccount?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var bankToDelete by remember { mutableStateOf<Bank?>(null) }
+    var branchToDelete by remember { mutableStateOf<BankBranch?>(null) }
+    var bankAccountToDelete by remember { mutableStateOf<BankAccount?>(null) }
+    var showSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -160,7 +164,7 @@ fun BanksScreen(
                                     accountCount = accountCount,
                                     lang = lang,
                                     onClick = { selectedBank = bank },
-                                    onDelete = { viewModel.deleteBank(bank) }
+                                    onDelete = { bankToDelete = bank }
                                 )
                             }
                         }
@@ -275,11 +279,11 @@ fun BanksScreen(
                                     allAccounts = allAccounts,
                                     snapshots = snapshots,
                                     lang = lang,
-                                    onDeleteBranch = { viewModel.deleteBranch(branch) },
+                                    onDeleteBranch = { branchToDelete = branch },
                                     onEditBranch = { editingBranch = branch },
                                     onAddNewAccount = { showAddAccountDialog = branch },
                                     onEditAccount = { acc -> editingBankAccount = acc },
-                                    onDeleteAccount = { acc -> viewModel.deleteBankAccount(acc) }
+                                    onDeleteAccount = { acc -> bankAccountToDelete = acc }
                                 )
                             }
                         }
@@ -309,6 +313,7 @@ fun BanksScreen(
                     onConfirm = { name ->
                         viewModel.addBank(name)
                         showAddBankDialog = false
+                        showSuccessMessage = if (lang == "ar") "تم تسجيل البنك بنجاح" else "Bank registered successfully!"
                     },
                     lang = lang
                 )
@@ -320,6 +325,7 @@ fun BanksScreen(
                     onConfirm = { name, code, manager ->
                         viewModel.addBranch(selectedBank!!.id, name, code, manager)
                         showAddBranchDialog = false
+                        showSuccessMessage = if (lang == "ar") "تم تسجيل فرع البنك بنجاح" else "Bank branch registered successfully!"
                     },
                     lang = lang
                 )
@@ -333,6 +339,7 @@ fun BanksScreen(
                     onConfirm = { accName, accNum, iban, existingId ->
                         viewModel.addBankAccount(branch.id, accName, accNum, iban, existingId)
                         showAddAccountDialog = null
+                        showSuccessMessage = if (lang == "ar") "تم تسجيل الحساب المصرفي بنجاح" else "Bank account registered successfully!"
                     },
                     leafAccounts = leafAccounts,
                     lang = lang
@@ -346,6 +353,7 @@ fun BanksScreen(
                     onConfirm = { name, code, manager ->
                         viewModel.updateBranch(editingBranch!!.copy(name = name, code = code, managerName = manager))
                         editingBranch = null
+                        showSuccessMessage = if (lang == "ar") "تم تعديل بيانات الفرع بنجاح" else "Branch details updated successfully!"
                     },
                     lang = lang
                 )
@@ -358,8 +366,68 @@ fun BanksScreen(
                     onConfirm = { name, number, iban ->
                         viewModel.updateBankAccount(editingBankAccount!!.copy(accountName = name, accountNumber = number, iban = iban))
                         editingBankAccount = null
+                        showSuccessMessage = if (lang == "ar") "تم تعديل بيانات الحساب المصرفي بنجاح" else "Bank account details updated successfully!"
                     },
                     lang = lang
+                )
+            }
+
+            // ANIMATED DELETION DIALOGS
+            if (bankToDelete != null) {
+                val bName = bankToDelete!!.name
+                AnimatedDeleteConfirmDialog(
+                    title = if (lang == "ar") "تأكيد حذف البنك" else "Confirm Bank Deletion",
+                    message = if (lang == "ar") "هل أنت متأكد من رغبتك في حذف البنك: $bName وكافة الفروع التابعة له؟" else "Are you sure you want to delete bank: $bName along with all its branches?",
+                    lang = lang,
+                    onConfirm = {
+                        val toDel = bankToDelete!!
+                        viewModel.deleteBank(toDel)
+                        bankToDelete = null
+                        showSuccessMessage = if (lang == "ar") "تم حذف البنك بنجاح" else "Bank deleted successfully!"
+                    },
+                    onDismiss = { bankToDelete = null }
+                )
+            }
+
+            if (branchToDelete != null) {
+                val brName = branchToDelete!!.name
+                AnimatedDeleteConfirmDialog(
+                    title = if (lang == "ar") "تأكيد حذف الفرع" else "Confirm Branch Deletion",
+                    message = if (lang == "ar") "هل أنت متأكد من رغبتك في حذف الفرع: $brName وكافة القيود والحسابات المرتبطة به؟" else "Are you sure you want to delete branch: $brName along with all its associated banking accounts?",
+                    lang = lang,
+                    onConfirm = {
+                        val toDel = branchToDelete!!
+                        viewModel.deleteBranch(toDel)
+                        branchToDelete = null
+                        showSuccessMessage = if (lang == "ar") "تم حذف فرع البنك بنجاح" else "Branch deleted successfully!"
+                    },
+                    onDismiss = { branchToDelete = null }
+                )
+            }
+
+            if (bankAccountToDelete != null) {
+                val baName = bankAccountToDelete!!.accountName
+                val baNum = bankAccountToDelete!!.accountNumber
+                AnimatedDeleteConfirmDialog(
+                    title = if (lang == "ar") "تأكيد حذف الحساب رقمي" else "Confirm Bank Account Deletion",
+                    message = if (lang == "ar") "هل أنت متأكد من رغبتك في حذف الحساب المصرفي: $baName (رقم: $baNum)؟" else "Are you sure you want to delete bank account: $baName (No: $baNum)?",
+                    lang = lang,
+                    onConfirm = {
+                        val toDel = bankAccountToDelete!!
+                        viewModel.deleteBankAccount(toDel)
+                        bankAccountToDelete = null
+                        showSuccessMessage = if (lang == "ar") "تم حذف الحساب المصرفي بنجاح" else "Bank account deleted successfully!"
+                    },
+                    onDismiss = { bankAccountToDelete = null }
+                )
+            }
+
+            // SUCCESS FEEDBACK
+            if (showSuccessMessage != null) {
+                SuccessTickDialog(
+                    message = showSuccessMessage!!,
+                    lang = lang,
+                    onDismiss = { showSuccessMessage = null }
                 )
             }
         }

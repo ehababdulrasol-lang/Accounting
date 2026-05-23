@@ -31,69 +31,97 @@ import com.example.util.FinancialUtils
 @Composable
 fun ReportsScreen(
     viewModel: LedgerViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    forcedTab: Int? = null
 ) {
-    var activeTab by remember { mutableStateOf(0) } // 0 = Trial Balance, 1 = Balance Sheet, 2 = Income Statement, 3 = Cash Flow, 4 = Debt Aging
+    var activeTab by remember { mutableStateOf(forcedTab ?: 0) } // 0 = Trial Balance, 1 = Balance Sheet, 2 = Income Statement, 3 = Cash Flow, 4 = Debt Aging
     val lang by viewModel.currentLanguage.collectAsState()
+
+    LaunchedEffect(forcedTab) {
+        if (forcedTab != null) {
+            activeTab = forcedTab
+        }
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        val customTitle = when (activeTab) {
+            0 -> Localization.translate(Localization.Key.TRIAL_BALANCE, lang)
+            1 -> Localization.translate(Localization.Key.BALANCE_SHEET, lang)
+            2 -> Localization.translate(Localization.Key.INCOME_STATEMENT, lang)
+            3 -> if (lang == "ar") "كشف التدفقات النقدية" else "Cash Flow Statement"
+            4 -> if (lang == "ar") "تقرير أعمار الديون ومستحقاتها" else "Debt Aging Report"
+            else -> Localization.translate(Localization.Key.FINANCIAL_STATEMENTS, lang)
+        }
+        val customSubtitle = when (activeTab) {
+            0 -> if (lang == "ar") "ميزان المراجعة غير المعدل بالأرصدة وحركات الفترة تتبعاً لقييد اليومية" else "Verify balanced summary of debits and credits from active transactions"
+            1 -> if (lang == "ar") "معاينة هيكل المركز المالي السنوي متضمناً الأصول والمسؤوليات وحقوق الملكية" else "Review company assets, liabilities, and owner's equity balances"
+            2 -> if (lang == "ar") "تقرير الأرباح والخسائر والأنشطة التشغيلية والإيرادات وصافي الدخول" else "Measure financial performance, sales, expenses, and net profit/loss"
+            3 -> if (lang == "ar") "تتبع حركة السيولة والتدفق المقبوض والمصروف نقدياً بالصناديق والبنك" else "Track cash inflows and outflows across cash boxes and banks"
+            4 -> if (lang == "ar") "تحليل استحقاق الذمم المدينة والدائنة المصنفة بمرور الشهور الفائتة" else "Analyze customer and supplier aging ledger breakdown"
+            else -> if (lang == "ar") "تنفيذ حسابات الأرصدة في الوقت الفعلي المتوافقة مع المعايير الدولية (IFRS) مباشرة من قيود اليومية المزدوجة المتوازنة." else "IFRS-compliant, real-time balance calculations derived directly from balanced double-entries."
+        }
+
         Text(
-            text = Localization.translate(Localization.Key.FINANCIAL_STATEMENTS, lang),
+            text = customTitle,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            text = if (lang == "ar") "تنفيذ حسابات الأرصدة في الوقت الفعلي المتوافقة مع المعايير الدولية (IFRS) مباشرة من قيود اليومية المزدوجة المتوازنة." else "IFRS-compliant, real-time balance calculations derived directly from balanced double-entries.",
+            text = customSubtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
             modifier = Modifier.padding(bottom = 12.dp)
-            )
+        )
 
-        TabRow(
-            selectedTabIndex = activeTab,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-        ) {
-            Tab(
-                selected = activeTab == 0,
-                onClick = { activeTab = 0 },
-                text = { Text(Localization.translate(Localization.Key.TRIAL_BALANCE, lang), fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Filled.AccountBalance, null) }
-            )
-            Tab(
-                selected = activeTab == 1,
-                onClick = { activeTab = 1 },
-                text = { Text(Localization.translate(Localization.Key.BALANCE_SHEET, lang), fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Filled.Assessment, null) }
-            )
-            Tab(
-                selected = activeTab == 2,
-                onClick = { activeTab = 2 },
-                text = { Text(Localization.translate(Localization.Key.INCOME_STATEMENT, lang), fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Filled.TrendingUp, null) }
-            )
-            Tab(
-                selected = activeTab == 3,
-                onClick = { activeTab = 3 },
-                text = { Text(if (lang == "ar") "التدفقات النقدية" else "Cash Flow", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Filled.SwapVert, null) }
-            )
-            Tab(
-                selected = activeTab == 4,
-                onClick = { activeTab = 4 },
-                text = { Text(if (lang == "ar") "أعمار الديون" else "Aging Report", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Filled.Schedule, null) }
-            )
+        if (forcedTab == null) {
+            TabRow(
+                selectedTabIndex = activeTab,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+            ) {
+                Tab(
+                    selected = activeTab == 0,
+                    onClick = { activeTab = 0 },
+                    text = { Text(Localization.translate(Localization.Key.TRIAL_BALANCE, lang), fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Filled.AccountBalance, null) }
+                )
+                Tab(
+                    selected = activeTab == 1,
+                    onClick = { activeTab = 1 },
+                    text = { Text(Localization.translate(Localization.Key.BALANCE_SHEET, lang), fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Filled.Assessment, null) }
+                )
+                Tab(
+                    selected = activeTab == 2,
+                    onClick = { activeTab = 2 },
+                    text = { Text(Localization.translate(Localization.Key.INCOME_STATEMENT, lang), fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Filled.TrendingUp, null) }
+                )
+                Tab(
+                    selected = activeTab == 3,
+                    onClick = { activeTab = 3 },
+                    text = { Text(if (lang == "ar") "التدفقات النقدية" else "Cash Flow", fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Filled.SwapVert, null) }
+                )
+                Tab(
+                    selected = activeTab == 4,
+                    onClick = { activeTab = 4 },
+                    text = { Text(if (lang == "ar") "أعمار الديون" else "Aging Report", fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Filled.Schedule, null) }
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+        } else {
+            Spacer(Modifier.height(8.dp))
         }
-
-        Spacer(Modifier.height(16.dp))
 
         when (activeTab) {
             0 -> TrialBalanceView(viewModel)
@@ -794,7 +822,7 @@ fun AgingReportView(viewModel: LedgerViewModel) {
             val name = client.first
             val phone = client.second
             val accId = client.third
-            if (accId == null) continue
+            if (accId <= 0L) continue
 
             val balance = snapshots.find { it.accountId == accId }?.balance ?: 0L
             val totalOutstanding = if (isCustomerView) balance else -balance

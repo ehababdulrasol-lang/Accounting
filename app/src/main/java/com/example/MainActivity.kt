@@ -62,6 +62,8 @@ fun MainLayout(viewModel: LedgerViewModel) {
 
     var activeTab by remember { mutableStateOf(0) } // 0 = Dashboard, 1 = CoA, 2 = Customers, 3 = Vouchers, 4 = Account Statement, 5 = Reports, 6 = Settings
     var showEditor by remember { mutableStateOf(false) }
+    var isVouchersGroupExpanded by remember { mutableStateOf(true) }
+    var isReportsGroupExpanded by remember { mutableStateOf(true) }
 
     var activeToast by remember { mutableStateOf<CustomToast?>(null) }
 
@@ -219,24 +221,22 @@ fun MainLayout(viewModel: LedgerViewModel) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                             Spacer(Modifier.height(12.dp))
 
-                            // Drawer Items
-                            val items = listOf(
-                                Triple(0, Icons.Filled.SpaceDashboard, com.example.ui.Localization.Key.NAV_DASHBOARD),
-                                Triple(1, Icons.Filled.AccountTree, com.example.ui.Localization.Key.NAV_ACCOUNTS),
-                                Triple(2, Icons.Filled.People, com.example.ui.Localization.Key.NAV_CUSTOMERS),
-                                Triple(3, Icons.Filled.Storefront, com.example.ui.Localization.Key.NAV_SUPPLIERS),
-                                Triple(4, Icons.Filled.AccountBalanceWallet, com.example.ui.Localization.Key.NAV_CASH_BOXES),
-                                Triple(5, Icons.Filled.AccountBalance, com.example.ui.Localization.Key.NAV_BANKS),
-                                Triple(6, Icons.Filled.Assignment, com.example.ui.Localization.Key.NAV_VOUCHERS),
-                                Triple(7, Icons.Filled.Book, com.example.ui.Localization.Key.VIEW_STATEMENT),
-                                Triple(8, Icons.Filled.Assessment, com.example.ui.Localization.Key.NAV_REPORTS),
-                                Triple(9, Icons.Filled.Security, com.example.ui.Localization.Key.NAV_SETTINGS)
+                            // Flat Main Top Navigation Items
+                            val topLevelItems = listOf(
+                                Triple(0, Icons.Filled.SpaceDashboard, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_DASHBOARD, lang)),
+                                Triple(1, Icons.Filled.AccountTree, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_ACCOUNTS, lang)),
+                                Triple(2, Icons.Filled.People, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_CUSTOMERS, lang)),
+                                Triple(3, Icons.Filled.Storefront, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SUPPLIERS, lang)),
+                                Triple(4, Icons.Filled.AccountBalanceWallet, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_CASH_BOXES, lang)),
+                                Triple(5, Icons.Filled.AccountBalance, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_BANKS, lang)),
+                                Triple(7, Icons.Filled.Book, com.example.ui.Localization.translate(com.example.ui.Localization.Key.VIEW_STATEMENT, lang))
                             )
 
-                            items.forEach { (index, icon, key) ->
+                            // Render top level flat items
+                            topLevelItems.forEach { (index, icon, label) ->
                                 NavigationDrawerItem(
                                     icon = { Icon(icon, contentDescription = null, tint = if (activeTab == index) GoldAccent else MaterialTheme.colorScheme.onSurface) },
-                                    label = { Text(com.example.ui.Localization.translate(key, lang), fontWeight = FontWeight.SemiBold, color = if (activeTab == index) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+                                    label = { Text(label, fontWeight = FontWeight.SemiBold, color = if (activeTab == index) GoldAccent else MaterialTheme.colorScheme.onSurface) },
                                     selected = activeTab == index,
                                     onClick = {
                                         activeTab = index
@@ -247,10 +247,138 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                         unselectedContainerColor = Color.Transparent
                                     ),
                                     modifier = Modifier
-                                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                                        .padding(horizontal = 12.dp, vertical = 2.dp)
                                         .testTag("nav_drawer_tab_$index")
                                 )
                             }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            // COLLAPSIBLE VOUCHERS GROUP
+                            NavigationDrawerItem(
+                                icon = { Icon(Icons.Filled.Assignment, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface) },
+                                label = { Text(if (lang == "ar") "سندات الحسابات والقيود" else "Voucher Registry", fontWeight = FontWeight.SemiBold) },
+                                selected = false,
+                                onClick = { isVouchersGroupExpanded = !isVouchersGroupExpanded },
+                                badge = {
+                                    Icon(
+                                        if (isVouchersGroupExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                        contentDescription = null
+                                    )
+                                },
+                                colors = NavigationDrawerItemDefaults.colors(
+                                    selectedContainerColor = Color.Transparent,
+                                    unselectedContainerColor = Color.Transparent
+                                ),
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp, vertical = 2.dp)
+                            )
+
+                            if (isVouchersGroupExpanded) {
+                                val voucherSubItems = listOf(
+                                    Triple(10, Icons.Filled.ArrowDownward, if (lang == "ar") "سند قبض مالي" else "Receipt Voucher"),
+                                    Triple(11, Icons.Filled.ArrowUpward, if (lang == "ar") "سند دفع وصرف" else "Payment Voucher"),
+                                    Triple(12, Icons.Filled.CompareArrows, if (lang == "ar") "قيد اليومية والتسوية" else "Journal Entry"),
+                                    Triple(6, Icons.Filled.Assignment, if (lang == "ar") "أرشيف القيود العام" else "General Vouchers Log")
+                                )
+                                voucherSubItems.forEach { (index, icon, label) ->
+                                    val isSelected = activeTab == index
+                                    val iconTint = when (index) {
+                                        10 -> com.example.ui.theme.EmeraldGreen
+                                        11 -> com.example.ui.theme.RoseRed
+                                        else -> if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    }
+                                    NavigationDrawerItem(
+                                        icon = { Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp)) },
+                                        label = { Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)) },
+                                        selected = isSelected,
+                                        onClick = {
+                                            activeTab = index
+                                            scope.launch { drawerState.close() }
+                                        },
+                                        colors = NavigationDrawerItemDefaults.colors(
+                                            selectedContainerColor = GoldAccent.copy(alpha = 0.08f),
+                                            unselectedContainerColor = Color.Transparent
+                                        ),
+                                        modifier = Modifier
+                                            .padding(start = 28.dp, end = 12.dp, top = 2.dp, bottom = 2.dp)
+                                            .testTag("nav_drawer_tab_$index")
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            // COLLAPSIBLE REPORTS GROUP
+                            NavigationDrawerItem(
+                                icon = { Icon(Icons.Filled.Assessment, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface) },
+                                label = { Text(if (lang == "ar") "القوائم والتقارير المالية" else "Financial Reports", fontWeight = FontWeight.SemiBold) },
+                                selected = false,
+                                onClick = { isReportsGroupExpanded = !isReportsGroupExpanded },
+                                badge = {
+                                    Icon(
+                                        if (isReportsGroupExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                        contentDescription = null
+                                    )
+                                },
+                                colors = NavigationDrawerItemDefaults.colors(
+                                    selectedContainerColor = Color.Transparent,
+                                    unselectedContainerColor = Color.Transparent
+                                ),
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp, vertical = 2.dp)
+                            )
+
+                            if (isReportsGroupExpanded) {
+                                val reportsSubItems = listOf(
+                                    Triple(15, Icons.Filled.AccountBalance, if (lang == "ar") "ميزان المراجعة" else "Trial Balance"),
+                                    Triple(16, Icons.Filled.Assessment, if (lang == "ar") "الميزانية العمومية" else "Balance Sheet"),
+                                    Triple(17, Icons.Filled.TrendingUp, if (lang == "ar") "قائمة الدخل والأرباح" else "Income Statement"),
+                                    Triple(18, Icons.Filled.SwapVert, if (lang == "ar") "كشف التدفق المالي" else "Cash Flow Statement"),
+                                    Triple(19, Icons.Filled.Schedule, if (lang == "ar") "كشف أعمار الديون" else "Debt Aging Report"),
+                                    Triple(8, Icons.Filled.Assessment, if (lang == "ar") "لوحة القوائم العامة" else "General Reports Hub")
+                                )
+                                reportsSubItems.forEach { (index, icon, label) ->
+                                    val isSelected = activeTab == index
+                                    val iconTint = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    NavigationDrawerItem(
+                                        icon = { Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp)) },
+                                        label = { Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)) },
+                                        selected = isSelected,
+                                        onClick = {
+                                            activeTab = index
+                                            scope.launch { drawerState.close() }
+                                        },
+                                        colors = NavigationDrawerItemDefaults.colors(
+                                            selectedContainerColor = GoldAccent.copy(alpha = 0.08f),
+                                            unselectedContainerColor = Color.Transparent
+                                        ),
+                                        modifier = Modifier
+                                            .padding(start = 28.dp, end = 12.dp, top = 2.dp, bottom = 2.dp)
+                                            .testTag("nav_drawer_tab_$index")
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            // Settings Item
+                            NavigationDrawerItem(
+                                icon = { Icon(Icons.Filled.Security, contentDescription = null, tint = if (activeTab == 9) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+                                label = { Text(com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SETTINGS, lang), fontWeight = FontWeight.SemiBold, color = if (activeTab == 9) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+                                selected = activeTab == 9,
+                                onClick = {
+                                    activeTab = 9
+                                    scope.launch { drawerState.close() }
+                                },
+                                colors = NavigationDrawerItemDefaults.colors(
+                                    selectedContainerColor = GoldAccent.copy(alpha = 0.1f),
+                                    unselectedContainerColor = Color.Transparent
+                                ),
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp, vertical = 2.dp)
+                                    .testTag("nav_drawer_tab_9")
+                            )
                             }
                         }
                     }
@@ -272,6 +400,14 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                             7 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.VIEW_STATEMENT, lang)
                                             8 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_REPORTS, lang)
                                             9 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SETTINGS, lang)
+                                            10 -> if (lang == "ar") "سندات القبض المالي" else "Receipt Vouchers"
+                                            11 -> if (lang == "ar") "سندات الصرف والدفع" else "Payment Vouchers"
+                                            12 -> if (lang == "ar") "قيود اليومية والتسوية" else "Journal Entries"
+                                            15 -> if (lang == "ar") "ميزان المراجعة بالأرصدة" else "Trial Balance"
+                                            16 -> if (lang == "ar") "الميزانية العمومية والمركز" else "Balance Sheet"
+                                            17 -> if (lang == "ar") "قائمة الدخل والأرباح" else "Income Statement"
+                                            18 -> if (lang == "ar") "كشف التدفقات النقدية" else "Cash Flow Statement"
+                                            19 -> if (lang == "ar") "تقرير أعمار الديون" else "Debt Aging Report"
                                             else -> ""
                                         },
                                         fontWeight = FontWeight.ExtraBold,
@@ -340,6 +476,26 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                     7 -> AccountStatementScreen(viewModel = viewModel)
                                     8 -> ReportsScreen(viewModel = viewModel)
                                     9 -> SettingsScreen(viewModel = viewModel)
+                                    10 -> VouchersScreen(
+                                        viewModel = viewModel,
+                                        onNavigateToEditor = { showEditor = true },
+                                        forcedType = com.example.data.VoucherType.RECEIPT
+                                    )
+                                    11 -> VouchersScreen(
+                                        viewModel = viewModel,
+                                        onNavigateToEditor = { showEditor = true },
+                                        forcedType = com.example.data.VoucherType.PAYMENT
+                                    )
+                                    12 -> VouchersScreen(
+                                        viewModel = viewModel,
+                                        onNavigateToEditor = { showEditor = true },
+                                        forcedType = com.example.data.VoucherType.JOURNAL
+                                    )
+                                    15 -> ReportsScreen(viewModel = viewModel, forcedTab = 0)
+                                    16 -> ReportsScreen(viewModel = viewModel, forcedTab = 1)
+                                    17 -> ReportsScreen(viewModel = viewModel, forcedTab = 2)
+                                    18 -> ReportsScreen(viewModel = viewModel, forcedTab = 3)
+                                    19 -> ReportsScreen(viewModel = viewModel, forcedTab = 4)
                                 }
                             }
                         }
