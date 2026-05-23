@@ -27,9 +27,10 @@ class Converters {
         AccountBalanceSnapshot::class,
         AuditLog::class,
         ExchangeRateHistory::class,
-        Customer::class
+        Customer::class,
+        Supplier::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -43,6 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun accountBalanceSnapshotDao(): AccountBalanceSnapshotDao
     abstract fun exchangeRateHistoryDao(): ExchangeRateHistoryDao
     abstract fun customerDao(): CustomerDao
+    abstract fun supplierDao(): SupplierDao
 
     companion object {
         @Volatile

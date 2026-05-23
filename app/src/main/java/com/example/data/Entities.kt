@@ -180,3 +180,26 @@ data class Customer(
     val accountId: Long
 )
 
+@Entity(
+    tableName = "suppliers",
+    foreignKeys = [
+        ForeignKey(
+            entity = Account::class,
+            parentColumns = ["id"],
+            childColumns = ["accountId"],
+            onDelete = ForeignKey.RESTRICT
+        )
+    ],
+    indices = [
+        Index(value = ["accountId"], unique = false)
+    ]
+)
+data class Supplier(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val phone: String = "",
+    val email: String = "",
+    val accountId: Long,
+    val creditLimit: Long = 0L // credit limit in base currency
+)
+

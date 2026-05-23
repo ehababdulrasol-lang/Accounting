@@ -183,3 +183,21 @@ interface CustomerDao {
     @Delete
     suspend fun delete(customer: Customer)
 }
+
+@Dao
+interface SupplierDao {
+    @Query("SELECT * FROM suppliers ORDER BY name")
+    fun getAllSuppliersFlow(): Flow<List<Supplier>>
+
+    @Query("SELECT * FROM suppliers WHERE id = :id")
+    suspend fun getSupplierById(id: Long): Supplier?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(supplier: Supplier): Long
+
+    @Update
+    suspend fun update(supplier: Supplier)
+
+    @Delete
+    suspend fun delete(supplier: Supplier)
+}

@@ -24,21 +24,22 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.data.Account
-import com.example.data.Customer
+import com.example.data.Supplier
 import com.example.ui.Localization
 import com.example.ui.theme.EmeraldGreen
+import com.example.ui.theme.GoldAccent
 import com.example.ui.theme.RoseRed
 import com.example.ui.viewmodel.LedgerViewModel
 import com.example.util.FinancialUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CustomersScreen(
+fun SuppliersScreen(
     viewModel: LedgerViewModel,
     modifier: Modifier = Modifier
 ) {
     val lang by viewModel.currentLanguage.collectAsState()
-    val customers by viewModel.customers.collectAsState()
+    val suppliers by viewModel.suppliers.collectAsState()
     val allAccounts by viewModel.accounts.collectAsState()
     val leafAccounts by viewModel.leafAccounts.collectAsState()
     val snapshots by viewModel.accountSnapshots.collectAsState()
@@ -57,13 +58,13 @@ fun CustomersScreen(
             ) {
                 // Header
                 Text(
-                    text = Localization.translate(Localization.Key.CUSTOMER_MANAGEMENT, lang),
+                    text = if (lang == "ar") "سجل ومتابعة الموردين" else "Suppliers & Accounts Payable",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = if (lang == "ar") "تتبع ديون وأرصدة العملاء مع ربط تلقائي ومستندات تدقيق المعايير الدولية IFRS." else "Track customer outstanding balances with automated balance tracking & IFRS audit trail compliance.",
+                    text = if (lang == "ar") "تنظيم وجدولة حسابات الدائنين والربط المحاسبي الممنهج وفق معايير الإقفال الدولي والتزامات التوريد." else "Organize creditors accounts and systematic ledger linkages under international reporting standards (IFRS) and procurement cycles.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -73,11 +74,11 @@ fun CustomersScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    label = { Text(Localization.translate(Localization.Key.SEARCH_CUSTOMER, lang)) },
+                    label = { Text(if (lang == "ar") "البحث عن مورد..." else "Search suppliers...") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp)
-                        .testTag("customer_search"),
+                        .testTag("supplier_search"),
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
@@ -89,7 +90,7 @@ fun CustomersScreen(
                     singleLine = true
                 )
 
-                val filtered = customers.filter {
+                val filtered = suppliers.filter {
                     it.name.contains(searchQuery, ignoreCase = true) ||
                     it.phone.contains(searchQuery) ||
                     it.email.contains(searchQuery, ignoreCase = true)
@@ -108,14 +109,14 @@ fun CustomersScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                Icons.Filled.PeopleOutline,
+                                Icons.Filled.Storefront,
                                 contentDescription = "",
                                 modifier = Modifier.size(64.dp),
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
                             )
                             Spacer(Modifier.height(16.dp))
                             Text(
-                                text = Localization.translate(Localization.Key.NO_CUSTOMERS_FOUND, lang),
+                                text = if (lang == "ar") "لا يوجد موردون مسجلون حالياً. انقر على زر الإضافة لتسجيل أول مورد." else "No suppliers registered yet. Press the add button to register your first supplier profile.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )
@@ -131,17 +132,17 @@ fun CustomersScreen(
                             .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
-                        items(filtered) { customer ->
-                            val linkedAccount = allAccounts.find { it.id == customer.accountId }
-                            val balance = remember(customer.accountId, snapshots) {
-                                snapshots.find { it.accountId == customer.accountId }?.balance ?: 0L
+                        items(filtered) { supplier ->
+                            val linkedAccount = allAccounts.find { it.id == supplier.accountId }
+                            val balance = remember(supplier.accountId, snapshots) {
+                                snapshots.find { it.accountId == supplier.accountId }?.balance ?: 0L
                             }
 
-                            CustomerCard(
-                                customer = customer,
+                            SupplierCard(
+                                supplier = supplier,
                                 account = linkedAccount,
                                 balance = balance,
-                                onDelete = { viewModel.deleteCustomer(customer) },
+                                onDelete = { viewModel.deleteSupplier(supplier) },
                                 lang = lang
                             )
                         }
@@ -149,27 +150,28 @@ fun CustomersScreen(
                 }
             }
 
-            // FAB
+            // Floating Action Button
             FloatingActionButton(
                 onClick = { showAddDialog = true },
+                containerColor = GoldAccent,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(24.dp)
-                    .testTag("add_customer_fab"),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                    .testTag("add_supplier_button")
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Customer")
+                Icon(Icons.Filled.Add, contentDescription = "Add Supplier")
             }
 
             if (showAddDialog) {
-                AddCustomerDialog(
+                val liabilitiesLeafs = leafAccounts.filter { it.accountType == com.example.data.AccountType.LIABILITY }
+                AddSupplierDialog(
                     onDismiss = { showAddDialog = false },
                     onConfirm = { name, phone, email, linkAccId ->
-                        viewModel.addCustomer(name, phone, email, linkAccId)
+                        viewModel.addSupplier(name, phone, email, linkAccId)
                         showAddDialog = false
                     },
-                    leafAccounts = leafAccounts,
+                    leafAccounts = if (liabilitiesLeafs.isNotEmpty()) liabilitiesLeafs else leafAccounts,
                     lang = lang
                 )
             }
@@ -178,113 +180,211 @@ fun CustomersScreen(
 }
 
 @Composable
-fun CustomerCard(
-    customer: Customer,
+fun SupplierCard(
+    supplier: Supplier,
     account: Account?,
     balance: Long,
     onDelete: () -> Unit,
     lang: String
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(12.dp)
-            .testTag("customer_card_${customer.id}"),
+            .testTag("supplier_card_${supplier.id}"),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
-        border = java.lang.Deprecated().let {
-            androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-        }
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header: Name and Actions
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Business,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = supplier.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (lang == "ar") "مستند التوريد والدفع الآجل IFRS" else "Procurement Creditor IFRS Profile",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+
+                IconButton(onClick = { showDeleteConfirm = true }) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete Supplier", tint = RoseRed)
+                }
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+            )
+
+            // Dynamic balances
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
+                Column {
                     Text(
-                        text = customer.name,
+                        text = if (lang == "ar") "الرصيد المستحق (دائن)" else "Outstanding Balance (AP)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    // Display outstanding balance nicely
+                    val absVal = Math.abs(balance)
+                    val displayBalance = if (lang == "ar") {
+                        "${FinancialUtils.formatBase(absVal)} د.ل"
+                    } else {
+                        "LYD ${FinancialUtils.formatBase(absVal)}"
+                    }
+
+                    // Colored balance indicators
+                    Text(
+                        text = displayBalance,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (balance != 0L) RoseRed else EmeraldGreen
                     )
                 }
 
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.testTag("delete_customer_${customer.id}")
-                ) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed)
+                if (account != null) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (lang == "ar") "الحساب المقترن بالدليل" else "General Ledger Account",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "${account.accountCode} - ${Localization.getAccountName(account.accountCode, account.name, lang)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            Spacer(Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    if (customer.phone.isNotEmpty()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-                            Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-                            Spacer(Modifier.width(6.dp))
-                            Text(customer.phone, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                        }
+            // Phone and email
+            Row(modifier = Modifier.fillMaxWidth()) {
+                if (supplier.phone.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.Phone,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = supplier.phone,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            maxLines = 1
+                        )
                     }
-                    if (customer.email.isNotEmpty()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-                            Icon(Icons.Filled.Email, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-                            Spacer(Modifier.width(6.dp))
-                            Text(customer.email, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                        }
-                    }
-
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = "${Localization.translate(Localization.Key.ACCOUNT, lang)}: ${account?.accountCode ?: "---"} - ${account?.name ?: "---"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
                 }
 
-                // Balance
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = if (lang == "ar") "الرصيد المالي" else "Balance",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
-                    )
-                    Text(
-                        text = FinancialUtils.formatBase(balance),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (balance >= 0L) EmeraldGreen else RoseRed,
-                        modifier = Modifier.testTag("customer_balance_${customer.id}")
-                    )
+                if (supplier.email.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.weight(1.2f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.Email,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = supplier.email,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(if (lang == "ar") "مسح ملف المورد" else "Delete Supplier Profile") },
+            text = {
+                Text(
+                    text = if (lang == "ar") 
+                        "هل أنت متأكد من رغبتك في حذف ملف المورد الحالي [${supplier.name}]؟ سيتم فصل الربط المالي المباشر."
+                        else 
+                        "Are you sure you want to completely remove this supplier profile [${supplier.name}]? Ledger transactions will remain stored inside linked CoA."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDelete()
+                        showDeleteConfirm = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RoseRed)
+                ) {
+                    Text(if (lang == "ar") "حذف" else "Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(if (lang == "ar") "إلغاء الأمر" else "Cancel")
+                }
+            }
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddCustomerDialog(
+fun AddSupplierDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String, String, Long?) -> Unit,
     leafAccounts: List<Account>,
@@ -294,7 +394,7 @@ fun AddCustomerDialog(
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
 
-    // Strategies: 0 = Auto-open new, 1 = Link to existing matching name, 2 = Choose exist manually
+    // Strategies: 0 = Auto-open new under 2101, 1 = Link to existing matching name, 2 = Choose exist manually
     var linkStrategy by remember { mutableStateOf(0) }
     var selectedExistAccountId by remember { mutableStateOf<Long?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -309,10 +409,10 @@ fun AddCustomerDialog(
         Surface(
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
-                .width(420.dp)
+                .width(428.dp)
                 .wrapContentHeight()
                 .padding(8.dp)
-                .testTag("add_customer_dialog"),
+                .testTag("add_supplier_dialog"),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 8.dp
         ) {
@@ -326,13 +426,13 @@ fun AddCustomerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        Icons.Filled.PersonAdd,
+                        Icons.Filled.Store,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = Localization.translate(Localization.Key.ADD_NEW_CUSTOMER, lang),
+                        text = if (lang == "ar") "تسجيل ملف مورد جديد" else "Register Supplier Profile",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -343,10 +443,10 @@ fun AddCustomerDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text(Localization.translate(Localization.Key.CUSTOMER_NAME, lang)) },
+                    label = { Text(if (lang == "ar") "اسم المورد الكامل" else "Supplier Full Name") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("cust_input_name"),
+                        .testTag("supp_input_name"),
                     singleLine = true
                 )
 
@@ -355,10 +455,10 @@ fun AddCustomerDialog(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    label = { Text(Localization.translate(Localization.Key.PHONE, lang)) },
+                    label = { Text(if (lang == "ar") "رقم الهاتف والاتصال" else "Phone Number") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("cust_input_phone"),
+                        .testTag("supp_input_phone"),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                 )
@@ -368,10 +468,10 @@ fun AddCustomerDialog(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text(Localization.translate(Localization.Key.EMAIL, lang)) },
+                    label = { Text(if (lang == "ar") "البريد الإلكتروني" else "Email Address") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("cust_input_email"),
+                        .testTag("supp_input_email"),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                 )
@@ -379,7 +479,7 @@ fun AddCustomerDialog(
                 Spacer(Modifier.height(16.dp))
 
                 Text(
-                    text = Localization.translate(Localization.Key.C_ACCOUNT_LINKING, lang),
+                    text = if (lang == "ar") "إعدادات الربط المالي واستحقاق اليومية" else "Payables Ledger Account Setup",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.secondary
@@ -399,7 +499,7 @@ fun AddCustomerDialog(
                     RadioButton(selected = linkStrategy == 0, onClick = { linkStrategy = 0 })
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = Localization.translate(Localization.Key.AUTO_OPEN_ACCOUNT, lang),
+                        text = if (lang == "ar") "فتح حساب فرعي ذو رمز آلي تتبعاً لحساب الدائنين الرئيسي (2101)" else "Auto-create a linked AP account under payables (2101)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -417,7 +517,7 @@ fun AddCustomerDialog(
                         RadioButton(selected = linkStrategy == 1, onClick = { linkStrategy = 1 })
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "${Localization.translate(Localization.Key.LINK_EXISTING_MATCH, lang)} (${matchExist.accountCode})",
+                            text = if (lang == "ar") "ربط المورد بحساب شجرة مطابق (${matchExist.accountCode})" else "Link to matching account (${matchExist.accountCode})",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
                             color = EmeraldGreen
@@ -436,7 +536,7 @@ fun AddCustomerDialog(
                     RadioButton(selected = linkStrategy == 2, onClick = { linkStrategy = 2 })
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = Localization.translate(Localization.Key.LINK_EXISTING, lang),
+                        text = if (lang == "ar") "اختيار حساب موجود مسبقاً يدوياً..." else "Manually select an existing payable ledger account...",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -444,11 +544,11 @@ fun AddCustomerDialog(
 
                 if (linkStrategy == 2) {
                     Spacer(Modifier.height(10.dp))
-                    
+
                     val filteredAccounts = remember(accountSearchQuery, leafAccounts) {
                         leafAccounts.filter { acc ->
                             acc.accountCode.contains(accountSearchQuery, ignoreCase = true) ||
-                            acc.name.contains(accountSearchQuery, ignoreCase = true)
+                            Localization.getAccountName(acc.accountCode, acc.name, lang).contains(accountSearchQuery, ignoreCase = true)
                         }
                     }
 
@@ -465,14 +565,13 @@ fun AddCustomerDialog(
                             },
                             label = { 
                                 Text(
-                                    currentSelection?.let { "${it.accountCode} - ${it.name}" } 
-                                        ?: Localization.translate(Localization.Key.SELECT_EXISTING_COA, lang)
+                                    currentSelection?.let { "${it.accountCode} - ${Localization.getAccountName(it.accountCode, it.name, lang)}" } 
+                                        ?: (if (lang == "ar") "الحساب المقترن يدوياً" else "Manual AP Account")
                                 ) 
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .menuAnchor()
-                                .testTag("cust_select_exist_trigger"),
+                                .menuAnchor(),
                             trailingIcon = { 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     if (accountSearchQuery.isNotEmpty()) {
@@ -485,20 +584,19 @@ fun AddCustomerDialog(
                             },
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )
-
                         ExposedDropdownMenu(
                             expanded = menuExpanded && filteredAccounts.isNotEmpty(),
                             onDismissRequest = { menuExpanded = false }
                         ) {
-                            filteredAccounts.forEach { acc ->
+                            filteredAccounts.forEach { item ->
+                                val nameStr = "${item.accountCode} - ${Localization.getAccountName(item.accountCode, item.name, lang)}"
                                 DropdownMenuItem(
-                                    text = { Text("${acc.accountCode} - ${acc.name}") },
+                                    text = { Text(nameStr, style = MaterialTheme.typography.bodySmall) },
                                     onClick = {
-                                        selectedExistAccountId = acc.id
-                                        accountSearchQuery = "${acc.accountCode} - ${acc.name}"
+                                        selectedExistAccountId = item.id
+                                        accountSearchQuery = nameStr
                                         menuExpanded = false
-                                    },
-                                    modifier = Modifier.testTag("cust_select_exist_option_${acc.id}")
+                                    }
                                 )
                             }
                         }
@@ -511,25 +609,22 @@ fun AddCustomerDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss, modifier = Modifier.testTag("cust_btn_cancel")) {
-                        Text(Localization.translate(Localization.Key.CANCEL, lang))
+                    TextButton(onClick = onDismiss) {
+                        Text(if (lang == "ar") "إلغاء" else "Cancel")
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            if (name.isNotBlank()) {
-                                val linkId = when (linkStrategy) {
-                                    1 -> matchExist?.id
-                                    2 -> selectedExistAccountId
-                                    else -> null // Auto open
-                                }
-                                onConfirm(name, phone, email, linkId)
+                            val accIdToLink = when (linkStrategy) {
+                                1 -> matchExist?.id
+                                2 -> selectedExistAccountId
+                                else -> null
                             }
+                            onConfirm(name, phone, email, accIdToLink)
                         },
-                        enabled = name.isNotBlank() && (linkStrategy != 2 || selectedExistAccountId != null),
-                        modifier = Modifier.testTag("cust_btn_save")
+                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent)
                     ) {
-                        Text(Localization.translate(Localization.Key.SAVE_CUSTOMER, lang))
+                        Text(if (lang == "ar") "تسجيل وحفظ" else "Save Supplier")
                     }
                 }
             }

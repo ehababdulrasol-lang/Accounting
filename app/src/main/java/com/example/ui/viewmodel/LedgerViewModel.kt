@@ -35,6 +35,17 @@ data class AccountStatementRow(
     val runningBalance: Long
 )
 
+data class CashFlowStatement(
+    val openingBalance: Long,
+    val operatingInflow: Long,
+    val operatingOutflow: Long,
+    val investingInflow: Long,
+    val investingOutflow: Long,
+    val financingInflow: Long,
+    val financingOutflow: Long,
+    val closingBalance: Long
+)
+
 class LedgerViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
@@ -49,6 +60,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val vouchers = repository.voucherHeaders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val auditLogs = repository.auditLogs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val customers = repository.customers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val suppliers = repository.suppliers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val accountSnapshots = repository.allSnapshots.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val currentLanguage = MutableStateFlow("ar") // Set default to Arabic! Or Toggleable
@@ -77,6 +89,9 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val trialBalanceEnd = MutableStateFlow(0L)
     val trialBalanceRows = MutableStateFlow<List<TrialBalanceReportRow>>(emptyList())
     val trialBalanceLoading = MutableStateFlow(false)
+
+    val cashFlowLoading = MutableStateFlow(false)
+    val cashFlowStatement = MutableStateFlow<CashFlowStatement?>(null)
 
     init {
         // Initialize trial balance date range for FY 2026 default
@@ -407,6 +422,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                 _uiMessage.value = "Trial Balance report generation failed: ${e.localizedMessage}"
             } finally {
                 trialBalanceLoading.value = false
+                refreshCashFlow()
             }
         }
     }
@@ -570,7 +586,144 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun addSupplier(name: String, phone: String, email: String, existingAccountId: Long?) {
+        viewModelScope.launch {
+            try {
+                if (name.isBlank()) {
+                    _uiMessage.value = "Supplier name is required."
+                    return@launch
+                }
+                repository.createSupplier(
+                    name = name.trim(),
+                    phone = phone.trim(),
+                    email = email.trim(),
+                    existingAccountId = existingAccountId
+                )
+                _uiMessage.value = "Supplier '$name' fully registered in general ledger."
+            } catch (e: Exception) {
+                _uiMessage.value = "Save supplier failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteSupplier(supplier: Supplier) {
+        viewModelScope.launch {
+            try {
+                repository.deleteSupplier(supplier)
+                _uiMessage.value = "Supplier profiling deleted."
+            } catch (e: Exception) {
+                _uiMessage.value = "Deletion failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateSupplier(supplier: Supplier) {
+        viewModelScope.launch {
+            try {
+                if (supplier.name.isBlank()) {
+                    _uiMessage.value = "Supplier name is required."
+                    return@launch
+                }
+                repository.updateSupplier(supplier)
+                _uiMessage.value = "Supplier profiling updated."
+            } catch (e: Exception) {
+                _uiMessage.value = "Update failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun refreshCashFlow() {
+        viewModelScope.launch {
+            cashFlowLoading.value = true
+            try {
+                val cashAccounts = accounts.value.filter { it.accountCode.startsWith("1101") || it.accountCode.startsWith("1102") }
+                val cashIds = cashAccounts.map { it.id }.toSet()
+                
+                val headers = vouchers.value.filter { it.isPosted }
+                val allLines = repository.getAllVoucherLines()
+                
+                // 1. Calculate opening balance (all cash entries before start date)
+                val openingCash = allLines.filter { line ->
+                    line.accountId in cashIds && headers.find { it.id == line.headerId }?.let { h -> h.date < trialBalanceStart.value } == true
+                }.sumOf { if (it.debit > 0) it.amountBase else -it.amountBase }
+                
+                // 2. Identify all lines of posted vouchers in the current period
+                val periodHeaders = headers.filter { it.date in trialBalanceStart.value..trialBalanceEnd.value }
+                val periodHeaderIds = periodHeaders.map { it.id }.toSet()
+                val periodLines = allLines.filter { it.headerId in periodHeaderIds }
+                
+                var opIn = 0L
+                var opOut = 0L
+                var invIn = 0L
+                var invOut = 0L
+                var finIn = 0L
+                var finOut = 0L
+                
+                // Group period lines by voucher
+                val voucherGroups = periodLines.groupBy { it.headerId }
+                
+                for ((voucherId, lines) in voucherGroups) {
+                    val cashLinesInVoucher = lines.filter { it.accountId in cashIds }
+                    if (cashLinesInVoucher.isEmpty()) continue
+                    
+                    val netCashChange = cashLinesInVoucher.sumOf { if (it.debit > 0) it.amountBase else -it.amountBase }
+                    if (netCashChange == 0L) continue
+                    
+                    val companionLines = lines.filter { it.accountId !in cashIds }
+                    
+                    for (line in companionLines) {
+                        val acc = accounts.value.find { it.id == line.accountId } ?: continue
+                        when (acc.accountType) {
+                            AccountType.REVENUE -> {
+                                if (netCashChange > 0) opIn += line.amountBase else opOut += line.amountBase
+                            }
+                            AccountType.EXPENSE -> {
+                                if (netCashChange < 0) opOut += line.amountBase else opIn += line.amountBase
+                            }
+                            AccountType.ASSET -> {
+                                if (acc.accountCode.startsWith("12") || acc.accountCode.startsWith("13")) {
+                                    if (netCashChange < 0) invOut += line.amountBase else invIn += line.amountBase
+                                } else {
+                                    if (netCashChange > 0) opIn += line.amountBase else opOut += line.amountBase
+                                }
+                            }
+                            AccountType.LIABILITY -> {
+                                if (acc.accountCode.startsWith("22") || acc.accountCode.startsWith("23")) {
+                                    if (netCashChange > 0) finIn += line.amountBase else finOut += line.amountBase
+                                } else {
+                                    if (netCashChange > 0) opIn += line.amountBase else opOut += line.amountBase
+                                }
+                            }
+                            AccountType.EQUITY -> {
+                                if (netCashChange > 0) finIn += line.amountBase else finOut += line.amountBase
+                            }
+                        }
+                    }
+                }
+                
+                cashFlowStatement.value = CashFlowStatement(
+                    openingBalance = openingCash,
+                    operatingInflow = opIn,
+                    operatingOutflow = opOut,
+                    investingInflow = invIn,
+                    investingOutflow = invOut,
+                    financingInflow = finIn,
+                    financingOutflow = finOut,
+                    closingBalance = openingCash + (opIn - opOut) + (invIn - invOut) + (finIn - finOut)
+                )
+            } catch (e: Exception) {
+                _uiMessage.value = "Cash Flow report generation failed: ${e.localizedMessage}"
+            } finally {
+                cashFlowLoading.value = false
+            }
+        }
+    }
+
     suspend fun getVoucherLines(headerId: Long): List<VoucherLine> {
         return repository.getVoucherLines(headerId).first()
+    }
+
+    suspend fun getAllVoucherLines(): List<VoucherLine> {
+        return repository.getAllVoucherLines()
     }
 }

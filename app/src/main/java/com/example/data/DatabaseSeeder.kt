@@ -84,7 +84,7 @@ object DatabaseSeeder {
             Account(accountCode = "21", name = "Current Liabilities", parentId = liabilitiesPid, accountType = AccountType.LIABILITY, currencyId = lydId, isGroup = true)
         )
         accountDao.insert(
-            Account(accountCode = "2101", name = "Accounts Payable", parentId = currentLiabilitiesId, accountType = AccountType.LIABILITY, currencyId = lydId, isGroup = false)
+            Account(accountCode = "2101", name = "Accounts Payable", parentId = currentLiabilitiesId, accountType = AccountType.LIABILITY, currencyId = lydId, isGroup = true)
         )
 
         // Under Equity

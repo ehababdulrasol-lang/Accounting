@@ -58,6 +58,7 @@ fun VoucherEditorScreen(
     val isBalanced = validationTriple.third
 
     var fyDropdownExpanded by remember { mutableStateOf(false) }
+    var isHeaderCollapsed by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -103,139 +104,212 @@ fun VoucherEditorScreen(
         Spacer(Modifier.height(16.dp))
 
         // Document Form Header details
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-        ) {
-            Column(
+        if (isHeaderCollapsed) {
+            Card(
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .clickable { isHeaderCollapsed = false }
+                    .padding(bottom = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedTextField(
-                        value = formVoucherNo,
-                        onValueChange = { viewModel.formVoucherNo.value = it },
-                        label = { Text(if (lang == "ar") "رقم السند/القيد" else "Voucher ID/No") },
-                        modifier = Modifier.weight(1f).testTag("voucher_number_input")
-                    )
-
-                    // Voucher Category select
-                    var typeDropdownExpanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = typeDropdownExpanded,
-                        onExpandedChange = { typeDropdownExpanded = !typeDropdownExpanded },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        val classificationText = when (formVoucherType) {
-                            VoucherType.JOURNAL -> if (lang == "ar") "قيد تسوية يومية" else "Journal Entry"
-                            VoucherType.RECEIPT -> if (lang == "ar") "سند قبض مالي" else "Receipt Voucher"
-                            VoucherType.PAYMENT -> if (lang == "ar") "سند صرف نقدي" else "Payment Voucher"
-                        }
-                        OutlinedTextField(
-                            value = classificationText,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(if (lang == "ar") "نوع التصنيف" else "Classification") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeDropdownExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = typeDropdownExpanded,
-                            onDismissRequest = { typeDropdownExpanded = false }
-                        ) {
-                            VoucherType.values().forEach { type ->
-                                val labelText = when (type) {
-                                    VoucherType.JOURNAL -> if (lang == "ar") "قيد تسوية يومية" else "Journal Entry"
-                                    VoucherType.RECEIPT -> if (lang == "ar") "سند قبض مالي" else "Receipt Voucher"
-                                    VoucherType.PAYMENT -> if (lang == "ar") "سند صرف نقدي" else "Payment Voucher"
-                                }
-                                DropdownMenuItem(
-                                    text = { Text(labelText) },
-                                    onClick = {
-                                        viewModel.formVoucherType.value = type
-                                        typeDropdownExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Fiscal Period select
-                    ExposedDropdownMenuBox(
-                        expanded = fyDropdownExpanded,
-                        onExpandedChange = { fyDropdownExpanded = !fyDropdownExpanded },
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
                     ) {
-                        val activeFy = fiscalYears.find { it.id == formFiscalYearId }
-                        val activeFyName = if (activeFy != null) {
-                            if (lang == "ar") activeFy.name.replace("FY", "سنة") else activeFy.name
-                        } else {
-                            if (lang == "ar") "اختر الفترة" else "Select Period"
-                        }
-                        OutlinedTextField(
-                            value = activeFyName,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(if (lang == "ar") "الفترة المالية" else "Fiscal Period") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fyDropdownExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
                         )
-                        ExposedDropdownMenu(
-                            expanded = fyDropdownExpanded,
-                            onDismissRequest = { fyDropdownExpanded = false }
+                        Spacer(Modifier.width(8.dp))
+                        val summaryText = if (lang == "ar") {
+                            "بيان السند: ${formVoucherNo.ifBlank { "بلا رقم" }} • ${formDescription.ifBlank { "بلا شرح" }}"
+                        } else {
+                            "Voucher: ${formVoucherNo.ifBlank { "N/A" }} • ${formDescription.ifBlank { "N/A" }}"
+                        }
+                        Text(
+                            text = summaryText,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                    Text(
+                        text = if (lang == "ar") "تعديل التفاصيل ✎" else "Edit Details ✎",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        } else {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "بيانات السند الأساسية" else "Voucher Primary Details",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        TextButton(
+                            onClick = { isHeaderCollapsed = true },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
                         ) {
-                            fiscalYears.forEach { fy ->
-                                val fyName = if (lang == "ar") fy.name.replace("FY", "سنة") else fy.name
-                                DropdownMenuItem(
-                                    text = { 
-                                        Row {
-                                            Text(fyName)
-                                            if (fy.isLocked) {
-                                                Spacer(Modifier.width(4.dp))
-                                                Text(if (lang == "ar") "(مغلق)" else "(LOCKED)", color = RoseRed, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-                                    },
-                                    onClick = {
-                                        viewModel.formFiscalYearId.value = fy.id
-                                        fyDropdownExpanded = false
+                            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(if (lang == "ar") "تصغير الجزء العلوي" else "Collapse Header")
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = formVoucherNo,
+                            onValueChange = { viewModel.formVoucherNo.value = it },
+                            label = { Text(if (lang == "ar") "رقم السند/القيد" else "Voucher ID/No") },
+                            modifier = Modifier.weight(1f).testTag("voucher_number_input")
+                        )
+
+                        // Voucher Category select
+                        var typeDropdownExpanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = typeDropdownExpanded,
+                            onExpandedChange = { typeDropdownExpanded = !typeDropdownExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            val classificationText = when (formVoucherType) {
+                                VoucherType.JOURNAL -> if (lang == "ar") "قيد تسوية يومية" else "Journal Entry"
+                                VoucherType.RECEIPT -> if (lang == "ar") "سند قبض مالي" else "Receipt Voucher"
+                                VoucherType.PAYMENT -> if (lang == "ar") "سند صرف نقدي" else "Payment Voucher"
+                            }
+                            OutlinedTextField(
+                                value = classificationText,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(if (lang == "ar") "نوع التصنيف" else "Classification") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeDropdownExpanded) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = typeDropdownExpanded,
+                                onDismissRequest = { typeDropdownExpanded = false }
+                            ) {
+                                VoucherType.values().forEach { type ->
+                                    val labelText = when (type) {
+                                        VoucherType.JOURNAL -> if (lang == "ar") "قيد تسوية يومية" else "Journal Entry"
+                                        VoucherType.RECEIPT -> if (lang == "ar") "سند قبض مالي" else "Receipt Voucher"
+                                        VoucherType.PAYMENT -> if (lang == "ar") "سند صرف نقدي" else "Payment Voucher"
                                     }
-                                )
+                                    DropdownMenuItem(
+                                        text = { Text(labelText) },
+                                        onClick = {
+                                            viewModel.formVoucherType.value = type
+                                            typeDropdownExpanded = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // Optional timestamp date representation
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Fiscal Period select
+                        ExposedDropdownMenuBox(
+                            expanded = fyDropdownExpanded,
+                            onExpandedChange = { fyDropdownExpanded = !fyDropdownExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            val activeFy = fiscalYears.find { it.id == formFiscalYearId }
+                            val activeFyName = if (activeFy != null) {
+                                if (lang == "ar") activeFy.name.replace("FY", "سنة") else activeFy.name
+                            } else {
+                                if (lang == "ar") "اختر الفترة" else "Select Period"
+                            }
+                            OutlinedTextField(
+                                value = activeFyName,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(if (lang == "ar") "الفترة المالية" else "Fiscal Period") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fyDropdownExpanded) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = fyDropdownExpanded,
+                                onDismissRequest = { fyDropdownExpanded = false }
+                            ) {
+                                fiscalYears.forEach { fy ->
+                                    val fyName = if (lang == "ar") fy.name.replace("FY", "سنة") else fy.name
+                                    DropdownMenuItem(
+                                        text = { 
+                                            Row {
+                                                Text(fyName)
+                                                if (fy.isLocked) {
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text(if (lang == "ar") "(مغلق)" else "(LOCKED)", color = RoseRed, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.formFiscalYearId.value = fy.id
+                                            fyDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Optional timestamp date representation
+                        OutlinedTextField(
+                            value = if (lang == "ar") "تلقائي (الوقت الحالي)" else "Auto (Current Time)",
+                            onValueChange = {},
+                            enabled = false,
+                            label = { Text(if (lang == "ar") "تاريخ السند" else "Voucher Entry Date") },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
                     OutlinedTextField(
-                        value = if (lang == "ar") "تلقائي (الوقت الحالي)" else "Auto (Current Time)",
-                        onValueChange = {},
-                        enabled = false,
-                        label = { Text(if (lang == "ar") "تاريخ السند" else "Voucher Entry Date") },
-                        modifier = Modifier.weight(1f)
+                        value = formDescription,
+                        onValueChange = { viewModel.formDescription.value = it },
+                        label = { Text(if (lang == "ar") "بيان القيد / شرح السند المحاسبي" else "Description / Narration Memo") },
+                        modifier = Modifier.fillMaxWidth().testTag("voucher_narration_input")
                     )
                 }
-
-                Spacer(Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = formDescription,
-                    onValueChange = { viewModel.formDescription.value = it },
-                    label = { Text(if (lang == "ar") "بيان القيد / شرح السند المحاسبي" else "Description / Narration Memo") },
-                    modifier = Modifier.fillMaxWidth().testTag("voucher_narration_input")
-                )
             }
         }
 
@@ -360,6 +434,12 @@ fun VoucherLineRowItem(
 
     val activeCurrency = currencies.find { it.id == line.currencyId } ?: currencies.firstOrNull()
 
+    val activeAcc = leafAccounts.find { it.id == line.accountId }
+    val initialText = activeAcc?.let { 
+        "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" 
+    } ?: ""
+    var searchAccountQuery by remember(line.accountId) { mutableStateOf(initialText) }
+
     Card(
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier
@@ -400,26 +480,46 @@ fun VoucherLineRowItem(
                     onExpandedChange = { accountDropdownExpanded = !accountDropdownExpanded },
                     modifier = Modifier.weight(1f)
                 ) {
-                    val activeAcc = leafAccounts.find { it.id == line.accountId }
-                    val boxText = activeAcc?.let { 
-                        "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" 
-                    } ?: (if (lang == "ar") "حدد حساباً محاسبياً" else "Select Account")
                     OutlinedTextField(
-                        value = boxText,
-                        onValueChange = {},
-                        readOnly = true,
+                        value = searchAccountQuery,
+                        onValueChange = { newValue ->
+                            searchAccountQuery = newValue
+                            accountDropdownExpanded = true
+                        },
                         label = { Text(if (lang == "ar") "الحساب المستهدف" else "Target Account") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountDropdownExpanded) },
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (searchAccountQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchAccountQuery = "" }) {
+                                        Icon(Icons.Filled.Clear, contentDescription = "Clear")
+                                    }
+                                }
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountDropdownExpanded)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor()
                             .testTag("voucher_row_account_input_$index")
                     )
+
+                    val filteredAccounts = remember(searchAccountQuery, leafAccounts) {
+                        if (searchAccountQuery == initialText) {
+                            leafAccounts
+                        } else {
+                            leafAccounts.filter { acc ->
+                                val localizedName = com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)
+                                acc.accountCode.contains(searchAccountQuery, ignoreCase = true) ||
+                                localizedName.contains(searchAccountQuery, ignoreCase = true)
+                            }
+                        }
+                    }
+
                     ExposedDropdownMenu(
-                        expanded = accountDropdownExpanded,
+                        expanded = accountDropdownExpanded && filteredAccounts.isNotEmpty(),
                         onDismissRequest = { accountDropdownExpanded = false }
                     ) {
-                        leafAccounts.forEach { acc ->
+                        filteredAccounts.forEach { acc ->
                             val localizedName = com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)
                             val typeLabel = when (acc.accountType) {
                                 AccountType.ASSET -> if (lang == "ar") "أصول" else "ASSET"
@@ -432,6 +532,7 @@ fun VoucherLineRowItem(
                                 text = { Text("${acc.accountCode} - $localizedName ($typeLabel)") },
                                 onClick = {
                                     onUpdate(line.copy(accountId = acc.id, currencyId = acc.currencyId))
+                                    searchAccountQuery = "${acc.accountCode} - $localizedName"
                                     accountDropdownExpanded = false
                                 }
                             )

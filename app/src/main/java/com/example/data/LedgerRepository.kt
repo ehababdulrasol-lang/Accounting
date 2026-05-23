@@ -34,6 +34,7 @@ class LedgerRepository(private val db: AppDatabase) {
     private val snapshotDao = db.accountBalanceSnapshotDao()
     private val exchangeRateHistoryDao = db.exchangeRateHistoryDao()
     private val customerDao = db.customerDao()
+    private val supplierDao = db.supplierDao()
 
     // Flow listings
     val rootAccounts: Flow<List<Account>> = accountDao.getRootAccounts()
@@ -44,6 +45,7 @@ class LedgerRepository(private val db: AppDatabase) {
     val voucherHeaders: Flow<List<VoucherHeader>> = voucherDao.getAllVoucherHeaders()
     val auditLogs: Flow<List<AuditLog>> = auditLogDao.getAllLogs()
     val customers: Flow<List<Customer>> = customerDao.getAllCustomersFlow()
+    val suppliers: Flow<List<Supplier>> = supplierDao.getAllSuppliersFlow()
     val allSnapshots: Flow<List<AccountBalanceSnapshot>> = snapshotDao.getAllSnapshotsFlow()
 
     // Seeding API
@@ -449,6 +451,127 @@ class LedgerRepository(private val db: AppDatabase) {
                 voucherNo = "CUSTOMERS",
                 action = "CUSTOMER_UPDATED",
                 details = "Updated customer profile for '${customer.name}'"
+            )
+        )
+    }
+
+    // Supplier functions
+    suspend fun createSupplier(name: String, phone: String, email: String, existingAccountId: Long?): Long = withContext(Dispatchers.IO) {
+        var activeAccountLinkId: Long = 0L
+        
+        if (existingAccountId != null && existingAccountId > 0L) {
+            activeAccountLinkId = existingAccountId
+            val accName = accountDao.getAccountById(existingAccountId)?.name ?: "#$existingAccountId"
+            auditLogDao.insert(
+                AuditLog(
+                    voucherId = 0,
+                    voucherNo = "SUPPLIERS",
+                    action = "SUPPLIER_LINKED",
+                    details = "Registered supplier '$name' and linked to existing CoA Account '$accName'."
+                )
+            )
+        } else {
+            val accounts = accountDao.getAllAccounts().first()
+            val matchEn = accounts.find { it.name.trim().equals(name.trim(), ignoreCase = true) && !it.isGroup }
+            
+            if (matchEn != null) {
+                activeAccountLinkId = matchEn.id
+                auditLogDao.insert(
+                    AuditLog(
+                        voucherId = 0,
+                        voucherNo = "SUPPLIERS",
+                        action = "SUPPLIER_AUTO_LINKED",
+                        details = "Registered supplier '$name' and automatically linked to matching account name '${matchEn.accountCode} - ${matchEn.name}'."
+                    )
+                )
+            } else {
+                // Open new account under Accounts Payable Parent "2101"
+                var payablesParent = accounts.find { it.accountCode == "2101" }
+                if (payablesParent == null) {
+                    val liabilitiesParent = accounts.find { it.accountCode == "21" }
+                        ?: throw IllegalStateException("Current Liabilities (21) group not found.")
+                    val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
+                    val newParentId = accountDao.insert(
+                        Account(
+                            accountCode = "2101",
+                            name = "Accounts Payable",
+                            parentId = liabilitiesParent.id,
+                            accountType = AccountType.LIABILITY,
+                            currencyId = lyCur.id,
+                            isGroup = true
+                        )
+                    )
+                    payablesParent = accountDao.getAccountById(newParentId)!!
+                } else if (!payablesParent.isGroup) {
+                    accountDao.update(payablesParent.copy(isGroup = true))
+                }
+                
+                // Fetch subaccounts of 2101 to find max suffix code
+                val children = accountDao.getSubAccounts(payablesParent.id).first()
+                val maxSuffix = children.mapNotNull { child ->
+                    child.accountCode.removePrefix("2101").toIntOrNull()
+                }.maxOrNull() ?: 0
+                
+                val nextSuffix = maxSuffix + 1
+                val nextCodeStr = "2101" + String.format("%03d", nextSuffix)
+                
+                val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
+                val newAccountId = accountDao.insert(
+                    Account(
+                        accountCode = nextCodeStr,
+                        name = name,
+                        parentId = payablesParent.id,
+                        accountType = AccountType.LIABILITY,
+                        currencyId = lyCur.id,
+                        isGroup = false
+                    )
+                )
+                
+                activeAccountLinkId = newAccountId
+                auditLogDao.insert(
+                    AuditLog(
+                        voucherId = 0,
+                        voucherNo = "SUPPLIERS",
+                        action = "AUTO_ACCOUNT_CREATED",
+                        details = "Opened sub-account '$nextCodeStr - $name' under Accounts Payable."
+                    )
+                )
+            }
+        }
+        
+        val supplierId = supplierDao.insert(
+            Supplier(
+                name = name,
+                phone = phone,
+                email = email,
+                accountId = activeAccountLinkId
+            )
+        )
+        
+        recalculateSnapshots()
+        supplierId
+    }
+
+    suspend fun deleteSupplier(supplier: Supplier) = withContext(Dispatchers.IO) {
+        supplierDao.delete(supplier)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "SUPPLIERS",
+                action = "SUPPLIER_DELETED",
+                details = "Deleted supplier profile for '${supplier.name}'"
+            )
+        )
+    }
+
+    suspend fun updateSupplier(supplier: Supplier) = withContext(Dispatchers.IO) {
+        supplierDao.update(supplier)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "SUPPLIERS",
+                action = "SUPPLIER_UPDATED",
+                details = "Updated supplier profile for '${supplier.name}'"
             )
         )
     }

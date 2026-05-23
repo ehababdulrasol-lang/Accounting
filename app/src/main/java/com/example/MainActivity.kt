@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.screens.*
+import com.example.ui.theme.GoldAccent
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.LedgerViewModel
 import kotlinx.coroutines.launch
@@ -121,29 +123,65 @@ fun MainLayout(viewModel: LedgerViewModel) {
                             modifier = Modifier.width(300.dp)
                         ) {
                             Spacer(Modifier.height(30.dp))
-                            // Drawer Header
+                            // Drawer Header satisfying visual guidelines
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                                    .padding(horizontal = 24.dp, vertical = 20.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.AccountBalance,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(48.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    // App Logo Icon
+                                    Box(
+                                        modifier = Modifier
+                                            .size(46.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(GoldAccent.copy(alpha = 0.15f))
+                                            .border(1.dp, GoldAccent.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.AccountBalance,
+                                            contentDescription = null,
+                                            tint = GoldAccent,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+
+                                    // User Avatar
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                                            .border(1.dp, GoldAccent.copy(alpha = 0.5f), RoundedCornerShape(20.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "FO",
+                                            fontWeight = FontWeight.Bold,
+                                            color = GoldAccent,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                }
+
                                 Spacer(Modifier.height(16.dp))
+
+                                // Company name & info
                                 Text(
-                                    text = com.example.ui.Localization.translate(com.example.ui.Localization.Key.APP_NAME, lang),
+                                    text = if (lang == "ar") "المؤسسة الليبية للتدقيق المالي" else "Libyan Financial Ledger Pro",
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (lang == "ar") "النظام المحاسبي الذكي" else "Smart Ledger Workstation",
+                                    text = if (lang == "ar") "حساب المدير المالي لشركة الامتثال" else "Financial Executive Compliance Terminal",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
                                 )
                             }
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
@@ -154,21 +192,26 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                 Triple(0, Icons.Filled.SpaceDashboard, com.example.ui.Localization.Key.NAV_DASHBOARD),
                                 Triple(1, Icons.Filled.AccountTree, com.example.ui.Localization.Key.NAV_ACCOUNTS),
                                 Triple(2, Icons.Filled.People, com.example.ui.Localization.Key.NAV_CUSTOMERS),
-                                Triple(3, Icons.Filled.Assignment, com.example.ui.Localization.Key.NAV_VOUCHERS),
-                                Triple(4, Icons.Filled.Book, com.example.ui.Localization.Key.VIEW_STATEMENT),
-                                Triple(5, Icons.Filled.Assessment, com.example.ui.Localization.Key.NAV_REPORTS),
-                                Triple(6, Icons.Filled.Security, com.example.ui.Localization.Key.NAV_SETTINGS)
+                                Triple(3, Icons.Filled.Storefront, com.example.ui.Localization.Key.NAV_SUPPLIERS),
+                                Triple(4, Icons.Filled.Assignment, com.example.ui.Localization.Key.NAV_VOUCHERS),
+                                Triple(5, Icons.Filled.Book, com.example.ui.Localization.Key.VIEW_STATEMENT),
+                                Triple(6, Icons.Filled.Assessment, com.example.ui.Localization.Key.NAV_REPORTS),
+                                Triple(7, Icons.Filled.Security, com.example.ui.Localization.Key.NAV_SETTINGS)
                             )
 
                             items.forEach { (index, icon, key) ->
                                 NavigationDrawerItem(
-                                    icon = { Icon(icon, contentDescription = null) },
-                                    label = { Text(com.example.ui.Localization.translate(key, lang), fontWeight = FontWeight.SemiBold) },
+                                    icon = { Icon(icon, contentDescription = null, tint = if (activeTab == index) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+                                    label = { Text(com.example.ui.Localization.translate(key, lang), fontWeight = FontWeight.SemiBold, color = if (activeTab == index) GoldAccent else MaterialTheme.colorScheme.onSurface) },
                                     selected = activeTab == index,
                                     onClick = {
                                         activeTab = index
                                         scope.launch { drawerState.close() }
                                     },
+                                    colors = NavigationDrawerItemDefaults.colors(
+                                        selectedContainerColor = GoldAccent.copy(alpha = 0.1f),
+                                        unselectedContainerColor = Color.Transparent
+                                    ),
                                     modifier = Modifier
                                         .padding(horizontal = 12.dp, vertical = 4.dp)
                                         .testTag("nav_drawer_tab_$index")
@@ -188,10 +231,11 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                             0 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_DASHBOARD, lang)
                                             1 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_ACCOUNTS, lang)
                                             2 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_CUSTOMERS, lang)
-                                            3 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_VOUCHERS, lang)
-                                            4 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.VIEW_STATEMENT, lang)
-                                            5 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_REPORTS, lang)
-                                            6 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SETTINGS, lang)
+                                            3 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SUPPLIERS, lang)
+                                            4 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_VOUCHERS, lang)
+                                            5 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.VIEW_STATEMENT, lang)
+                                            6 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_REPORTS, lang)
+                                            7 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SETTINGS, lang)
                                             else -> ""
                                         },
                                         fontWeight = FontWeight.ExtraBold,
@@ -245,18 +289,19 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                     0 -> DashboardScreen(
                                         viewModel = viewModel,
                                         onNavigateToAccounts = { activeTab = 1 },
-                                        onNavigateToVouchers = { activeTab = 3 },
-                                        onNavigateToReports = { activeTab = 5 }
+                                        onNavigateToVouchers = { activeTab = 4 },
+                                        onNavigateToReports = { activeTab = 6 }
                                     )
                                     1 -> AccountsScreen(viewModel = viewModel)
                                     2 -> CustomersScreen(viewModel = viewModel)
-                                    3 -> VouchersScreen(
+                                    3 -> SuppliersScreen(viewModel = viewModel)
+                                    4 -> VouchersScreen(
                                         viewModel = viewModel,
                                         onNavigateToEditor = { showEditor = true }
                                     )
-                                    4 -> AccountStatementScreen(viewModel = viewModel)
-                                    5 -> ReportsScreen(viewModel = viewModel)
-                                    6 -> SettingsScreen(viewModel = viewModel)
+                                    5 -> AccountStatementScreen(viewModel = viewModel)
+                                    6 -> ReportsScreen(viewModel = viewModel)
+                                    7 -> SettingsScreen(viewModel = viewModel)
                                 }
                             }
                         }
