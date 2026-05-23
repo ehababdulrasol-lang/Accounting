@@ -21,6 +21,21 @@ interface AccountDao {
     """)
     fun getRecursiveAccountBalance(accountId: Long): Flow<Long?>
 
+    @Transaction
+    @Query("""
+        WITH RECURSIVE SubAccounts AS (
+            SELECT id FROM accounts WHERE id = :accountId
+            UNION ALL
+            SELECT a.id FROM accounts a INNER JOIN SubAccounts s ON a.parentId = s.id
+        )
+        SELECT 
+            SUM(CASE WHEN vl.debit > 0 THEN vl.amountBase ELSE -vl.amountBase END) as balance
+        FROM voucher_lines vl
+        JOIN voucher_headers vh ON vl.headerId = vh.id
+        WHERE vl.accountId IN SubAccounts AND vh.isPosted = 1
+    """)
+    suspend fun getRecursiveAccountBalanceSuspend(accountId: Long): Long?
+
     @Query("SELECT * FROM accounts WHERE parentId IS NULL ORDER BY accountCode")
     fun getRootAccounts(): Flow<List<Account>>
 
@@ -29,6 +44,12 @@ interface AccountDao {
 
     @Query("SELECT * FROM accounts ORDER BY accountCode")
     fun getAllAccounts(): Flow<List<Account>>
+
+    @Query("SELECT * FROM accounts ORDER BY accountCode")
+    suspend fun getAllAccountsSuspend(): List<Account>
+
+    @Query("SELECT * FROM accounts WHERE parentId = :parentId ORDER BY accountCode")
+    suspend fun getSubAccountsSuspend(parentId: Long): List<Account>
 
     @Query("SELECT * FROM accounts WHERE id = :accountId")
     suspend fun getAccountById(accountId: Long): Account?
@@ -51,6 +72,9 @@ interface VoucherDao {
 
     @Query("SELECT * FROM voucher_headers ORDER BY date DESC, id DESC")
     fun getAllVoucherHeaders(): Flow<List<VoucherHeader>>
+
+    @Query("SELECT * FROM voucher_headers ORDER BY date DESC, id DESC")
+    suspend fun getAllVoucherHeadersSuspend(): List<VoucherHeader>
 
     @Query("SELECT * FROM voucher_headers WHERE id = :id")
     suspend fun getVoucherHeaderById(id: Long): VoucherHeader?
@@ -119,6 +143,9 @@ interface FiscalYearDao {
 
     @Query("SELECT * FROM fiscal_years WHERE isLocked = 0 ORDER BY startDate DESC")
     fun getActiveFiscalYears(): Flow<List<FiscalYear>>
+
+    @Query("SELECT * FROM fiscal_years WHERE isLocked = 0 ORDER BY startDate DESC")
+    suspend fun getActiveFiscalYearsSuspend(): List<FiscalYear>
 
     @Query("SELECT * FROM fiscal_years WHERE id = :id")
     suspend fun getFiscalYearById(id: Long): FiscalYear?

@@ -45,6 +45,7 @@ fun SuppliersScreen(
     val snapshots by viewModel.accountSnapshots.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var editingSupplier by remember { mutableStateOf<Supplier?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
     val direction = Localization.getLayoutDirection(lang)
@@ -143,6 +144,11 @@ fun SuppliersScreen(
                                 account = linkedAccount,
                                 balance = balance,
                                 onDelete = { viewModel.deleteSupplier(supplier) },
+                                onEdit = { editingSupplier = supplier },
+                                onViewStatement = {
+                                    viewModel.statementTargetAccountId.value = supplier.accountId
+                                    viewModel.navigateToTabFlow.tryEmit(7)
+                                },
                                 lang = lang
                             )
                         }
@@ -175,6 +181,18 @@ fun SuppliersScreen(
                     lang = lang
                 )
             }
+
+            if (editingSupplier != null) {
+                EditSupplierDialog(
+                    supplier = editingSupplier!!,
+                    onDismiss = { editingSupplier = null },
+                    onConfirm = { name, phone, email, creditLimit ->
+                        viewModel.updateSupplier(editingSupplier!!.copy(name = name, phone = phone, email = email, creditLimit = creditLimit))
+                        editingSupplier = null
+                    },
+                    lang = lang
+                )
+            }
         }
     }
 }
@@ -185,6 +203,8 @@ fun SupplierCard(
     account: Account?,
     balance: Long,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
+    onViewStatement: () -> Unit,
     lang: String
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -234,10 +254,6 @@ fun SupplierCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
-                }
-
-                IconButton(onClick = { showDeleteConfirm = true }) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete Supplier", tint = RoseRed)
                 }
             }
 
@@ -345,6 +361,57 @@ fun SupplierCard(
                             maxLines = 1
                         )
                     }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Account Statement button
+                FilledTonalButton(
+                    onClick = onViewStatement,
+                    modifier = Modifier.weight(1f).height(38.dp).testTag("supplier_statement_${supplier.id}"),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Icon(Icons.Filled.Book, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = if (lang == "ar") "كشف الحساب" else "Statement",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+
+                // Edit button
+                FilledTonalButton(
+                    onClick = onEdit,
+                    modifier = Modifier.weight(1f).height(38.dp).testTag("supplier_edit_${supplier.id}"),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
+                        contentColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = if (lang == "ar") "تعديل" else "Edit",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+
+                // Delete button
+                IconButton(
+                    onClick = { showDeleteConfirm = true },
+                    modifier = Modifier.size(38.dp).testTag("delete_supplier_${supplier.id}")
+                ) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed)
                 }
             }
         }
@@ -588,6 +655,131 @@ fun AddSupplierDialog(
                         enabled = name.isNotBlank() && (linkStrategy != 2 || selectedExistAccountId != null)
                     ) {
                         Text(if (lang == "ar") "تسجيل وحفظ" else "Save Supplier")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditSupplierDialog(
+    supplier: Supplier,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String, Long) -> Unit,
+    lang: String
+) {
+    var name by remember { mutableStateOf(supplier.name) }
+    var phone by remember { mutableStateOf(supplier.phone) }
+    var email by remember { mutableStateOf(supplier.email) }
+    var limitInput by remember { mutableStateOf((supplier.creditLimit / 1000.0).toString()) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .width(400.dp)
+                .wrapContentHeight()
+                .padding(8.dp)
+                .testTag("edit_supplier_dialog"),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (lang == "ar") "تعديل بيانات المورد" else "Edit Supplier Details",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم المورد" else "Supplier Name") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_supp_input_name"),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text(if (lang == "ar") "رقم الهاتف" else "Phone") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_supp_input_phone"),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text(if (lang == "ar") "البريد الإلكتروني" else "Email") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_supp_input_email"),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = limitInput,
+                    onValueChange = { limitInput = it },
+                    label = { Text(if (lang == "ar") "الحد الائتماني" else "Credit Limit") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_supp_input_limit"),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.testTag("edit_supp_btn_cancel")) {
+                        Text(Localization.translate(Localization.Key.CANCEL, lang))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                val limitMilli = (limitInput.toDoubleOrNull() ?: 0.0) * 1000.0
+                                onConfirm(name, phone, email, limitMilli.toLong())
+                            }
+                        },
+                        enabled = name.isNotBlank(),
+                        modifier = Modifier.testTag("edit_supp_btn_save")
+                    ) {
+                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
                     }
                 }
             }

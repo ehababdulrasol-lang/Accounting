@@ -54,6 +54,14 @@ class LedgerRepository(private val db: AppDatabase) {
     val allBranches: Flow<List<BankBranch>> = bankDao.getAllBranchesFlow()
     val allBankAccounts: Flow<List<BankAccount>> = bankDao.getAllBankAccountsFlow()
 
+    suspend fun getActiveFiscalYearsSuspend(): List<FiscalYear> = withContext(Dispatchers.IO) {
+        fiscalYearDao.getActiveFiscalYearsSuspend()
+    }
+
+    suspend fun getVoucherLinesSuspend(headerId: Long): List<VoucherLine> = withContext(Dispatchers.IO) {
+        voucherDao.getVoucherLinesForHeader(headerId)
+    }
+
     // Seeding API
     suspend fun checkAndSeedDatabase() {
         withContext(Dispatchers.IO) {
@@ -247,12 +255,12 @@ class LedgerRepository(private val db: AppDatabase) {
      */
     suspend fun recalculateSnapshots() = withContext(Dispatchers.IO) {
         snapshotDao.clearAll()
-        val accounts = accountDao.getAllAccounts().first()
+        val accounts = accountDao.getAllAccountsSuspend()
         val snapshots = mutableListOf<AccountBalanceSnapshot>()
 
         for (acc in accounts) {
             // Retrieve current recursive balance
-            val bal = accountDao.getRecursiveAccountBalance(acc.id).first() ?: 0L
+            val bal = accountDao.getRecursiveAccountBalanceSuspend(acc.id) ?: 0L
             snapshots.add(AccountBalanceSnapshot(accountId = acc.id, balance = bal))
         }
         snapshotDao.insertAll(snapshots)
@@ -261,8 +269,8 @@ class LedgerRepository(private val db: AppDatabase) {
 
     // Report Queries
     fun getTrialBalance(startDate: Long, endDate: Long): Flow<List<TrialBalanceReportRow>> = flow {
-        val accounts = accountDao.getAllAccounts().first().filter { !it.isGroup } // Only leaf accounts
-        val headers = voucherDao.getAllVoucherHeaders().first().filter { it.isPosted }
+        val accounts = accountDao.getAllAccountsSuspend().filter { !it.isGroup } // Only leaf accounts
+        val headers = voucherDao.getAllVoucherHeadersSuspend().filter { it.isPosted }
         val allLines = voucherDao.getAllVoucherLines()
         
         val rows = mutableListOf<TrialBalanceReportRow>()
@@ -373,7 +381,7 @@ class LedgerRepository(private val db: AppDatabase) {
             )
         } else {
             // Check if there is an account in the system with exact matching name
-            val accounts = accountDao.getAllAccounts().first()
+            val accounts = accountDao.getAllAccountsSuspend()
             val matchEn = accounts.find { it.name.trim().equals(name.trim(), ignoreCase = true) && !it.isGroup }
             
             if (matchEn != null) {
@@ -392,7 +400,7 @@ class LedgerRepository(private val db: AppDatabase) {
                     ?: throw IllegalStateException("Accounts Receivable (1103) group not seeded.")
                 
                 // Fetch subaccounts of 1103 to find max suffix code
-                val children = accountDao.getSubAccounts(receivablesParent.id).first()
+                val children = accountDao.getSubAccountsSuspend(receivablesParent.id)
                 val maxSuffix = children.mapNotNull { child ->
                     child.accountCode.removePrefix("1103").toIntOrNull()
                 }.maxOrNull() ?: 0
@@ -477,7 +485,7 @@ class LedgerRepository(private val db: AppDatabase) {
                 )
             )
         } else {
-            val accounts = accountDao.getAllAccounts().first()
+            val accounts = accountDao.getAllAccountsSuspend()
             val matchEn = accounts.find { it.name.trim().equals(name.trim(), ignoreCase = true) && !it.isGroup }
             
             if (matchEn != null) {
@@ -513,7 +521,7 @@ class LedgerRepository(private val db: AppDatabase) {
                 }
                 
                 // Fetch subaccounts of 2101 to find max suffix code
-                val children = accountDao.getSubAccounts(payablesParent.id).first()
+                val children = accountDao.getSubAccountsSuspend(payablesParent.id)
                 val maxSuffix = children.mapNotNull { child ->
                     child.accountCode.removePrefix("2101").toIntOrNull()
                 }.maxOrNull() ?: 0
@@ -597,7 +605,7 @@ class LedgerRepository(private val db: AppDatabase) {
                 )
             )
         } else {
-            val accounts = accountDao.getAllAccounts().first()
+            val accounts = accountDao.getAllAccountsSuspend()
             val matchEn = accounts.find { it.name.trim().equals(name.trim(), ignoreCase = true) && !it.isGroup }
             if (matchEn != null) {
                 activeAccountLinkId = matchEn.id
@@ -632,7 +640,7 @@ class LedgerRepository(private val db: AppDatabase) {
                 }
 
                 // Find max suffix under 1101
-                val children = accountDao.getSubAccounts(cashParent.id).first()
+                val children = accountDao.getSubAccountsSuspend(cashParent.id)
                 val maxSuffix = children.mapNotNull { child ->
                     child.accountCode.removePrefix("1101").toIntOrNull()
                 }.maxOrNull() ?: 0
@@ -800,7 +808,7 @@ class LedgerRepository(private val db: AppDatabase) {
                 )
             )
         } else {
-            val accounts = accountDao.getAllAccounts().first()
+            val accounts = accountDao.getAllAccountsSuspend()
             val matchEn = accounts.find { it.name.trim().equals(dispName.trim(), ignoreCase = true) && !it.isGroup }
             if (matchEn != null) {
                 activeAccountLinkId = matchEn.id
@@ -835,7 +843,7 @@ class LedgerRepository(private val db: AppDatabase) {
                 }
 
                 // Find max suffix under 1104
-                val children = accountDao.getSubAccounts(bankParent.id).first()
+                val children = accountDao.getSubAccountsSuspend(bankParent.id)
                 val maxSuffix = children.mapNotNull { child ->
                     child.accountCode.removePrefix("1104").toIntOrNull()
                 }.maxOrNull() ?: 0

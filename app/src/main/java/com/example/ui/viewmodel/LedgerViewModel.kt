@@ -53,6 +53,8 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
 
     // Global App States
     val isSeeding = MutableStateFlow(true)
+    val navigateToTabFlow = kotlinx.coroutines.flow.MutableSharedFlow<Int>(replay = 0, extraBufferCapacity = 1)
+    val statementTargetAccountId = MutableStateFlow<Long?>(null)
     val accounts = repository.allAccounts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val rootAccounts = repository.rootAccounts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val currencies = repository.currencies.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -118,7 +120,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 repository.checkAndSeedDatabase()
                 // Set default fiscal year id once loaded
-                val fys = repository.activeFiscalYears.first()
+                val fys = repository.getActiveFiscalYearsSuspend()
                 if (fys.isNotEmpty()) {
                     formFiscalYearId.value = fys.first().id
                 }
@@ -271,7 +273,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         formDate.value = header.date
 
         viewModelScope.launch {
-            val dbLines = repository.getVoucherLines(header.id).first()
+            val dbLines = repository.getVoucherLinesSuspend(header.id)
             formLines.value = dbLines.map { line ->
                 val acc = repository.getAccountById(line.accountId)
                 val currency = repository.getCurrencyById(line.currencyId) ?: Currency(code="LYD", name="LYD", decimalPlaces=3)
@@ -724,7 +726,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     suspend fun getVoucherLines(headerId: Long): List<VoucherLine> {
-        return repository.getVoucherLines(headerId).first()
+        return repository.getVoucherLinesSuspend(headerId)
     }
 
     suspend fun getAllVoucherLines(): List<VoucherLine> {

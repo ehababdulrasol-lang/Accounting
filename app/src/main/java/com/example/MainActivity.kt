@@ -66,6 +66,12 @@ fun MainLayout(viewModel: LedgerViewModel) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    LaunchedEffect(Unit) {
+        viewModel.navigateToTabFlow.collect { tab ->
+            activeTab = tab
+        }
+    }
+
     LaunchedEffect(uiMessage) {
         uiMessage?.let { msg ->
             val translated = com.example.ui.Localization.getLocalizedNotification(msg, lang)

@@ -57,6 +57,34 @@ fun DashboardScreen(
     val snapshots by viewModel.accountSnapshots.collectAsState()
     val isLibyanMode by viewModel.isLibyanMode.collectAsState()
 
+    val customersList by viewModel.customers.collectAsState()
+    val suppliersList by viewModel.suppliers.collectAsState()
+    val cashBoxesList by viewModel.cashBoxes.collectAsState()
+    val bankAccountsList by viewModel.allBankAccounts.collectAsState()
+
+    // Real Customers Balance (Dynamic from snapshots)
+    val totalCustomersBalance = remember(customersList, snapshots) {
+        customersList.sumOf { customer -> snapshots.find { it.accountId == customer.accountId }?.balance ?: 0L }
+    }
+
+    // Real Suppliers Balance (Dynamic from snapshots)
+    val totalSuppliersBalance = remember(suppliersList, snapshots) {
+        suppliersList.sumOf { supplier -> snapshots.find { it.accountId == supplier.accountId }?.balance ?: 0L }
+    }
+
+    // Real CashBoxes Balance (Dynamic from snapshots)
+    val totalCashBoxesBalance = remember(cashBoxesList, snapshots) {
+        cashBoxesList.sumOf { cb -> snapshots.find { it.accountId == cb.accountId }?.balance ?: 0L }
+    }
+
+    // Real BankAccounts Balance (Dynamic from snapshots)
+    val totalBankAccountsBalance = remember(bankAccountsList, snapshots) {
+        bankAccountsList.sumOf { ba -> snapshots.find { it.accountId == ba.accountId }?.balance ?: 0L }
+    }
+
+    // Total Available Funds (الموجود حالياً)
+    val totalAvailableFunds = totalCashBoxesBalance + totalBankAccountsBalance
+
     // 1. KPI Calculations (Total Revenue, Expenses, Profit, Pending)
     val revenueAccounts = remember(leafAccounts) { leafAccounts.filter { it.accountType == AccountType.REVENUE } }
     val expenseAccounts = remember(leafAccounts) { leafAccounts.filter { it.accountType == AccountType.EXPENSE } }
@@ -183,29 +211,68 @@ fun DashboardScreen(
                         contentPadding = PaddingValues(bottom = 80.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // Section: Glass KPI Cards (Quarter Row)
+                        // Section: Glass KPI Cards (Top Rows with Client/Supplier and Current Assets)
                         item {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                // Arasid of Customers & Suppliers (at the top)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     GlassKPICard(
-                                        title = if (lang == "ar") "الإيرادات الإجمالية" else "Total Revenue",
-                                        amount = totalRevenue,
-                                        icon = Icons.Filled.TrendingUp,
+                                        title = if (lang == "ar") "إجمالي أرصدة العملاء" else "Total Customer Balances",
+                                        amount = kotlin.math.abs(totalCustomersBalance),
+                                        icon = Icons.Filled.People,
                                         color = EmeraldGreen,
                                         modifier = Modifier.weight(1f),
                                         isLibyan = isLibyanMode
                                     )
                                     GlassKPICard(
-                                        title = if (lang == "ar") "المصروفات التشغيلية" else "Operational Expenses",
-                                        amount = totalExpense,
-                                        icon = Icons.Filled.TrendingDown,
+                                        title = if (lang == "ar") "إجمالي أرصدة الموردين" else "Total Supplier Balances",
+                                        amount = kotlin.math.abs(totalSuppliersBalance),
+                                        icon = Icons.Filled.Business,
                                         color = RoseRed,
                                         modifier = Modifier.weight(1f),
                                         isLibyan = isLibyanMode
                                     )
+                                }
+
+                                // Header for Current Assets (الموجود حالياً)
+                                Spacer(Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Filled.AccountBalanceWallet,
+                                            contentDescription = null,
+                                            tint = GoldAccent,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = if (lang == "ar") "الموجود حالياً (النقدية والأرصدة)" else "Current Funds & Liquidity",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        )
+                                    }
+                                    
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(GoldAccent.copy(alpha = 0.15f))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "${FinancialUtils.formatBase(totalAvailableFunds)} ${if (isLibyanMode) "د.ل" else "LYD"}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = GoldAccent
+                                        )
+                                    }
                                 }
 
                                 Row(
@@ -213,17 +280,17 @@ fun DashboardScreen(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     GlassKPICard(
-                                        title = if (lang == "ar") "صافي الأرباح" else "Net Margin",
-                                        amount = netProfit,
-                                        icon = Icons.Filled.AccountBalanceWallet,
+                                        title = if (lang == "ar") "إجمالي الصناديق" else "Total Cash boxes",
+                                        amount = totalCashBoxesBalance,
+                                        icon = Icons.Filled.Payments,
                                         color = GoldAccent,
                                         modifier = Modifier.weight(1f),
                                         isLibyan = isLibyanMode
                                     )
                                     GlassKPICard(
-                                        title = if (lang == "ar") "معلق تحت المراجعة" else "Pending (Drafts)",
-                                        amount = totalPendingAmount,
-                                        icon = Icons.Filled.PendingActions,
+                                        title = if (lang == "ar") "إجمالي البنوك" else "Total Banks",
+                                        amount = totalBankAccountsBalance,
+                                        icon = Icons.Filled.AccountBalance,
                                         color = CorporateSky,
                                         modifier = Modifier.weight(1f),
                                         isLibyan = isLibyanMode
@@ -492,10 +559,11 @@ fun SmoothLineChart(
 
                 val maxVal = data.maxOrNull()?.takeIf { it > 0 } ?: 100f
                 val minVal = 0f
-                val range = maxVal - minVal
+                val range = (maxVal - minVal).coerceAtLeast(1f)
+                val divisor = (data.size - 1).coerceAtLeast(1)
 
                 val points = data.mapIndexed { index, valF ->
-                    val x = paddingLeft + index * (chartWidth / (data.size - 1))
+                    val x = paddingLeft + index * (chartWidth / divisor)
                     val y = paddingTop + chartHeight - ((valF - minVal) / range) * chartHeight
                     Offset(x, y)
                 }

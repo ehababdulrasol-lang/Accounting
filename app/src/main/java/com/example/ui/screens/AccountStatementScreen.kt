@@ -49,6 +49,18 @@ fun AccountStatementScreen(
     var statementRows by remember { mutableStateOf<List<AccountStatementRow>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     
+    val externalTargetId by viewModel.statementTargetAccountId.collectAsState()
+
+    LaunchedEffect(externalTargetId, allAccounts) {
+        externalTargetId?.let { targetId ->
+            val acc = allAccounts.find { it.id == targetId }
+            if (acc != null) {
+                selectedAccount = acc
+                viewModel.statementTargetAccountId.value = null
+            }
+        }
+    }
+
     var dropdownExpanded by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     

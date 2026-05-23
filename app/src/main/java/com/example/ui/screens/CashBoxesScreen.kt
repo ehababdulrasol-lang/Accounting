@@ -45,6 +45,7 @@ fun CashBoxesScreen(
     val snapshots by viewModel.accountSnapshots.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var editingCashBox by remember { mutableStateOf<CashBox?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
     val direction = Localization.getLayoutDirection(lang)
@@ -143,6 +144,7 @@ fun CashBoxesScreen(
                                 account = linkedAccount,
                                 balance = balance,
                                 onDelete = { viewModel.deleteCashBox(cashBox) },
+                                onEdit = { editingCashBox = cashBox },
                                 lang = lang
                             )
                         }
@@ -174,6 +176,18 @@ fun CashBoxesScreen(
                     lang = lang
                 )
             }
+
+            if (editingCashBox != null) {
+                EditCashBoxDialog(
+                    cashBox = editingCashBox!!,
+                    onDismiss = { editingCashBox = null },
+                    onConfirm = { name, custodian, phone ->
+                        viewModel.updateCashBox(editingCashBox!!.copy(name = name, managerName = custodian, phone = phone))
+                        editingCashBox = null
+                    },
+                    lang = lang
+                )
+            }
         }
     }
 }
@@ -184,6 +198,7 @@ fun CashBoxCard(
     account: Account?,
     balance: Long,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
     lang: String
 ) {
     Card(
@@ -204,7 +219,7 @@ fun CashBoxCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                     Box(
                         modifier = Modifier
                             .size(44.dp)
@@ -235,15 +250,27 @@ fun CashBoxCard(
                     }
                 }
 
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.testTag("delete_cashbox_${cashBox.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "Delete",
-                        tint = RoseRed
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.testTag("edit_cashbox_${cashBox.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = "Edit",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.testTag("delete_cashbox_${cashBox.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Delete",
+                            tint = RoseRed
+                        )
+                    }
                 }
             }
 
@@ -509,6 +536,101 @@ fun AddCashBoxDialog(
                         ) {
                             Text(if (lang == "ar") "حفظ الصندوق" else "Create Fund")
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditCashBoxDialog(
+    cashBox: CashBox,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String) -> Unit,
+    lang: String
+) {
+    var name by remember { mutableStateOf(cashBox.name) }
+    var managerName by remember { mutableStateOf(cashBox.managerName) }
+    var phone by remember { mutableStateOf(cashBox.phone) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+                .testTag("edit_cashbox_dialog"),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = if (lang == "ar") "تعديل صندوق أو خزينة" else "Edit Cash Box",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم الصندوق / الخزينة" else "Cash Box Name") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_cb_input_name"),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = managerName,
+                    onValueChange = { managerName = it },
+                    label = { Text(if (lang == "ar") "أمين الصندوق (المشرف)" else "Custodian") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_cb_input_manager"),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text(if (lang == "ar") "رقم هاتف المشرف" else "Custodian Phone") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_cb_input_phone"),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(if (lang == "ar") "إلغاء الأمر" else "Cancel")
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                onConfirm(name, managerName, phone)
+                            }
+                        },
+                        enabled = name.isNotBlank(),
+                        modifier = Modifier.testTag("edit_cb_btn_save")
+                    ) {
+                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
                     }
                 }
             }

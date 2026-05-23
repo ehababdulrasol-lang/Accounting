@@ -52,6 +52,8 @@ fun BanksScreen(
     var showAddBankDialog by remember { mutableStateOf(false) }
     var showAddBranchDialog by remember { mutableStateOf(false) }
     var showAddAccountDialog by remember { mutableStateOf<BankBranch?>(null) } // holds active branch to add account
+    var editingBranch by remember { mutableStateOf<BankBranch?>(null) }
+    var editingBankAccount by remember { mutableStateOf<BankAccount?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
     val direction = Localization.getLayoutDirection(lang)
@@ -274,7 +276,9 @@ fun BanksScreen(
                                     snapshots = snapshots,
                                     lang = lang,
                                     onDeleteBranch = { viewModel.deleteBranch(branch) },
+                                    onEditBranch = { editingBranch = branch },
                                     onAddNewAccount = { showAddAccountDialog = branch },
+                                    onEditAccount = { acc -> editingBankAccount = acc },
                                     onDeleteAccount = { acc -> viewModel.deleteBankAccount(acc) }
                                 )
                             }
@@ -331,6 +335,30 @@ fun BanksScreen(
                         showAddAccountDialog = null
                     },
                     leafAccounts = leafAccounts,
+                    lang = lang
+                )
+            }
+
+            if (editingBranch != null) {
+                EditBranchDialog(
+                    branch = editingBranch!!,
+                    onDismiss = { editingBranch = null },
+                    onConfirm = { name, code, manager ->
+                        viewModel.updateBranch(editingBranch!!.copy(name = name, code = code, managerName = manager))
+                        editingBranch = null
+                    },
+                    lang = lang
+                )
+            }
+
+            if (editingBankAccount != null) {
+                EditBankAccountDialog(
+                    bankAccount = editingBankAccount!!,
+                    onDismiss = { editingBankAccount = null },
+                    onConfirm = { name, number, iban ->
+                        viewModel.updateBankAccount(editingBankAccount!!.copy(accountName = name, accountNumber = number, iban = iban))
+                        editingBankAccount = null
+                    },
                     lang = lang
                 )
             }
@@ -419,7 +447,9 @@ fun BranchDetailsCard(
     snapshots: List<com.example.data.AccountBalanceSnapshot>,
     lang: String,
     onDeleteBranch: () -> Unit,
+    onEditBranch: () -> Unit,
     onAddNewAccount: () -> Unit,
+    onEditAccount: (BankAccount) -> Unit,
     onDeleteAccount: (BankAccount) -> Unit
 ) {
     var expanded by remember { mutableStateOf(true) }
@@ -474,9 +504,12 @@ fun BranchDetailsCard(
                     }
                 }
 
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onAddNewAccount) {
                         Icon(Icons.Filled.AddCard, contentDescription = "Add Account", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = onEditBranch) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Edit Branch", tint = MaterialTheme.colorScheme.secondary)
                     }
                     IconButton(onClick = onDeleteBranch) {
                         Icon(Icons.Filled.Delete, contentDescription = "Delete Branch", tint = RoseRed)
@@ -593,13 +626,23 @@ fun BranchDetailsCard(
                                             )
                                         }
 
-                                        IconButton(onClick = { onDeleteAccount(bankAccount) }) {
-                                            Icon(
-                                                imageVector = Icons.Filled.DeleteOutline,
-                                                contentDescription = "Delete Account",
-                                                tint = RoseRed,
-                                                modifier = Modifier.size(20.dp)
-                                            )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(onClick = { onEditAccount(bankAccount) }) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Edit,
+                                                    contentDescription = "Edit Account",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                            IconButton(onClick = { onDeleteAccount(bankAccount) }) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.DeleteOutline,
+                                                    contentDescription = "Delete Account",
+                                                    tint = RoseRed,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -905,6 +948,152 @@ fun AddBankAccountDialog(
                         ) {
                             Text(if (lang == "ar") "تخزين الحساب" else "Link Account")
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditBranchDialog(
+    branch: BankBranch,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, code: String, manager: String) -> Unit,
+    lang: String
+) {
+    var name by remember { mutableStateOf(branch.name) }
+    var code by remember { mutableStateOf(branch.code) }
+    var manager by remember { mutableStateOf(branch.managerName) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.testTag("edit_branch_dialog")
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (lang == "ar") "تعديل بيانات الفرع" else "Edit Branch Details",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم الفرع" else "Branch Name") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_branch_input_name"),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it },
+                    label = { Text(if (lang == "ar") "رمز الفرع" else "Branch Code") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_branch_input_code"),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = manager,
+                    onValueChange = { manager = it },
+                    label = { Text(if (lang == "ar") "مدير الفرع" else "Branch Manager") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_branch_input_manager"),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.testTag("edit_branch_btn_cancel")) {
+                        Text(if (lang == "ar") "إلغاء" else "Cancel")
+                    }
+                    Button(
+                        onClick = { onConfirm(name, code, manager) },
+                        enabled = name.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.testTag("edit_branch_btn_save")
+                    ) {
+                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditBankAccountDialog(
+    bankAccount: BankAccount,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, number: String, iban: String) -> Unit,
+    lang: String
+) {
+    var accountName by remember { mutableStateOf(bankAccount.accountName) }
+    var accountNumber by remember { mutableStateOf(bankAccount.accountNumber) }
+    var iban by remember { mutableStateOf(bankAccount.iban) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.testTag("edit_bankaccount_dialog")
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (lang == "ar") "تعديل بيانات الحساب الجاري" else "Edit Bank Account Details",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = accountName,
+                    onValueChange = { accountName = it },
+                    label = { Text(if (lang == "ar") "اسم الحساب الجاري" else "Account Name") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_ba_input_name"),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = accountNumber,
+                    onValueChange = { accountNumber = it },
+                    label = { Text(if (lang == "ar") "رقم الحساب" else "Account Number") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_ba_input_number"),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = iban,
+                    onValueChange = { iban = it },
+                    label = { Text(if (lang == "ar") "رمز الـ IBAN" else "IBAN Code") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_ba_input_iban"),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.testTag("edit_ba_btn_cancel")) {
+                        Text(if (lang == "ar") "إلغاء" else "Cancel")
+                    }
+                    Button(
+                        onClick = { onConfirm(accountName, accountNumber, iban) },
+                        enabled = accountName.isNotBlank() && accountNumber.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.testTag("edit_ba_btn_save")
+                    ) {
+                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
                     }
                 }
             }

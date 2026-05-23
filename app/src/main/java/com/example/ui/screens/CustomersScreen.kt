@@ -44,6 +44,7 @@ fun CustomersScreen(
     val snapshots by viewModel.accountSnapshots.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var editingCustomer by remember { mutableStateOf<Customer?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
     val direction = Localization.getLayoutDirection(lang)
@@ -142,6 +143,11 @@ fun CustomersScreen(
                                 account = linkedAccount,
                                 balance = balance,
                                 onDelete = { viewModel.deleteCustomer(customer) },
+                                onEdit = { editingCustomer = customer },
+                                onViewStatement = {
+                                    viewModel.statementTargetAccountId.value = customer.accountId
+                                    viewModel.navigateToTabFlow.tryEmit(7)
+                                },
                                 lang = lang
                             )
                         }
@@ -173,6 +179,18 @@ fun CustomersScreen(
                     lang = lang
                 )
             }
+
+            if (editingCustomer != null) {
+                EditCustomerDialog(
+                    customer = editingCustomer!!,
+                    onDismiss = { editingCustomer = null },
+                    onConfirm = { name, phone, email ->
+                        viewModel.updateCustomer(editingCustomer!!.copy(name = name, phone = phone, email = email))
+                        editingCustomer = null
+                    },
+                    lang = lang
+                )
+            }
         }
     }
 }
@@ -183,6 +201,8 @@ fun CustomerCard(
     account: Account?,
     balance: Long,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
+    onViewStatement: () -> Unit,
     lang: String
 ) {
     Card(
@@ -221,13 +241,6 @@ fun CustomerCard(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                }
-
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.testTag("delete_customer_${customer.id}")
-                ) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed)
                 }
             }
 
@@ -276,6 +289,167 @@ fun CustomerCard(
                         color = if (balance >= 0L) EmeraldGreen else RoseRed,
                         modifier = Modifier.testTag("customer_balance_${customer.id}")
                     )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Account Statement button
+                FilledTonalButton(
+                    onClick = onViewStatement,
+                    modifier = Modifier.weight(1f).height(38.dp).testTag("customer_statement_${customer.id}"),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Icon(Icons.Filled.Book, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = if (lang == "ar") "كشف الحساب" else "Statement",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+
+                // Edit button
+                FilledTonalButton(
+                    onClick = onEdit,
+                    modifier = Modifier.weight(1f).height(38.dp).testTag("customer_edit_${customer.id}"),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
+                        contentColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = if (lang == "ar") "تعديل" else "Edit",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+
+                // Delete button
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(38.dp).testTag("delete_customer_${customer.id}")
+                ) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditCustomerDialog(
+    customer: Customer,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String) -> Unit,
+    lang: String
+) {
+    var name by remember { mutableStateOf(customer.name) }
+    var phone by remember { mutableStateOf(customer.phone) }
+    var email by remember { mutableStateOf(customer.email) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .width(400.dp)
+                .wrapContentHeight()
+                .padding(8.dp)
+                .testTag("edit_customer_dialog"),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (lang == "ar") "تعديل بيانات العميل" else "Edit Customer Details",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(Localization.translate(Localization.Key.CUSTOMER_NAME, lang)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_cust_input_name"),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text(Localization.translate(Localization.Key.PHONE, lang)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_cust_input_phone"),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text(Localization.translate(Localization.Key.EMAIL, lang)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_cust_input_email"),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.testTag("edit_cust_btn_cancel")) {
+                        Text(Localization.translate(Localization.Key.CANCEL, lang))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                onConfirm(name, phone, email)
+                            }
+                        },
+                        enabled = name.isNotBlank(),
+                        modifier = Modifier.testTag("edit_cust_btn_save")
+                    ) {
+                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
+                    }
                 }
             }
         }
