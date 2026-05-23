@@ -62,6 +62,10 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val customers = repository.customers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val suppliers = repository.suppliers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val accountSnapshots = repository.allSnapshots.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val cashBoxes = repository.cashBoxes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val banks = repository.banks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allBranches = repository.allBranches.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allBankAccounts = repository.allBankAccounts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val currentLanguage = MutableStateFlow("ar") // Set default to Arabic! Or Toggleable
     val isLibyanMode = MutableStateFlow(true) // Set default to Libyan local style!
@@ -725,5 +729,177 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
 
     suspend fun getAllVoucherLines(): List<VoucherLine> {
         return repository.getAllVoucherLines()
+    }
+
+    // Cash Box Operations
+    fun addCashBox(name: String, managerName: String, phone: String, existingAccountId: Long?) {
+        viewModelScope.launch {
+            try {
+                if (name.isBlank()) {
+                    _uiMessage.value = "Cash box name is required."
+                    return@launch
+                }
+                repository.createCashBox(name.trim(), managerName.trim(), phone.trim(), existingAccountId)
+                _uiMessage.value = "Cash box '$name' fully registered in general ledger."
+            } catch (e: Exception) {
+                _uiMessage.value = "Save cash box failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteCashBox(cashBox: CashBox) {
+        viewModelScope.launch {
+            try {
+                repository.deleteCashBox(cashBox)
+                _uiMessage.value = "Cash box registry deleted."
+            } catch (e: Exception) {
+                _uiMessage.value = "Deletion failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateCashBox(cashBox: CashBox) {
+        viewModelScope.launch {
+            try {
+                if (cashBox.name.isBlank()) {
+                    _uiMessage.value = "Cash box name is required."
+                    return@launch
+                }
+                repository.updateCashBox(cashBox)
+                _uiMessage.value = "Cash box registry updated."
+            } catch (e: Exception) {
+                _uiMessage.value = "Update failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    // Banks and branches
+    fun addBank(name: String) {
+        viewModelScope.launch {
+            try {
+                if (name.isBlank()) {
+                    _uiMessage.value = "Bank name is required."
+                    return@launch
+                }
+                repository.createBank(name.trim())
+                _uiMessage.value = "Bank '$name' created successfully."
+            } catch (e: Exception) {
+                _uiMessage.value = "Save bank failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateBank(bank: Bank) {
+        viewModelScope.launch {
+            try {
+                if (bank.name.isBlank()) {
+                    _uiMessage.value = "Bank name is required."
+                    return@launch
+                }
+                repository.updateBank(bank)
+                _uiMessage.value = "Bank details updated."
+            } catch (e: Exception) {
+                _uiMessage.value = "Update failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteBank(bank: Bank) {
+        viewModelScope.launch {
+            try {
+                repository.deleteBank(bank)
+                _uiMessage.value = "Bank registry deleted."
+            } catch (e: Exception) {
+                _uiMessage.value = "Deletion failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun addBranch(bankId: Long, name: String, code: String, managerName: String) {
+        viewModelScope.launch {
+            try {
+                if (name.isBlank()) {
+                    _uiMessage.value = "Branch name is required."
+                    return@launch
+                }
+                repository.createBranch(bankId, name.trim(), code.trim(), managerName.trim())
+                _uiMessage.value = "Branch '$name' created successfully."
+            } catch (e: Exception) {
+                _uiMessage.value = "Save branch failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateBranch(branch: BankBranch) {
+        viewModelScope.launch {
+            try {
+                if (branch.name.isBlank()) {
+                    _uiMessage.value = "Branch name is required."
+                    return@launch
+                }
+                repository.updateBranch(branch)
+                _uiMessage.value = "Branch details updated."
+            } catch (e: Exception) {
+                _uiMessage.value = "Update failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteBranch(branch: BankBranch) {
+        viewModelScope.launch {
+            try {
+                repository.deleteBranch(branch)
+                _uiMessage.value = "Branch deleted successfully."
+            } catch (e: Exception) {
+                _uiMessage.value = "Deletion failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun addBankAccount(
+        branchId: Long,
+        accountName: String,
+        accountNumber: String,
+        iban: String,
+        existingAccountId: Long?
+    ) {
+        viewModelScope.launch {
+            try {
+                if (accountName.isBlank() || accountNumber.isBlank()) {
+                    _uiMessage.value = "Account Name and number are required."
+                    return@launch
+                }
+                repository.createBankAccount(branchId, accountName.trim(), accountNumber.trim(), iban.trim(), existingAccountId)
+                _uiMessage.value = "Bank account '$accountName' registered and opening ledger entries."
+            } catch (e: Exception) {
+                _uiMessage.value = "Save bank account failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateBankAccount(bankAccount: BankAccount) {
+        viewModelScope.launch {
+            try {
+                if (bankAccount.accountName.isBlank() || bankAccount.accountNumber.isBlank()) {
+                    _uiMessage.value = "Account Name and number are required."
+                    return@launch
+                }
+                repository.updateBankAccount(bankAccount)
+                _uiMessage.value = "Bank account details updated."
+            } catch (e: Exception) {
+                _uiMessage.value = "Update failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteBankAccount(bankAccount: BankAccount) {
+        viewModelScope.launch {
+            try {
+                repository.deleteBankAccount(bankAccount)
+                _uiMessage.value = "Bank account deleted."
+            } catch (e: Exception) {
+                _uiMessage.value = "Deletion failed: ${e.localizedMessage}"
+            }
+        }
     }
 }

@@ -35,6 +35,8 @@ class LedgerRepository(private val db: AppDatabase) {
     private val exchangeRateHistoryDao = db.exchangeRateHistoryDao()
     private val customerDao = db.customerDao()
     private val supplierDao = db.supplierDao()
+    private val cashBoxDao = db.cashBoxDao()
+    private val bankDao = db.bankDao()
 
     // Flow listings
     val rootAccounts: Flow<List<Account>> = accountDao.getRootAccounts()
@@ -47,6 +49,10 @@ class LedgerRepository(private val db: AppDatabase) {
     val customers: Flow<List<Customer>> = customerDao.getAllCustomersFlow()
     val suppliers: Flow<List<Supplier>> = supplierDao.getAllSuppliersFlow()
     val allSnapshots: Flow<List<AccountBalanceSnapshot>> = snapshotDao.getAllSnapshotsFlow()
+    val cashBoxes: Flow<List<CashBox>> = cashBoxDao.getAllCashBoxesFlow()
+    val banks: Flow<List<Bank>> = bankDao.getAllBanksFlow()
+    val allBranches: Flow<List<BankBranch>> = bankDao.getAllBranchesFlow()
+    val allBankAccounts: Flow<List<BankAccount>> = bankDao.getAllBankAccountsFlow()
 
     // Seeding API
     suspend fun checkAndSeedDatabase() {
@@ -574,5 +580,327 @@ class LedgerRepository(private val db: AppDatabase) {
                 details = "Updated supplier profile for '${supplier.name}'"
             )
         )
+    }
+
+    // Cash Box Operations
+    suspend fun createCashBox(name: String, managerName: String, phone: String, existingAccountId: Long?): Long = withContext(Dispatchers.IO) {
+        var activeAccountLinkId: Long = 0L
+        if (existingAccountId != null && existingAccountId > 0L) {
+            activeAccountLinkId = existingAccountId
+            val accName = accountDao.getAccountById(existingAccountId)?.name ?: "#$existingAccountId"
+            auditLogDao.insert(
+                AuditLog(
+                    voucherId = 0,
+                    voucherNo = "CASH_BOXES",
+                    action = "CASH_BOX_LINKED",
+                    details = "Registered cash box '$name' and linked to existing CoA Account '$accName'."
+                )
+            )
+        } else {
+            val accounts = accountDao.getAllAccounts().first()
+            val matchEn = accounts.find { it.name.trim().equals(name.trim(), ignoreCase = true) && !it.isGroup }
+            if (matchEn != null) {
+                activeAccountLinkId = matchEn.id
+                auditLogDao.insert(
+                    AuditLog(
+                        voucherId = 0,
+                        voucherNo = "CASH_BOXES",
+                        action = "CASH_BOX_AUTO_LINKED",
+                        details = "Registered cash box '$name' and automatically linked to matching account name '${matchEn.accountCode} - ${matchEn.name}'."
+                    )
+                )
+            } else {
+                // Ensure parent 1101 is group
+                var cashParent = accounts.find { it.accountCode == "1101" }
+                if (cashParent == null) {
+                    val currentAssets = accounts.find { it.accountCode == "11" }
+                        ?: throw IllegalStateException("Current Assets (11) group not found.")
+                    val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
+                    val newParentId = accountDao.insert(
+                        Account(
+                            accountCode = "1101",
+                            name = "Cash on Hand",
+                            parentId = currentAssets.id,
+                            accountType = AccountType.ASSET,
+                            currencyId = lyCur.id,
+                            isGroup = true
+                        )
+                    )
+                    cashParent = accountDao.getAccountById(newParentId)!!
+                } else if (!cashParent.isGroup) {
+                    accountDao.update(cashParent.copy(isGroup = true))
+                }
+
+                // Find max suffix under 1101
+                val children = accountDao.getSubAccounts(cashParent.id).first()
+                val maxSuffix = children.mapNotNull { child ->
+                    child.accountCode.removePrefix("1101").toIntOrNull()
+                }.maxOrNull() ?: 0
+                val nextSuffix = maxSuffix + 1
+                val nextCodeStr = "1101" + String.format("%03d", nextSuffix)
+
+                val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
+                val newAccountId = accountDao.insert(
+                    Account(
+                        accountCode = nextCodeStr,
+                        name = name,
+                        parentId = cashParent.id,
+                        accountType = AccountType.ASSET,
+                        currencyId = lyCur.id,
+                        isGroup = false
+                    )
+                )
+                activeAccountLinkId = newAccountId
+                auditLogDao.insert(
+                    AuditLog(
+                        voucherId = 0,
+                        voucherNo = "CASH_BOXES",
+                        action = "AUTO_ACCOUNT_CREATED",
+                        details = "Opened cash sub-account '$nextCodeStr - $name' under Cash on Hand."
+                    )
+                )
+            }
+        }
+
+        val cbId = cashBoxDao.insert(
+            CashBox(
+                name = name,
+                managerName = managerName,
+                phone = phone,
+                accountId = activeAccountLinkId
+            )
+        )
+        recalculateSnapshots()
+        cbId
+    }
+
+    suspend fun deleteCashBox(cashBox: CashBox) = withContext(Dispatchers.IO) {
+        cashBoxDao.delete(cashBox)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "CASH_BOXES",
+                action = "CASH_BOX_DELETED",
+                details = "Deleted cash box register profile for '${cashBox.name}'"
+            )
+        )
+        recalculateSnapshots()
+    }
+
+    suspend fun updateCashBox(cashBox: CashBox) = withContext(Dispatchers.IO) {
+        cashBoxDao.update(cashBox)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "CASH_BOXES",
+                action = "CASH_BOX_UPDATED",
+                details = "Updated cash box manager info and phone for '${cashBox.name}'"
+            )
+        )
+        recalculateSnapshots()
+    }
+
+    // Banks and branches
+    fun getBranchesForBank(bankId: Long): Flow<List<BankBranch>> = bankDao.getBranchesForBankFlow(bankId)
+    fun getAccountsForBranch(branchId: Long): Flow<List<BankAccount>> = bankDao.getAccountsForBranchFlow(branchId)
+
+    suspend fun createBank(name: String): Long = withContext(Dispatchers.IO) {
+        val bid = bankDao.insert(Bank(name = name))
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "BANKS",
+                action = "BANK_CREATED",
+                details = "Registered financial institution '$name'."
+            )
+        )
+        bid
+    }
+
+    suspend fun updateBank(bank: Bank) = withContext(Dispatchers.IO) {
+        bankDao.update(bank)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "BANKS",
+                action = "BANK_UPDATED",
+                details = "Updated bank name details to '${bank.name}'."
+            )
+        )
+    }
+
+    suspend fun deleteBank(bank: Bank) = withContext(Dispatchers.IO) {
+        bankDao.delete(bank)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "BANKS",
+                action = "BANK_DELETED",
+                details = "Deleted bank profile '${bank.name}' and CASCADE branch relations."
+            )
+        )
+    }
+
+    suspend fun createBranch(bankId: Long, name: String, code: String, managerName: String): Long = withContext(Dispatchers.IO) {
+        val brid = bankDao.insertBranch(BankBranch(bankId = bankId, name = name, code = code, managerName = managerName))
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "BANKS",
+                action = "BRANCH_CREATED",
+                details = "Opened branch '$name' under Bank #$bankId."
+            )
+        )
+        brid
+    }
+
+    suspend fun updateBranch(branch: BankBranch) = withContext(Dispatchers.IO) {
+        bankDao.updateBranch(branch)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "BANKS",
+                action = "BRANCH_UPDATED",
+                details = "Updated branch info to '$branch'."
+            )
+        )
+    }
+
+    suspend fun deleteBranch(branch: BankBranch) = withContext(Dispatchers.IO) {
+        bankDao.deleteBranch(branch)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "BANKS",
+                action = "BRANCH_DELETED",
+                details = "Deleted branch '${branch.name}' and CASCADE account relations."
+            )
+        )
+    }
+
+    suspend fun createBankAccount(
+        branchId: Long,
+        accountName: String,
+        accountNumber: String,
+        iban: String,
+        existingAccountId: Long?
+    ): Long = withContext(Dispatchers.IO) {
+        var activeAccountLinkId: Long = 0L
+        val dispName = "$accountName - $accountNumber"
+        
+        if (existingAccountId != null && existingAccountId > 0L) {
+            activeAccountLinkId = existingAccountId
+            val accName = accountDao.getAccountById(existingAccountId)?.name ?: "#$existingAccountId"
+            auditLogDao.insert(
+                AuditLog(
+                    voucherId = 0,
+                    voucherNo = "BANKS",
+                    action = "BANK_ACCOUNT_LINKED",
+                    details = "Linked bank account '$dispName' to existing CoA Account '$accName'."
+                )
+            )
+        } else {
+            val accounts = accountDao.getAllAccounts().first()
+            val matchEn = accounts.find { it.name.trim().equals(dispName.trim(), ignoreCase = true) && !it.isGroup }
+            if (matchEn != null) {
+                activeAccountLinkId = matchEn.id
+                auditLogDao.insert(
+                    AuditLog(
+                        voucherId = 0,
+                        voucherNo = "BANKS",
+                        action = "BANK_ACCOUNT_AUTO_LINKED",
+                        details = "Linked bank account '$dispName' to matching account name '${matchEn.accountCode} - ${matchEn.name}'."
+                    )
+                )
+            } else {
+                // Ensure parent 1104 is group
+                var bankParent = accounts.find { it.accountCode == "1104" }
+                if (bankParent == null) {
+                    val currentAssets = accounts.find { it.accountCode == "11" }
+                        ?: throw IllegalStateException("Current Assets (11) group not found.")
+                    val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
+                    val newParentId = accountDao.insert(
+                        Account(
+                            accountCode = "1104",
+                            name = "Bank Accounts (Current)",
+                            parentId = currentAssets.id,
+                            accountType = AccountType.ASSET,
+                            currencyId = lyCur.id,
+                            isGroup = true
+                        )
+                    )
+                    bankParent = accountDao.getAccountById(newParentId)!!
+                } else if (!bankParent.isGroup) {
+                    accountDao.update(bankParent.copy(isGroup = true))
+                }
+
+                // Find max suffix under 1104
+                val children = accountDao.getSubAccounts(bankParent.id).first()
+                val maxSuffix = children.mapNotNull { child ->
+                    child.accountCode.removePrefix("1104").toIntOrNull()
+                }.maxOrNull() ?: 0
+                val nextSuffix = maxSuffix + 1
+                val nextCodeStr = "1104" + String.format("%03d", nextSuffix)
+
+                val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
+                val newAccountId = accountDao.insert(
+                    Account(
+                        accountCode = nextCodeStr,
+                        name = dispName,
+                        parentId = bankParent.id,
+                        accountType = AccountType.ASSET,
+                        currencyId = lyCur.id,
+                        isGroup = false
+                    )
+                )
+                activeAccountLinkId = newAccountId
+                auditLogDao.insert(
+                    AuditLog(
+                        voucherId = 0,
+                        voucherNo = "BANKS",
+                        action = "AUTO_ACCOUNT_CREATED",
+                        details = "Opened banking sub-account '$nextCodeStr - $dispName' under Bank Accounts."
+                    )
+                )
+            }
+        }
+
+        val baid = bankDao.insertBankAccount(
+            BankAccount(
+                branchId = branchId,
+                accountName = accountName,
+                accountNumber = accountNumber,
+                iban = iban,
+                accountId = activeAccountLinkId
+            )
+        )
+        recalculateSnapshots()
+        baid
+    }
+
+    suspend fun updateBankAccount(bankAccount: BankAccount) = withContext(Dispatchers.IO) {
+        bankDao.updateBankAccount(bankAccount)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "BANKS",
+                action = "BANK_ACCOUNT_UPDATED",
+                details = "Updated banking profiling details count for account id #${bankAccount.id}."
+            )
+        )
+        recalculateSnapshots()
+    }
+
+    suspend fun deleteBankAccount(bankAccount: BankAccount) = withContext(Dispatchers.IO) {
+        bankDao.deleteBankAccount(bankAccount)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "BANKS",
+                action = "BANK_ACCOUNT_DELETED",
+                details = "Deleted banking registry file for account '${bankAccount.accountName}'."
+            )
+        )
+        recalculateSnapshots()
     }
 }

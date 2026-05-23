@@ -562,16 +562,6 @@ fun AddSupplierDialog(
                             .fillMaxWidth()
                             .clickable { showAccountSearchDialog = true }
                     )
-
-                    AccountSearchDialog(
-                        show = showAccountSearchDialog,
-                        onDismiss = { showAccountSearchDialog = false },
-                        accounts = leafAccounts,
-                        lang = lang,
-                        onSelect = { acc ->
-                            selectedExistAccountId = acc.id
-                        }
-                    )
                 }
 
                 Spacer(Modifier.height(24.dp))
@@ -583,31 +573,25 @@ fun AddSupplierDialog(
                     TextButton(onClick = onDismiss) {
                         Text(if (lang == "ar") "إلغاء" else "Cancel")
                     }
-                    Spac                     ) {
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                val linkId = when (linkStrategy) {
+                                    1 -> matchExist?.id
+                                    2 -> selectedExistAccountId
+                                        else -> null
+                                }
+                                onConfirm(name, phone, email, linkId)
+                            }
+                        },
+                        enabled = name.isNotBlank() && (linkStrategy != 2 || selectedExistAccountId != null)
+                    ) {
                         Text(if (lang == "ar") "تسجيل وحفظ" else "Save Supplier")
                     }
                 }
             }
         }
     }
-}�ت" else "EXPENSE"
-                        }
-                        DropdownMenuItem(
-                            text = { Text("${acc.accountCode} - $localizedName ($typeLabel)") },
-                            onClick = {
-                                onSelect(acc)
-                                onDismiss()
-                            }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(if (lang == "ar") "إلغاء" else "Cancel")
-            }
-        }
-    )
 }
+

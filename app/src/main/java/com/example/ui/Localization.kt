@@ -24,6 +24,8 @@ object Localization {
         NAV_VOUCHERS,
         NAV_REPORTS,
         NAV_SETTINGS,
+        NAV_CASH_BOXES,
+        NAV_BANKS,
 
         // Dashboard Screen
         TOTAL_ASSETS,
@@ -186,6 +188,8 @@ object Localization {
         Key.NAV_VOUCHERS to "Vouchers",
         Key.NAV_REPORTS to "Reports",
         Key.NAV_SETTINGS to "Compliance",
+        Key.NAV_CASH_BOXES to "Cash Boxes",
+        Key.NAV_BANKS to "Banks & Branches",
 
         Key.TOTAL_ASSETS to "Total Assets",
         Key.TOTAL_LIABILITIES to "Total Liabilities",
@@ -341,6 +345,8 @@ object Localization {
         Key.NAV_VOUCHERS to "القيود",
         Key.NAV_REPORTS to "التقارير",
         Key.NAV_SETTINGS to "الإعدادات",
+        Key.NAV_CASH_BOXES to "الصناديق",
+        Key.NAV_BANKS to "البنوك والفروع",
 
         Key.TOTAL_ASSETS to "إجمالي الأصول",
         Key.TOTAL_LIABILITIES to "إجمالي الالتزامات",

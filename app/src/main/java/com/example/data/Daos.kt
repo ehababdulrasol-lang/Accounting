@@ -201,3 +201,77 @@ interface SupplierDao {
     @Delete
     suspend fun delete(supplier: Supplier)
 }
+
+@Dao
+interface CashBoxDao {
+    @Query("SELECT * FROM cash_boxes ORDER BY name")
+    fun getAllCashBoxesFlow(): Flow<List<CashBox>>
+
+    @Query("SELECT * FROM cash_boxes WHERE id = :id")
+    suspend fun getCashBoxById(id: Long): CashBox?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(cashBox: CashBox): Long
+
+    @Update
+    suspend fun update(cashBox: CashBox)
+
+    @Delete
+    suspend fun delete(cashBox: CashBox)
+}
+
+@Dao
+interface BankDao {
+    @Query("SELECT * FROM banks ORDER BY name")
+    fun getAllBanksFlow(): Flow<List<Bank>>
+
+    @Query("SELECT * FROM banks WHERE id = :id")
+    suspend fun getBankById(id: Long): Bank?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(bank: Bank): Long
+
+    @Update
+    suspend fun update(bank: Bank)
+
+    @Delete
+    suspend fun delete(bank: Bank)
+
+    // Branch operations
+    @Query("SELECT * FROM bank_branches WHERE bankId = :bankId ORDER BY name")
+    fun getBranchesForBankFlow(bankId: Long): Flow<List<BankBranch>>
+
+    @Query("SELECT * FROM bank_branches ORDER BY name")
+    fun getAllBranchesFlow(): Flow<List<BankBranch>>
+
+    @Query("SELECT * FROM bank_branches WHERE id = :id")
+    suspend fun getBranchById(id: Long): BankBranch?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBranch(branch: BankBranch): Long
+
+    @Update
+    suspend fun updateBranch(branch: BankBranch)
+
+    @Delete
+    suspend fun deleteBranch(branch: BankBranch)
+
+    // Bank Account operations
+    @Query("SELECT * FROM bank_accounts WHERE branchId = :branchId ORDER BY accountName")
+    fun getAccountsForBranchFlow(branchId: Long): Flow<List<BankAccount>>
+
+    @Query("SELECT * FROM bank_accounts ORDER BY accountName")
+    fun getAllBankAccountsFlow(): Flow<List<BankAccount>>
+
+    @Query("SELECT * FROM bank_accounts WHERE id = :id")
+    suspend fun getBankAccountById(id: Long): BankAccount?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBankAccount(account: BankAccount): Long
+
+    @Update
+    suspend fun updateBankAccount(account: BankAccount)
+
+    @Delete
+    suspend fun deleteBankAccount(account: BankAccount)
+}

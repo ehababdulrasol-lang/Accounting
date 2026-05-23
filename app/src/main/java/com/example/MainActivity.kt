@@ -193,10 +193,12 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                 Triple(1, Icons.Filled.AccountTree, com.example.ui.Localization.Key.NAV_ACCOUNTS),
                                 Triple(2, Icons.Filled.People, com.example.ui.Localization.Key.NAV_CUSTOMERS),
                                 Triple(3, Icons.Filled.Storefront, com.example.ui.Localization.Key.NAV_SUPPLIERS),
-                                Triple(4, Icons.Filled.Assignment, com.example.ui.Localization.Key.NAV_VOUCHERS),
-                                Triple(5, Icons.Filled.Book, com.example.ui.Localization.Key.VIEW_STATEMENT),
-                                Triple(6, Icons.Filled.Assessment, com.example.ui.Localization.Key.NAV_REPORTS),
-                                Triple(7, Icons.Filled.Security, com.example.ui.Localization.Key.NAV_SETTINGS)
+                                Triple(4, Icons.Filled.AccountBalanceWallet, com.example.ui.Localization.Key.NAV_CASH_BOXES),
+                                Triple(5, Icons.Filled.AccountBalance, com.example.ui.Localization.Key.NAV_BANKS),
+                                Triple(6, Icons.Filled.Assignment, com.example.ui.Localization.Key.NAV_VOUCHERS),
+                                Triple(7, Icons.Filled.Book, com.example.ui.Localization.Key.VIEW_STATEMENT),
+                                Triple(8, Icons.Filled.Assessment, com.example.ui.Localization.Key.NAV_REPORTS),
+                                Triple(9, Icons.Filled.Security, com.example.ui.Localization.Key.NAV_SETTINGS)
                             )
 
                             items.forEach { (index, icon, key) ->
@@ -232,10 +234,12 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                             1 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_ACCOUNTS, lang)
                                             2 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_CUSTOMERS, lang)
                                             3 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SUPPLIERS, lang)
-                                            4 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_VOUCHERS, lang)
-                                            5 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.VIEW_STATEMENT, lang)
-                                            6 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_REPORTS, lang)
-                                            7 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SETTINGS, lang)
+                                            4 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_CASH_BOXES, lang)
+                                            5 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_BANKS, lang)
+                                            6 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_VOUCHERS, lang)
+                                            7 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.VIEW_STATEMENT, lang)
+                                            8 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_REPORTS, lang)
+                                            9 -> com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SETTINGS, lang)
                                             else -> ""
                                         },
                                         fontWeight = FontWeight.ExtraBold,
@@ -289,19 +293,21 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                     0 -> DashboardScreen(
                                         viewModel = viewModel,
                                         onNavigateToAccounts = { activeTab = 1 },
-                                        onNavigateToVouchers = { activeTab = 4 },
-                                        onNavigateToReports = { activeTab = 6 }
+                                        onNavigateToVouchers = { activeTab = 6 },
+                                        onNavigateToReports = { activeTab = 8 }
                                     )
                                     1 -> AccountsScreen(viewModel = viewModel)
                                     2 -> CustomersScreen(viewModel = viewModel)
                                     3 -> SuppliersScreen(viewModel = viewModel)
-                                    4 -> VouchersScreen(
+                                    4 -> CashBoxesScreen(viewModel = viewModel)
+                                    5 -> BanksScreen(viewModel = viewModel)
+                                    6 -> VouchersScreen(
                                         viewModel = viewModel,
                                         onNavigateToEditor = { showEditor = true }
                                     )
-                                    5 -> AccountStatementScreen(viewModel = viewModel)
-                                    6 -> ReportsScreen(viewModel = viewModel)
-                                    7 -> SettingsScreen(viewModel = viewModel)
+                                    7 -> AccountStatementScreen(viewModel = viewModel)
+                                    8 -> ReportsScreen(viewModel = viewModel)
+                                    9 -> SettingsScreen(viewModel = viewModel)
                                 }
                             }
                         }

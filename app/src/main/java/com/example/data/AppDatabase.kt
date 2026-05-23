@@ -28,9 +28,13 @@ class Converters {
         AuditLog::class,
         ExchangeRateHistory::class,
         Customer::class,
-        Supplier::class
+        Supplier::class,
+        CashBox::class,
+        Bank::class,
+        BankBranch::class,
+        BankAccount::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -45,6 +49,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun exchangeRateHistoryDao(): ExchangeRateHistoryDao
     abstract fun customerDao(): CustomerDao
     abstract fun supplierDao(): SupplierDao
+    abstract fun cashBoxDao(): CashBoxDao
+    abstract fun bankDao(): BankDao
 
     companion object {
         @Volatile

@@ -203,3 +203,84 @@ data class Supplier(
     val creditLimit: Long = 0L // credit limit in base currency
 )
 
+@Entity(
+    tableName = "cash_boxes",
+    foreignKeys = [
+        ForeignKey(
+            entity = Account::class,
+            parentColumns = ["id"],
+            childColumns = ["accountId"],
+            onDelete = ForeignKey.RESTRICT
+        )
+    ],
+    indices = [
+        Index(value = ["accountId"], unique = false)
+    ]
+)
+data class CashBox(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val managerName: String = "",
+    val phone: String = "",
+    val accountId: Long
+)
+
+@Entity(tableName = "banks")
+data class Bank(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String
+)
+
+@Entity(
+    tableName = "bank_branches",
+    foreignKeys = [
+         ForeignKey(
+             entity = Bank::class,
+             parentColumns = ["id"],
+             childColumns = ["bankId"],
+             onDelete = ForeignKey.CASCADE
+         )
+    ],
+    indices = [
+        Index(value = ["bankId"], unique = false)
+    ]
+)
+data class BankBranch(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val bankId: Long,
+    val name: String,
+    val code: String = "",
+    val managerName: String = ""
+)
+
+@Entity(
+    tableName = "bank_accounts",
+    foreignKeys = [
+         ForeignKey(
+             entity = BankBranch::class,
+             parentColumns = ["id"],
+             childColumns = ["branchId"],
+             onDelete = ForeignKey.CASCADE
+         ),
+         ForeignKey(
+             entity = Account::class,
+             parentColumns = ["id"],
+             childColumns = ["accountId"],
+             onDelete = ForeignKey.RESTRICT
+         )
+    ],
+    indices = [
+        Index(value = ["branchId"], unique = false),
+        Index(value = ["accountId"], unique = false)
+    ]
+)
+data class BankAccount(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val branchId: Long,
+    val accountName: String,
+    val accountNumber: String,
+    val iban: String = "",
+    val accountId: Long
+)
+
+
