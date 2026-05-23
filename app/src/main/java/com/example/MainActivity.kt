@@ -9,6 +9,8 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -143,9 +145,16 @@ fun MainLayout(viewModel: LedgerViewModel) {
                     gesturesEnabled = true,
                     drawerContent = {
                         ModalDrawerSheet(
-                            modifier = Modifier.width(300.dp)
+                            modifier = Modifier
+                                .width(300.dp)
+                                .fillMaxHeight()
                         ) {
-                            Spacer(Modifier.height(30.dp))
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                Spacer(Modifier.height(30.dp))
                             // Drawer Header satisfying visual guidelines
                             Column(
                                 modifier = Modifier
@@ -241,6 +250,7 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                         .padding(horizontal = 12.dp, vertical = 4.dp)
                                         .testTag("nav_drawer_tab_$index")
                                 )
+                            }
                             }
                         }
                     }

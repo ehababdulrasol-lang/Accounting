@@ -423,7 +423,7 @@ fun VouchersScreen(
         }
 
         // Floating Action Button to create a new double-entry voucher
-        LargeFloatingActionButton(
+        SmallFloatingActionButton(
             onClick = {
                 viewModel.createNewVoucherForm()
                 onNavigateToEditor()
@@ -434,9 +434,9 @@ fun VouchersScreen(
                 .testTag("create_voucher_fab"),
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = Color.White,
-            shape = RoundedCornerShape(20.dp)
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "New Voucher", modifier = Modifier.size(32.dp))
+            Icon(Icons.Filled.Add, contentDescription = "New Voucher", modifier = Modifier.size(20.dp))
         }
     }
 }
