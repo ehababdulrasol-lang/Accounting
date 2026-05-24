@@ -45,6 +45,7 @@ class LedgerRepository(private val db: AppDatabase) {
     val fiscalYears: Flow<List<FiscalYear>> = fiscalYearDao.getAllFiscalYears()
     val activeFiscalYears: Flow<List<FiscalYear>> = fiscalYearDao.getActiveFiscalYears()
     val voucherHeaders: Flow<List<VoucherHeader>> = voucherDao.getAllVoucherHeaders()
+    val allVoucherLines: Flow<List<VoucherLine>> = voucherDao.getAllVoucherLinesFlow()
     val auditLogs: Flow<List<AuditLog>> = auditLogDao.getAllLogs()
     val customers: Flow<List<Customer>> = customerDao.getAllCustomersFlow()
     val suppliers: Flow<List<Supplier>> = supplierDao.getAllSuppliersFlow()

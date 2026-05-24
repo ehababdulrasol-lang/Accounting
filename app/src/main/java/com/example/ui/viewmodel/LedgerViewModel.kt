@@ -60,6 +60,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val currencies = repository.currencies.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val fiscalYears = repository.fiscalYears.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val vouchers = repository.voucherHeaders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allVoucherLines = repository.allVoucherLines.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val auditLogs = repository.auditLogs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val customers = repository.customers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val suppliers = repository.suppliers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -657,7 +658,12 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
             cashFlowLoading.value = true
             try {
                 val statement = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                    val cashAccounts = accounts.value.filter { it.accountCode.startsWith("1101") || it.accountCode.startsWith("1102") }
+                    val cashAccounts = accounts.value.filter { 
+                        it.accountCode.startsWith("1101") || 
+                        it.accountCode.startsWith("1102") || 
+                        it.accountCode.startsWith("1104") ||
+                        it.accountCode.startsWith("1105")
+                    }
                     val cashIds = cashAccounts.map { it.id }.toSet()
                     
                     val headers = vouchers.value.filter { it.isPosted }

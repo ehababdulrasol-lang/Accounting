@@ -88,6 +88,9 @@ interface VoucherDao {
     @Query("SELECT * FROM voucher_lines")
     suspend fun getAllVoucherLines(): List<VoucherLine>
 
+    @Query("SELECT * FROM voucher_lines")
+    fun getAllVoucherLinesFlow(): Flow<List<VoucherLine>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHeader(header: VoucherHeader): Long
 

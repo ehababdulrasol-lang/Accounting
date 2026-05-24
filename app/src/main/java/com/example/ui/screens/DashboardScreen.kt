@@ -55,6 +55,7 @@ fun DashboardScreen(
 
     val recentLogs by viewModel.auditLogs.collectAsStateWithLifecycle()
     val headers by viewModel.vouchers.collectAsStateWithLifecycle()
+    val allVoucherLines by viewModel.allVoucherLines.collectAsStateWithLifecycle()
     val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
     val isLibyanMode by viewModel.isLibyanMode.collectAsStateWithLifecycle()
 
@@ -107,24 +108,91 @@ fun DashboardScreen(
 
     val direction = Localization.getLayoutDirection(lang)
 
-    // Chart mock data points mapping the past 6 months to showcase smooth charts
+    // Chart data points mapping the past 6 months dynamically from actual ledger entries
     val monthsLabels = if (lang == "ar") {
         listOf("يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو")
     } else {
         listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun")
     }
     
-    // Simulate some realistic curves based on actual revenue data plus target trend
-    val chartDataPoints = remember(totalRevenue) {
-        val baseRev = totalRevenue.toFloat().coerceAtLeast(200000f)
-        listOf(
-            baseRev * 0.45f,
-            baseRev * 0.6f,
-            baseRev * 0.55f,
-            baseRev * 0.85f,
-            baseRev * 0.9f,
-            baseRev * 1.0f
-        )
+    val hasActualData = remember(headers) {
+        val cal = java.util.Calendar.getInstance()
+        headers.any { h ->
+            h.isPosted && h.date.let { d ->
+                cal.timeInMillis = d
+                cal.get(java.util.Calendar.YEAR) == 2026 && cal.get(java.util.Calendar.MONTH) in 0..5
+            }
+        }
+    }
+
+    val chartDataPoints = remember(headers, allVoucherLines, leafAccounts) {
+        val revenueAccountIds = leafAccounts.filter { it.accountType == AccountType.REVENUE }.map { it.id }.toSet()
+        val cashAccountIds = leafAccounts.filter { 
+            it.accountCode.startsWith("1101") || 
+            it.accountCode.startsWith("1102") || 
+            it.accountCode.startsWith("1104") ||
+            it.accountCode.startsWith("1105") 
+        }.map { it.id }.toSet()
+
+        val cal = java.util.Calendar.getInstance()
+        val monthlyRevenues = FloatArray(6) { 0f }
+        val monthlyCashFlows = FloatArray(6) { 0f }
+
+        val postedHeaders = headers.filter { it.isPosted }
+        val postedHeaderIds = postedHeaders.map { it.id }.toSet()
+        val postedLines = allVoucherLines.filter { it.headerId in postedHeaderIds }
+        val linesByVoucher = postedLines.groupBy { it.headerId }
+
+        for (header in postedHeaders) {
+            cal.timeInMillis = header.date
+            val year = cal.get(java.util.Calendar.YEAR)
+            val month = cal.get(java.util.Calendar.MONTH)
+
+            if (year == 2026 && month in 0..5) {
+                val lines = linesByVoucher[header.id] ?: emptyList()
+                
+                val revenueInVoucher = lines.filter { it.accountId in revenueAccountIds }.sumOf { 
+                    if (it.credit > 0) it.amountBase else -it.amountBase 
+                }
+                monthlyRevenues[month] += (revenueInVoucher.toDouble() / 1_000_000.0).toFloat()
+
+                val cashInVoucher = lines.filter { it.accountId in cashAccountIds }.sumOf {
+                    if (it.debit > 0) it.amountBase else -it.amountBase
+                }
+                monthlyCashFlows[month] += (cashInVoucher.toDouble() / 1_000_000.0).toFloat()
+            }
+        }
+
+        val points = ArrayList<Float>()
+        var cumulative = 0f
+        for (m in 0..5) {
+            cumulative += monthlyRevenues[m]
+            points.add(cumulative)
+        }
+
+        val hasRevenues = points.any { it > 0f }
+        val hasCashFlows = monthlyCashFlows.any { it != 0f }
+
+        if (hasRevenues) {
+            points
+        } else if (hasCashFlows) {
+            var cumulativeCash = 0f
+            val cashPoints = ArrayList<Float>()
+            for (m in 0..5) {
+                cumulativeCash += monthlyCashFlows[m]
+                cashPoints.add(cumulativeCash)
+            }
+            // If cash points has negative due to payments, let's offset it to start from 0 at least
+            val minCash = cashPoints.minOrNull() ?: 0f
+            if (minCash < 0f) {
+                cashPoints.map { it - minCash }
+            } else {
+                cashPoints
+            }
+        } else {
+            // High-contrast, elegant simulated target curve for new system initialization
+            listOf(100f, 120f, 150f, 220f, 280f, 350f)
+        }
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
@@ -140,14 +208,18 @@ fun DashboardScreen(
                     )
                 )
         ) {
-            // Glassmorphic background blur highlight
+            // Glassmorphic background blur highlight using safe performance-friendly radial gradient
             Box(
                 modifier = Modifier
                     .size(240.dp)
                     .align(Alignment.TopEnd)
                     .offset(x = 60.dp, y = (-40).dp)
-                    .blur(60.dp)
-                    .background(GoldAccent.copy(alpha = 0.08f), RoundedCornerShape(120.dp))
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(GoldAccent.copy(alpha = 0.08f), Color.Transparent)
+                        ),
+                        shape = RoundedCornerShape(120.dp)
+                    )
             )
 
             Box(
@@ -155,8 +227,12 @@ fun DashboardScreen(
                     .size(310.dp)
                     .align(Alignment.BottomStart)
                     .offset(x = (-80).dp, y = 80.dp)
-                    .blur(70.dp)
-                    .background(GoldAccent.copy(alpha = 0.04f), RoundedCornerShape(155.dp))
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(GoldAccent.copy(alpha = 0.04f), Color.Transparent)
+                        ),
+                        shape = RoundedCornerShape(155.dp)
+                    )
             )
 
             // Main Contents
@@ -318,13 +394,17 @@ fun DashboardScreen(
                                     ) {
                                         Column {
                                             Text(
-                                                text = if (lang == "ar") "النمو المالي والتدفق النقدي" else "Revenue Trend Dynamics",
+                                                text = if (lang == "ar") "النمو المالي والتدفق النقدي" else "Revenue Trend & Cash Flow",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = if (lang == "ar") "تحليل الإيرادات التراكمية الربع سنوية" else "Quarterly cumulative general ledger streams.",
+                                                text = if (lang == "ar") {
+                                                    if (hasActualData) "تحليل البيانات الفعلية المتراكمة من القيود والسجلات" else "تحليل الإيرادات التراكمية الربع سنوية (نموذج هدف المستهدف)"
+                                                } else {
+                                                    if (hasActualData) "Real-time compiled ledger trend analytics" else "Quarterly general ledger stream (Target benchmark)"
+                                                },
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                                             )
@@ -536,6 +616,7 @@ fun SmoothLineChart(
     lineColor: Color = GoldAccent,
     lang: String
 ) {
+    val isRtl = LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -557,8 +638,8 @@ fun SmoothLineChart(
                 val paddingTop = 20f
                 val paddingBottom = 40f
 
-                val chartWidth = width - paddingLeft - paddingRight
-                val chartHeight = height - paddingTop - paddingBottom
+                val chartWidth = (width - paddingLeft - paddingRight).coerceAtLeast(0f)
+                val chartHeight = (height - paddingTop - paddingBottom).coerceAtLeast(0f)
 
                 val maxVal = data.maxOrNull()?.takeIf { it > 0 } ?: 100f
                 val minVal = 0f
@@ -566,7 +647,8 @@ fun SmoothLineChart(
                 val divisor = (data.size - 1).coerceAtLeast(1)
 
                 val points = data.mapIndexed { index, valF ->
-                    val x = paddingLeft + index * (chartWidth / divisor)
+                    val indexFactor = if (isRtl) (divisor - index) else index
+                    val x = paddingLeft + indexFactor * (chartWidth / divisor)
                     val y = paddingTop + chartHeight - ((valF - minVal) / range) * chartHeight
                     Offset(x, y)
                 }

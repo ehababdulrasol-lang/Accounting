@@ -829,4 +829,136 @@ object PrintUtils {
 
         printHtml(context, getHtmlTemplate(body, isAr), "income_statement_print")
     }
+
+    fun printCashFlow(
+        context: Context,
+        statement: com.example.ui.viewmodel.CashFlowStatement,
+        isLibyan: Boolean,
+        lang: String
+    ) {
+        val isAr = lang == "ar"
+        val title = if (isAr) "قائمة التدفقات النقدية الرسمية (IAS 7)" else "Official Statement of Cash Flows (IAS 7)"
+
+        val netOperating = statement.operatingInflow - statement.operatingOutflow
+        val netInvesting = statement.investingInflow - statement.investingOutflow
+        val netFinancing = statement.financingInflow - statement.financingOutflow
+        val netChange = netOperating + netInvesting + netFinancing
+
+        val body = """
+            <div class="header-container">
+                <div>
+                    <div class="header-title">$title</div>
+                    <div style="font-size:13px; color:#555; margin-top:5px;">
+                        ${if (isAr) "تقرير التدفقات النقدية المباشر والأنشطة المالية" else "Periodical Direct Cash Flows and Liquidity Analysis"}
+                    </div>
+                </div>
+                <div class="header-meta">
+                    <strong>${if (isAr) "النظام المحاسبي الذكي" else "Smart Ledger"}</strong><br>
+                    ${if (isAr) "تاريخ الإصدار:" else "Issued Date:"} ${formatDate(System.currentTimeMillis())}
+                </div>
+            </div>
+
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th style="width: 75%;">${if (isAr) "البيــــــــان" else "Classification / Flow Indicator"}</th>
+                        <th style="width: 25%;" class="text-right">${if (isAr) "المبلغ د.ل" else "Amount (LYD)"}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Operating Activities -->
+                    <tr style="background-color: #f1f0f5; font-weight: bold;">
+                        <td>${if (isAr) "1. التدفقات النقدية من الأنشطة التشغيلية" else "1. Cash Flows from Operating Activities"}</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td style="padding-left: 20px;">${if (isAr) "المقبوضات النقدية من العملاء والإيرادات" else "Cash Inflows from customers & revenues"}</td>
+                        <td class="text-right" style="color:#0d8343;">+${FinancialUtils.formatBase(statement.operatingInflow)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding-left: 20px;">${if (isAr) "المدفوعات النقدية للموردين والمصاريف" else "Cash Outflows for suppliers & expenses"}</td>
+                        <td class="text-right" style="color:#c5221f;">-${FinancialUtils.formatBase(statement.operatingOutflow)}</td>
+                    </tr>
+                    <tr style="font-weight: bold; font-style: italic;">
+                        <td style="padding-left: 15px;">${if (isAr) "صافي النقد المتوفر من الأنشطة التشغيلية" else "Net Cash from Operating Activities"}</td>
+                        <td class="text-right" style="color:${if (netOperating >= 0) "#0d8343" else "#c5221f"};">
+                            ${if (netOperating >= 0) "+" else ""}${FinancialUtils.formatBase(netOperating)}
+                        </td>
+                    </tr>
+
+                    <!-- Investing Activities -->
+                    <tr style="background-color: #f1f0f5; font-weight: bold; margin-top: 15px;">
+                        <td>${if (isAr) "2. التدفقات النقدية من الأنشطة الاستثمارية" else "2. Cash Flows from Investing Activities"}</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td style="padding-left: 20px;">${if (isAr) "المتحصلات من بيع أصول غير متداولة" else "Inflows from sale of non-current assets"}</td>
+                        <td class="text-right" style="color:#0d8343;">+${FinancialUtils.formatBase(statement.investingInflow)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding-left: 20px;">${if (isAr) "المدفوعات لشراء أصول غير متداولة" else "Outflows for purchase of non-current assets"}</td>
+                        <td class="text-right" style="color:#c5221f;">-${FinancialUtils.formatBase(statement.investingOutflow)}</td>
+                    </tr>
+                    <tr style="font-weight: bold; font-style: italic;">
+                        <td style="padding-left: 15px;">${if (isAr) "صافي النقد المستخدم في الأنشطة الاستثمارية" else "Net Cash from Investing Activities"}</td>
+                        <td class="text-right" style="color:${if (netInvesting >= 0) "#0d8343" else "#c5221f"};">
+                            ${if (netInvesting >= 0) "+" else ""}${FinancialUtils.formatBase(netInvesting)}
+                        </td>
+                    </tr>
+
+                    <!-- Financing Activities -->
+                    <tr style="background-color: #f1f0f5; font-weight: bold; margin-top: 15px;">
+                        <td>${if (isAr) "3. التدفقات النقدية من الأنشطة التمويلية" else "3. Cash Flows from Financing Activities"}</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td style="padding-left: 20px;">${if (isAr) "المقبوضات من زيادة رأس المال والقروض" else "Inflows from equity increases & financing issues"}</td>
+                        <td class="text-right" style="color:#0d8343;">+${FinancialUtils.formatBase(statement.financingInflow)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding-left: 20px;">${if (isAr) "المدفوعات لتسديد القروض أو الأرباح" else "Outflows for loan settlements & dividends"}</td>
+                        <td class="text-right" style="color:#c5221f;">-${FinancialUtils.formatBase(statement.financingOutflow)}</td>
+                    </tr>
+                    <tr style="font-weight: bold; font-style: italic;">
+                        <td style="padding-left: 15px;">${if (isAr) "صافي النقد من الأنشطة التمويلية" else "Net Cash from Financing Activities"}</td>
+                        <td class="text-right" style="color:${if (netFinancing >= 0) "#0d8343" else "#c5221f"};">
+                            ${if (netFinancing >= 0) "+" else ""}${FinancialUtils.formatBase(netFinancing)}
+                        </td>
+                    </tr>
+
+                    <!-- Summary Reconciliation -->
+                    <tr style="border-top: 2px solid #5a1ec0; background-color: #f5f4fa; font-weight: bold;">
+                        <td>${if (isAr) "صافي الحركة النقدية للفترة" else "Net increase/decrease in cash during period"}</td>
+                        <td class="text-right" style="color:${if (netChange >= 0) "#0d8343" else "#c5221f"};">
+                            ${if (netChange >= 0) "+" else ""}${FinancialUtils.formatBase(netChange)}
+                        </td>
+                    </tr>
+                    <tr style="font-weight: bold;">
+                        <td>${if (isAr) "الرصيد النقدي أول الفترة" else "Cash and cash equivalents, beginning of period"}</td>
+                        <td class="text-right" style="color:#5a1ec0;">${FinancialUtils.formatBase(statement.openingBalance)}</td>
+                    </tr>
+                    <tr style="border-top: 2px double #5a1ec0; background-color: #e2f7eb; font-weight: bold; font-size: 13px;">
+                        <td style="color: #0d8343;">${if (isAr) "الرصيد النقدي نهاية الفترة (المطابق للخزينة والبنك)" else "Cash and cash equivalents, end of period"}</td>
+                        <td class="text-right" style="color: #0d8343;">${FinancialUtils.formatBase(statement.closingBalance)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="footer-signatures" style="margin-top:50px;">
+                <div class="sig-block">
+                    <strong>${if (isAr) "إعداد وتدقيق محاسب الشؤون" else "Audit Accountant Verification"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+                <div class="sig-block">
+                    <strong>&nbsp;</strong>
+                </div>
+                <div class="sig-block">
+                    <strong>${if (isAr) "التوقيع والاعتماد والختم الرسمي" else "Official Executive Directors Seal"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+        """.trimIndent()
+
+        printHtml(context, getHtmlTemplate(body, isAr), "cash_flow_print")
+    }
 }

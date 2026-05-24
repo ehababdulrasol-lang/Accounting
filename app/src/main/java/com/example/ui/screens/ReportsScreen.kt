@@ -35,7 +35,7 @@ fun ReportsScreen(
     modifier: Modifier = Modifier,
     forcedTab: Int? = null
 ) {
-    var activeTab by remember { mutableStateOf(forcedTab ?: 0) } // 0 = Trial Balance, 1 = Balance Sheet, 2 = Income Statement
+    var activeTab by remember { mutableStateOf(forcedTab ?: 0) } // 0 = Trial Balance, 1 = Balance Sheet, 2 = Income Statement, 3 = Cash Flow
     val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
 
     LaunchedEffect(forcedTab) {
@@ -53,12 +53,14 @@ fun ReportsScreen(
             0 -> Localization.translate(Localization.Key.TRIAL_BALANCE, lang)
             1 -> Localization.translate(Localization.Key.BALANCE_SHEET, lang)
             2 -> Localization.translate(Localization.Key.INCOME_STATEMENT, lang)
+            3 -> if (lang == "ar") "كشف الأنشطة والتدفقات النقدية" else "Statement of Cash Flows (IAS 7)"
             else -> Localization.translate(Localization.Key.FINANCIAL_STATEMENTS, lang)
         }
         val customSubtitle = when (activeTab) {
             0 -> if (lang == "ar") "ميزان المراجعة غير المعدل بالأرصدة وحركات الفترة تتبعاً لقييد اليومية" else "Verify balanced summary of debits and credits from active transactions"
             1 -> if (lang == "ar") "معاينة هيكل المركز المالي السنوي متضمناً الأصول والمسؤوليات وحقوق الملكية" else "Review company assets, liabilities, and owner's equity balances"
             2 -> if (lang == "ar") "تقرير الأرباح والخسائر والأنشطة التشغيلية والإيرادات وصافي الدخول" else "Measure financial performance, sales, expenses, and net profit/loss"
+            3 -> if (lang == "ar") "تقرير مباشر يوضح النقد ومعادلاته عبر الأنشطة التشغيلية والاستثمارية والتمويلية" else "Direct-method statements showcasing Operating, Investing, and Financing flows"
             else -> if (lang == "ar") "تنفيذ حسابات الأرصدة في الوقت الفعلي المتوافقة مع المعايير الدولية (IFRS) مباشرة من قيود اليومية المزدوجة المتوازنة." else "IFRS-compliant, real-time balance calculations derived directly from balanced double-entries."
         }
 
@@ -76,8 +78,9 @@ fun ReportsScreen(
         )
 
         if (forcedTab == null) {
-            TabRow(
+            ScrollableTabRow(
                 selectedTabIndex = activeTab,
+                edgePadding = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
@@ -86,20 +89,26 @@ fun ReportsScreen(
                 Tab(
                     selected = activeTab == 0,
                     onClick = { activeTab = 0 },
-                    text = { Text(Localization.translate(Localization.Key.TRIAL_BALANCE, lang), fontWeight = FontWeight.Bold) },
+                    text = { Text(Localization.translate(Localization.Key.TRIAL_BALANCE, lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
                     icon = { Icon(Icons.Filled.AccountBalance, null) }
                 )
                 Tab(
                     selected = activeTab == 1,
                     onClick = { activeTab = 1 },
-                    text = { Text(Localization.translate(Localization.Key.BALANCE_SHEET, lang), fontWeight = FontWeight.Bold) },
+                    text = { Text(Localization.translate(Localization.Key.BALANCE_SHEET, lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
                     icon = { Icon(Icons.Filled.Assessment, null) }
                 )
                 Tab(
                     selected = activeTab == 2,
                     onClick = { activeTab = 2 },
-                    text = { Text(Localization.translate(Localization.Key.INCOME_STATEMENT, lang), fontWeight = FontWeight.Bold) },
+                    text = { Text(Localization.translate(Localization.Key.INCOME_STATEMENT, lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
                     icon = { Icon(Icons.Filled.TrendingUp, null) }
+                )
+                Tab(
+                    selected = activeTab == 3,
+                    onClick = { activeTab = 3 },
+                    text = { Text(if (lang == "ar") "التدفقات النقدية" else "Cash Flows", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                    icon = { Icon(Icons.Filled.SwapHoriz, null) }
                 )
             }
 
@@ -112,6 +121,7 @@ fun ReportsScreen(
             0 -> TrialBalanceView(viewModel)
             1 -> BalanceSheetView(viewModel)
             2 -> IncomeStatementView(viewModel)
+            3 -> CashFlowStatementView(viewModel)
         }
     }
 }
@@ -747,6 +757,311 @@ fun IncomeStatementView(viewModel: LedgerViewModel) {
                             
                             Text(
                                 text = auditAdvice,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CashFlowStatementView(viewModel: LedgerViewModel) {
+    val statement by viewModel.cashFlowStatement.collectAsStateWithLifecycle()
+    val loading by viewModel.cashFlowLoading.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.1f))
+    ) {
+        if (loading) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (statement == null) {
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (lang == "ar") "لا تتوفر تدفقات نقدية مسجلة حالياً." else "No Cash Flow data currently available.",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        } else {
+            val stmt = statement!!
+            val netOperating = stmt.operatingInflow - stmt.operatingOutflow
+            val netInvesting = stmt.investingInflow - stmt.investingOutflow
+            val netFinancing = stmt.financingInflow - stmt.financingOutflow
+            val netChange = netOperating + netInvesting + netFinancing
+
+            LazyColumn(
+                modifier = Modifier.weight(1f).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (lang == "ar") "كشف التدفق النقدي المباشر (IAS 7)" else "Direct Cash Flow Statement (IAS 7)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = if (lang == "ar") "تتبع النقد ومعادلاته عبر العمليات والأنشطة" else "Tracking of cash and cash equivalents across active systems",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                com.example.util.PrintUtils.printCashFlow(
+                                    context = context,
+                                    statement = stmt,
+                                    isLibyan = isLibyan,
+                                    lang = lang
+                                )
+                            },
+                            modifier = Modifier.testTag("print_cash_flow_button")
+                        ) {
+                            Icon(Icons.Filled.Print, contentDescription = "Print Cash Flow")
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalDivider()
+                }
+
+                // OPERATING ACTIVITIES
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = if (lang == "ar") "1. التدفقات من الأنشطة التشغيلية" else "1. Operating Activities",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "المقبوضات النقدية من العملاء" else "Cash receipts from customers", style = MaterialTheme.typography.bodyMedium)
+                                Text(FinancialUtils.formatBase(stmt.operatingInflow), style = MaterialTheme.typography.bodyMedium, color = EmeraldGreen, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "المدفوعات النقدية للموردين والمصاريف" else "Cash paid to suppliers & employees", style = MaterialTheme.typography.bodyMedium)
+                                Text(FinancialUtils.formatBase(stmt.operatingOutflow), style = MaterialTheme.typography.bodyMedium, color = RoseRed, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                            Spacer(Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "صافي التدفقات التشغيلية" else "Net Cash from Operating Activities", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    text = "${if (netOperating >= 0) "+" else ""}${FinancialUtils.formatBase(netOperating)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (netOperating >= 0) EmeraldGreen else RoseRed
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // INVESTING ACTIVITIES
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = if (lang == "ar") "2. التدفقات من الأنشطة الاستثمارية" else "2. Investing Activities",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = CorporateAmethyst
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "المتحصلات من بيع أصول" else "Inflows from asset sales", style = MaterialTheme.typography.bodyMedium)
+                                Text(FinancialUtils.formatBase(stmt.investingInflow), style = MaterialTheme.typography.bodyMedium, color = EmeraldGreen, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "المدفوعات لشراء أصول" else "Outflows for asset purchases", style = MaterialTheme.typography.bodyMedium)
+                                Text(FinancialUtils.formatBase(stmt.investingOutflow), style = MaterialTheme.typography.bodyMedium, color = RoseRed, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                            Spacer(Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "صافي التدفقات الاستثمارية" else "Net Cash from Investing Activities", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    text = "${if (netInvesting >= 0) "+" else ""}${FinancialUtils.formatBase(netInvesting)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (netInvesting >= 0) EmeraldGreen else RoseRed
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // FINANCING ACTIVITIES
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = if (lang == "ar") "3. التدفقات من الأنشطة التمويلية" else "3. Financing Activities",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = CorporateSky
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "المتحصلات من بيع أسهم أو قروض" else "Inflows from capital issues & loans", style = MaterialTheme.typography.bodyMedium)
+                                Text(FinancialUtils.formatBase(stmt.financingInflow), style = MaterialTheme.typography.bodyMedium, color = EmeraldGreen, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "تسديدات قروض وتوزيعات أرباح" else "Outflows for loans & dividends", style = MaterialTheme.typography.bodyMedium)
+                                Text(FinancialUtils.formatBase(stmt.financingOutflow), style = MaterialTheme.typography.bodyMedium, color = RoseRed, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                            Spacer(Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "صافي التدفقات التمويلية" else "Net Cash from Financing Activities", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    text = "${if (netFinancing >= 0) "+" else ""}${FinancialUtils.formatBase(netFinancing)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (netFinancing >= 0) EmeraldGreen else RoseRed
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // RECONCILIATION SUMMARY
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (netChange >= 0) EmeraldGreen.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, (if (netChange >= 0) EmeraldGreen else RoseRed).copy(alpha = 0.15f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = if (lang == "ar") "مطابقة النقد وأثر حركات الفترة" else "Cash Reconciliation Balance Sheet",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (netChange >= 0) EmeraldGreen else RoseRed
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "صافي التغير النقدي بالفترة" else "Net cash change during period", style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    text = "${if (netChange >= 0) "+" else ""}${FinancialUtils.formatBase(netChange)}",
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (netChange >= 0) EmeraldGreen else RoseRed
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(if (lang == "ar") "الرصيد النقدي أول الفترة" else "Cash at beginning of period", style = MaterialTheme.typography.bodyMedium)
+                                Text(FinancialUtils.formatBase(stmt.openingBalance), fontWeight = FontWeight.Medium)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            HorizontalDivider(color = (if (netChange >= 0) EmeraldGreen else RoseRed).copy(alpha = 0.2f))
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (lang == "ar") "الرصيد النقدي النهائي للدفاتر" else "Cash Equivalents at End of Period",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${FinancialUtils.formatBase(stmt.closingBalance)} ${if (isLibyan) "د.ل" else "LYD"}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (stmt.closingBalance >= 0) EmeraldGreen else RoseRed
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // AI DIAGNOSTIC INSIGHTS CARD
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.TipsAndUpdates, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = if (lang == "ar") "تقرير الكفاءة والسيولة التشغيلية" else "Liquidity Runway & Operational Guidance",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            val runwayAdvice = if (netOperating > 0L) {
+                                if (netChange > 0L) {
+                                    if (lang == "ar") "تراكم نقدي إيجابي ممتاز مدفوع بالعمليات التشغيلية الذاتية. سيولة كافية جداً ودرجة حماية مرتفعة لتوسيع الاستمارات أو تفادي أزمات الاعتمادات المستندية المحلية."
+                                    else "Excellent positive cash accumulator fueled directly by core business loops. Healthy cash flow secures your procurement runways and helps negotiate better credit facilities."
+                                } else {
+                                    if (lang == "ar") "العمليات التشغيلية تدر نفقات ممتازة، لكن صافي النقد الإجمالي متراجع نتيجة تزايد الاستثمارات بالأصول الثابتة أو سداد التزامات تمويلية سابقة. الموقف آمن."
+                                    else "Operational core is earning robust cash, though the net overall cash is negative due to strategic investments in capital equipment or loan reductions."
+                                }
+                            } else if (netOperating < 0L) {
+                                if (lang == "ar") "عجز نقدي تشغيلي خطير! عمليات الشركة المحورية عاجزة عن تمويل ذاتها وتنزف النقد للاحتياجات التشغيلية. يُرجى مراجعة سياسات البيع الآجل والتحصيل الفوري للعملاء."
+                                    else "Severe operating cash bleed! Core transactions are consuming instead of breeding liquidity. Re-evaluate customer credit policies and accounts receivable invoice collection periods."
+                            } else {
+                                if (lang == "ar") "لا تتوفر حركات تدفق نقدي تشغيلي مميزة للفترة معلنة في السجلات. ينصح بتسجيل فواتير وسندات القبض والدفع المحاسبية مرحلة لضمان تتبع السيولة تشغيلياً."
+                                else "No significant operational flows are compiled right now. Ensure payment vouchers are correctly posted in the ledger to obtain real-time cash flow diagnostics."
+                            }
+
+                            Text(
+                                text = runwayAdvice,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                             )
