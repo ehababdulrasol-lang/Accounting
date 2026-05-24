@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -136,24 +137,26 @@ fun SuppliersScreen(
                             .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
-                        items(filtered) { supplier ->
-                            val linkedAccount = allAccounts.find { it.id == supplier.accountId }
-                            val balance = remember(supplier.accountId, snapshots) {
-                                snapshots.find { it.accountId == supplier.accountId }?.balance ?: 0L
-                            }
+                        itemsIndexed(filtered) { idx, supplier ->
+                            com.example.ui.StaggeredItem(index = idx) {
+                                val linkedAccount = allAccounts.find { it.id == supplier.accountId }
+                                val balance = remember(supplier.accountId, snapshots) {
+                                    snapshots.find { it.accountId == supplier.accountId }?.balance ?: 0L
+                                }
 
-                            SupplierCard(
-                                supplier = supplier,
-                                account = linkedAccount,
-                                balance = balance,
-                                onDelete = { supplierToDelete = supplier },
-                                onEdit = { editingSupplier = supplier },
-                                onViewStatement = {
-                                    viewModel.statementTargetAccountId.value = supplier.accountId
-                                    viewModel.navigateToTabFlow.tryEmit(7)
-                                },
-                                lang = lang
-                            )
+                                SupplierCard(
+                                    supplier = supplier,
+                                    account = linkedAccount,
+                                    balance = balance,
+                                    onDelete = { supplierToDelete = supplier },
+                                    onEdit = { editingSupplier = supplier },
+                                    onViewStatement = {
+                                        viewModel.statementTargetAccountId.value = supplier.accountId
+                                        viewModel.navigateToTabFlow.tryEmit(7)
+                                    },
+                                    lang = lang
+                                )
+                            }
                         }
                     }
                 }

@@ -430,13 +430,15 @@ fun DashboardScreen(
                                 EmptyDashboardVouchersPlaceHolder(lang = lang, onClickToPost = onNavigateToVouchers)
                             } else {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    headers.take(3).forEach { header ->
-                                        DashboardEntryRow(
-                                            header = header,
-                                            lang = lang,
-                                            isLibyan = isLibyanMode,
-                                            onClick = onNavigateToVouchers
-                                        )
+                                    headers.take(3).forEachIndexed { idx, header ->
+                                        com.example.ui.StaggeredItem(index = idx) {
+                                            DashboardEntryRow(
+                                                header = header,
+                                                lang = lang,
+                                                isLibyan = isLibyanMode,
+                                                onClick = onNavigateToVouchers
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -773,14 +775,19 @@ fun DashboardEntryRow(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     )
                     Spacer(Modifier.width(6.dp))
-                    Box(
+                    Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(
                                 if (header.isPosted) EmeraldGreen.copy(alpha = 0.15f) else CorporateSky.copy(alpha = 0.15f)
                             )
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        com.example.ui.BreathingBadge(
+                            color = if (header.isPosted) EmeraldGreen else CorporateSky
+                        )
                         Text(
                             text = if (header.isPosted) {
                                 if (lang == "ar") "مرحَّل" else "Posted"

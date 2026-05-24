@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -92,29 +93,31 @@ fun AccountsScreen(
                             .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
-                        items(rootAccounts) { rootAcc ->
-                            AccountTreeRow(
-                                account = rootAcc,
-                                allAccounts = allAccounts,
-                                depth = 0,
-                                viewModel = viewModel,
-                                snapshots = snapshots,
-                                lang = lang,
-                                isLibyan = isLibyan,
-                                cashBoxes = cashBoxes,
-                                bankAccounts = bankAccounts,
-                                onAddSub = {
-                                    selectedParentAccount = it
-                                    showAddDialog = true
-                                },
-                                onDelete = { accountToDelete = it },
-                                onViewStatement = {
-                                    statementAccount = it
-                                },
-                                onEdit = {
-                                    editAccount = it
-                                }
-                            )
+                        itemsIndexed(rootAccounts) { idx, rootAcc ->
+                            com.example.ui.StaggeredItem(index = idx) {
+                                AccountTreeRow(
+                                    account = rootAcc,
+                                    allAccounts = allAccounts,
+                                    depth = 0,
+                                    viewModel = viewModel,
+                                    snapshots = snapshots,
+                                    lang = lang,
+                                    isLibyan = isLibyan,
+                                    cashBoxes = cashBoxes,
+                                    bankAccounts = bankAccounts,
+                                    onAddSub = {
+                                        selectedParentAccount = it
+                                        showAddDialog = true
+                                    },
+                                    onDelete = { accountToDelete = it },
+                                    onViewStatement = {
+                                        statementAccount = it
+                                    },
+                                    onEdit = {
+                                        editAccount = it
+                                    }
+                                )
+                            }
                         }
                     }
                 }

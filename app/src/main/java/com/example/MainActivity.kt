@@ -454,9 +454,17 @@ fun MainLayout(viewModel: LedgerViewModel) {
                             AnimatedContent(
                                 targetState = activeTab,
                                 transitionSpec = {
-                                    fadeIn() togetherWith fadeOut()
+                                    if (targetState > initialState) {
+                                        (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                                            slideOutHorizontally { width -> -width } + fadeOut()
+                                        )
+                                    } else {
+                                        (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                                            slideOutHorizontally { width -> width } + fadeOut()
+                                        )
+                                    }
                                 },
-                                label = "TabTransition"
+                                label = "tab_switching"
                             ) { tab ->
                                 when (tab) {
                                     0 -> DashboardScreen(

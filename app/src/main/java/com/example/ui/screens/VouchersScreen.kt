@@ -8,6 +8,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -409,34 +410,36 @@ fun VouchersScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 ) {
-                    items(filteredHeaders) { header ->
+                    itemsIndexed(filteredHeaders) { idx, header ->
                         val fyName = fyList.find { it.id == header.fiscalYearId }?.name ?: "FY Unknown"
-                        VoucherHeaderItem(
-                            header = header,
-                            fiscalYearName = fyName,
-                            lang = lang,
-                            isLibyan = isLibyan,
-                            onClick = {
-                                viewModel.editVoucherDraft(header)
-                                onNavigateToEditor()
-                            },
-                            onPost = { viewModel.postActiveVoucher(header.id) },
-                            onUnpost = { viewModel.unpostActiveVoucher(header.id) },
-                            onDelete = { viewModel.deleteActiveVoucher(header.id) },
-                            onPrint = {
-                                scope.launch {
-                                    val lines = viewModel.getVoucherLines(header.id)
-                                    com.example.util.PrintUtils.printVoucher(
-                                        context = context,
-                                        voucher = header,
-                                        lines = lines,
-                                        allAccounts = accounts,
-                                        currencies = currencies,
-                                        lang = lang
-                                    )
+                        com.example.ui.StaggeredItem(index = idx) {
+                            VoucherHeaderItem(
+                                header = header,
+                                fiscalYearName = fyName,
+                                lang = lang,
+                                isLibyan = isLibyan,
+                                onClick = {
+                                    viewModel.editVoucherDraft(header)
+                                    onNavigateToEditor()
+                                },
+                                onPost = { viewModel.postActiveVoucher(header.id) },
+                                onUnpost = { viewModel.unpostActiveVoucher(header.id) },
+                                onDelete = { viewModel.deleteActiveVoucher(header.id) },
+                                onPrint = {
+                                    scope.launch {
+                                        val lines = viewModel.getVoucherLines(header.id)
+                                        com.example.util.PrintUtils.printVoucher(
+                                            context = context,
+                                            voucher = header,
+                                            lines = lines,
+                                            allAccounts = accounts,
+                                            currencies = currencies,
+                                            lang = lang
+                                        )
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
