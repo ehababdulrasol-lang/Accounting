@@ -57,11 +57,15 @@ fun VouchersScreen(
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val currencies by viewModel.currencies.collectAsStateWithLifecycle()
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var selectedTypeFilter by remember { mutableStateOf<VoucherType?>(forcedType) }
     var selectedStatusFilter by remember { mutableStateOf<Boolean?>(null) } // true for Posted, false for Draft
     var searchTxt by remember { mutableStateOf("") }
     var selectedDateFilter by remember { mutableStateOf<Long?>(null) }
     var showDatePickerDialog by remember { mutableStateOf(false) }
+    var showStats by remember { mutableStateOf(true) }
 
     LaunchedEffect(forcedType) {
         selectedTypeFilter = forcedType
@@ -74,10 +78,12 @@ fun VouchersScreen(
             val searchMatch = searchTxt.isBlank() ||
                     header.voucherNo.contains(searchTxt, ignoreCase = true) ||
                     header.description.contains(searchTxt, ignoreCase = true)
-            val dateMatch = selectedDateFilter == null || {
+            val dateMatch = if (selectedDateFilter == null) {
+                true
+            } else {
                 val fmt = SimpleDateFormat("yyyyMMdd", Locale.US)
                 fmt.format(Date(header.date)) == fmt.format(Date(selectedDateFilter!!))
-            }()
+            }
             typeMatch && statusMatch && searchMatch && dateMatch
         }
     }
@@ -111,415 +117,436 @@ fun VouchersScreen(
     }
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(
+        val draftCount = remember(headers, selectedTypeFilter) { headers.count { !it.isPosted && (selectedTypeFilter == null || it.type == selectedTypeFilter) } }
+        val postedCount = remember(headers, selectedTypeFilter) { headers.count { it.isPosted && (selectedTypeFilter == null || it.type == selectedTypeFilter) } }
+        val totalAmount = remember(headers, selectedTypeFilter) { headers.filter { selectedTypeFilter == null || it.type == selectedTypeFilter }.sumOf { it.totalAmountBase } }
+
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Screen Header Section with Modern Flow
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    val customTitle = when (forcedType) {
-                        VoucherType.RECEIPT -> if (lang == "ar") "سندات القبض المالي" else "Receipt Vouchers"
-                        VoucherType.PAYMENT -> if (lang == "ar") "سندات الصرف والدفع" else "Payment Vouchers"
-                        VoucherType.JOURNAL -> if (lang == "ar") "قيود اليومية والتسوية" else "Journal Entries"
-                        null -> Localization.translate(Localization.Key.VOUCHER_TX_JOURNAL, lang)
-                    }
-                    val customSubtitle = when (forcedType) {
-                        VoucherType.RECEIPT -> if (lang == "ar") "إدارة وتتبع المقبوضات النقدية والبنكية المسجلة بالنظام" else "Manage and track recorded cash & bank receipts"
-                        VoucherType.PAYMENT -> if (lang == "ar") "إدارة وتتبع المصروفات والمدفوعات النقدية والصيرفة" else "Manage and track payments and cash disbursements"
-                        VoucherType.JOURNAL -> if (lang == "ar") "توثيق القيود المزدوجة والتسويات العامة في الحسابات" else "Manage and document double-entries and adjustments"
-                        null -> if (lang == "ar") "أرشيف القيود وسندات اليومية العامة للنظام ماليًا" else "General ledger entries and daily voucher registry"
-                    }
-                    Text(
-                        text = customTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        letterSpacing = (-0.5).sp
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = customSubtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    
-                    if (selectedDateFilter != null) {
-                        Spacer(Modifier.height(4.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                                .clickable { selectedDateFilter = null }
-                        ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Clear", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                            Spacer(Modifier.width(4.dp))
-                            val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                            Text(
-                                text = fmt.format(Date(selectedDateFilter!!)),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                fontWeight = FontWeight.Bold
-                            )
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        val customTitle = when (forcedType) {
+                            VoucherType.RECEIPT -> if (lang == "ar") "سندات القبض المالي" else "Receipt Vouchers"
+                            VoucherType.PAYMENT -> if (lang == "ar") "سندات الصرف والدفع" else "Payment Vouchers"
+                            VoucherType.JOURNAL -> if (lang == "ar") "قيود اليومية والتسوية" else "Journal Entries"
+                            null -> Localization.translate(Localization.Key.VOUCHER_TX_JOURNAL, lang)
+                        }
+                        val customSubtitle = when (forcedType) {
+                            VoucherType.RECEIPT -> if (lang == "ar") "إدارة وتتبع المقبوضات النقدية والبنكية المسجلة بالنظام" else "Manage and track recorded cash & bank receipts"
+                            VoucherType.PAYMENT -> if (lang == "ar") "إدارة وتتبع المصروفات والمدفوعات النقدية والصيرفة" else "Manage and track payments and cash disbursements"
+                            VoucherType.JOURNAL -> if (lang == "ar") "توثيق القيود المزدوجة والتسويات العامة في الحسابات" else "Manage and document double-entries and adjustments"
+                            null -> if (lang == "ar") "أرشيف القيود وسندات اليومية العامة للنظام ماليًا" else "General ledger entries and daily voucher registry"
+                        }
+                        Text(
+                            text = customTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            letterSpacing = (-0.5).sp
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = customSubtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        
+                        if (selectedDateFilter != null) {
+                            Spacer(Modifier.height(4.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .clickable { selectedDateFilter = null }
+                            ) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Spacer(Modifier.width(4.dp))
+                                val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                Text(
+                                    text = fmt.format(Date(selectedDateFilter!!)),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
-                }
-                
-                // Calendar selection icon button
-                IconButton(
-                    onClick = {
-                        showDatePickerDialog = true
-                    },
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(
-                            if (selectedDateFilter != null) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            CircleShape
+
+                    // Toggle Stats Show/Hide Button
+                    IconButton(
+                        onClick = {
+                            showStats = !showStats
+                        },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .background(
+                                if (showStats) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                CircleShape
+                            )
+                            .clip(CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (showStats) Icons.Filled.BarChart else Icons.Filled.VisibilityOff,
+                            contentDescription = "Toggle Stats",
+                            tint = if (showStats) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(18.dp)
                         )
-                        .clip(CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.DateRange,
-                        contentDescription = "Choose Date",
-                        tint = if (selectedDateFilter != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                    }
 
-                Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
+                    
+                    // Calendar selection icon button
+                    IconButton(
+                        onClick = {
+                            showDatePickerDialog = true
+                        },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .background(
+                                if (selectedDateFilter != null) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                CircleShape
+                            )
+                            .clip(CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DateRange,
+                            contentDescription = "Choose Date",
+                            tint = if (selectedDateFilter != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
 
-                // Add Quick Voucher shortcut header
-                IconButton(
-                    onClick = {
-                        viewModel.createNewVoucherForm(selectedTypeFilter)
-                        onNavigateToEditor()
-                    },
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                        .clip(CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = "New",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    Spacer(Modifier.width(6.dp))
+
+                    // Add Quick Voucher shortcut header
+                    IconButton(
+                        onClick = {
+                            viewModel.createNewVoucherForm(selectedTypeFilter)
+                            onNavigateToEditor()
+                        },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                            .clip(CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = "New",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
-            val draftCount = remember(headers, selectedTypeFilter) { headers.count { !it.isPosted && (selectedTypeFilter == null || it.type == selectedTypeFilter) } }
-            val postedCount = remember(headers, selectedTypeFilter) { headers.count { it.isPosted && (selectedTypeFilter == null || it.type == selectedTypeFilter) } }
-            val totalAmount = remember(headers, selectedTypeFilter) { headers.filter { selectedTypeFilter == null || it.type == selectedTypeFilter }.sumOf { it.totalAmountBase } }
-
-            // High Fidelity Unified Statistical Deck
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-                    .shadow(12.dp, shape = RoundedCornerShape(16.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+            // High Fidelity VERY COMPACT Unified Statistical Deck Row (can be collapsed)
+            item {
+                AnimatedVisibility(
+                    visible = showStats,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
                 ) {
-                    Text(
-                        text = if (lang == "ar") "موجز النشاط المالي" else "Financial Activity Summary",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            0.5.dp,
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        )
                     ) {
-                        // Cumulative Volume Panel
-                        Column(modifier = Modifier.weight(1.3f)) {
-                            Text(
-                                text = if (lang == "ar") "إجمالي القيمة المتداولة" else "Cumulative Flow",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text(
-                                    text = FinancialUtils.formatBase(totalAmount),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Total Flow
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.AccountBalanceWallet,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(Modifier.width(4.dp))
                                 Text(
+                                    text = if (lang == "ar") "المتداول: " else "Flow: ",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = FinancialUtils.formatBase(totalAmount),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(2.dp))
+                                Text(
                                     text = if (isLibyan) "د.ل" else "LYD",
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = Bold,
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                                    modifier = Modifier.padding(bottom = 2.dp)
+                                    fontSize = 9.sp
                                 )
                             }
-                        }
 
-                        // Divider line
-                        Box(modifier = Modifier.width(1.dp).height(38.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)))
+                            // Divider line
+                            Box(modifier = Modifier.width(1.dp).height(12.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)))
 
-                        // Unlocked Drafts Section
-                        Column(modifier = Modifier.weight(1f)) {
+                            // Drafts
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                                Spacer(Modifier.width(6.dp))
+                                Box(modifier = Modifier.size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                                Spacer(Modifier.width(4.dp))
                                 Text(
-                                    text = if (lang == "ar") "مسودات قيد التحقق" else "Pending Drafts",
+                                    text = if (lang == "ar") "مسودات: " else "Drafts: ",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = "$draftCount",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = "$draftCount",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
 
-                        // Locked Posted Section
-                        Column(modifier = Modifier.weight(1f)) {
+                            // Divider line
+                            Box(modifier = Modifier.width(1.dp).height(12.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)))
+
+                            // Posted
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(8.dp).background(EmeraldGreen, CircleShape))
-                                Spacer(Modifier.width(6.dp))
+                                Box(modifier = Modifier.size(6.dp).background(EmeraldGreen, CircleShape))
+                                Spacer(Modifier.width(4.dp))
                                 Text(
-                                    text = if (lang == "ar") "القيود المعتمدة" else "Approved / Posted",
+                                    text = if (lang == "ar") "معتمدة: " else "Posted: ",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = "$postedCount",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldGreen
                                 )
                             }
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = "$postedCount",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = EmeraldGreen
-                            )
                         }
                     }
                 }
             }
 
             // Interactive Search Entry on the Journal
-            OutlinedTextField(
-                value = searchTxt,
-                onValueChange = { searchTxt = it },
-                placeholder = { Text(if (lang == "ar") "ابحث برقم السند أو بملاحظات البيان..." else "Search voucher # or narration...") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
-                trailingIcon = {
-                    if (searchTxt.isNotEmpty()) {
-                        IconButton(onClick = { searchTxt = "" }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Clear")
+            item {
+                OutlinedTextField(
+                    value = searchTxt,
+                    onValueChange = { searchTxt = it },
+                    placeholder = { Text(if (lang == "ar") "ابحث برقم السند أو بملاحظات البيان..." else "Search voucher # or narration...") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+                    trailingIcon = {
+                        if (searchTxt.isNotEmpty()) {
+                            IconButton(onClick = { searchTxt = "" }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear")
+                            }
                         }
-                    }
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp)
-            )
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp)
+                )
+            }
 
             // Horizontal Pill filtering layout (Unified Row Filters)
-            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                if (forcedType == null) {
-                    // Voucher Type Tabs Scroll row
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val types = listOf(null) + VoucherType.values()
-                        types.forEach { t ->
-                            val selected = selectedTypeFilter == t
-                            val typeLabel = when (t) {
-                                null -> if (lang == "ar") "كل التصاميم" else "All Entries"
-                                VoucherType.JOURNAL -> Localization.translate(Localization.Key.ST_JOURNAL, lang)
-                                VoucherType.RECEIPT -> Localization.translate(Localization.Key.ST_RECEIPT, lang)
-                                VoucherType.PAYMENT -> Localization.translate(Localization.Key.ST_PAYMENT, lang)
-                            }
-
-                            val containerColor = if (selected) {
-                                when (t) {
-                                    null -> MaterialTheme.colorScheme.primary
-                                    VoucherType.JOURNAL -> MaterialTheme.colorScheme.primary
-                                    VoucherType.RECEIPT -> EmeraldGreen
-                                    VoucherType.PAYMENT -> RoseRed
+            item {
+                Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                    if (forcedType == null) {
+                        // Voucher Type Tabs Scroll row
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val types = listOf(null) + VoucherType.values()
+                            types.forEach { t ->
+                                val selected = selectedTypeFilter == t
+                                val typeLabel = when (t) {
+                                    null -> if (lang == "ar") "كل التصاميم" else "All Entries"
+                                    VoucherType.JOURNAL -> Localization.translate(Localization.Key.ST_JOURNAL, lang)
+                                    VoucherType.RECEIPT -> Localization.translate(Localization.Key.ST_RECEIPT, lang)
+                                    VoucherType.PAYMENT -> Localization.translate(Localization.Key.ST_PAYMENT, lang)
                                 }
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                            }
 
-                            val contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                val containerColor = if (selected) {
+                                    when (t) {
+                                        null -> MaterialTheme.colorScheme.primary
+                                        VoucherType.JOURNAL -> MaterialTheme.colorScheme.primary
+                                        VoucherType.RECEIPT -> EmeraldGreen
+                                        VoucherType.PAYMENT -> RoseRed
+                                    }
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                }
 
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(24.dp))
-                                    .background(containerColor)
-                                    .clickable { selectedTypeFilter = t }
-                                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = typeLabel,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                    color = contentColor
-                                )
+                                val contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(24.dp))
+                                        .background(containerColor)
+                                        .clickable { selectedTypeFilter = t }
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = typeLabel,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                        color = contentColor
+                                    )
+                                }
                             }
                         }
+
+                        Spacer(Modifier.height(8.dp))
                     }
 
-                    Spacer(Modifier.height(8.dp))
-                }
-
-                // Voucher Status Filter Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val statuses = listOf(
-                        null to (if (lang == "ar") "كل الحالات" else "Any Status"),
-                        false to Localization.translate(Localization.Key.DRAFT, lang),
-                        true to Localization.translate(Localization.Key.POSTED, lang)
-                    )
-
-                    statuses.forEach { (status, label) ->
-                        val isSelected = selectedStatusFilter == status
-                        ElevatedAssistChip(
-                            onClick = { selectedStatusFilter = status },
-                            label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                            colors = AssistChipDefaults.elevatedAssistChipColors(
-                                containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
-                                labelColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.secondary else Color.Transparent
-                            ),
-                            leadingIcon = {
-                                if (status == true) {
-                                    Box(modifier = Modifier.size(6.dp).background(EmeraldGreen, CircleShape))
-                                } else if (status == false) {
-                                    Box(modifier = Modifier.size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                                }
-                            }
+                    // Voucher Status Filter Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val statuses = listOf(
+                            null to (if (lang == "ar") "كل الحالات" else "Any Status"),
+                            false to Localization.translate(Localization.Key.DRAFT, lang),
+                            true to Localization.translate(Localization.Key.POSTED, lang)
                         )
+
+                        statuses.forEach { (status, label) ->
+                            val isSelected = selectedStatusFilter == status
+                            ElevatedAssistChip(
+                                onClick = { selectedStatusFilter = status },
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                colors = AssistChipDefaults.elevatedAssistChipColors(
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                                    labelColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.secondary else Color.Transparent
+                                ),
+                                leadingIcon = {
+                                    if (status == true) {
+                                        Box(modifier = Modifier.size(6.dp).background(EmeraldGreen, CircleShape))
+                                    } else if (status == false) {
+                                        Box(modifier = Modifier.size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
 
             // Journal Feed List Representation
             if (filteredHeaders.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(24.dp)
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surface),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
-                            contentAlignment = Alignment.Center
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(24.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.Inbox,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Inbox,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = if (lang == "ar") "لا توجد أي قيود أو سندات مطابقة!" else "This journal filter is currently empty.",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = if (lang == "ar") "يرجى تغيير فلاتر التصفية أو صياغة قيد محاسبي جديد" else "Try clearing your filters or tap add below to begin logging transactions.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
                         }
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = if (lang == "ar") "لا توجد أي قيود أو سندات مطابقة!" else "This journal filter is currently empty.",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = if (lang == "ar") "يرجى تغيير فلاتر التصفية أو صياغة قيد محاسبي جديد" else "Try clearing your filters or tap add below to begin logging transactions.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
                     }
                 }
             } else {
-                val context = androidx.compose.ui.platform.LocalContext.current
-                val scope = rememberCoroutineScope()
-
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f).fillMaxWidth()
-                ) {
-                    itemsIndexed(filteredHeaders) { idx, header ->
-                        val fyName = fyList.find { it.id == header.fiscalYearId }?.name ?: "FY Unknown"
-                        com.example.ui.StaggeredItem(index = idx) {
-                            VoucherHeaderItem(
-                                header = header,
-                                fiscalYearName = fyName,
-                                lang = lang,
-                                isLibyan = isLibyan,
-                                onClick = {
-                                    viewModel.editVoucherDraft(header)
-                                    onNavigateToEditor()
-                                },
-                                onPost = { viewModel.postActiveVoucher(header.id) },
-                                onUnpost = { viewModel.unpostActiveVoucher(header.id) },
-                                onDelete = { viewModel.deleteActiveVoucher(header.id) },
-                                onPrint = {
-                                    scope.launch {
-                                        val lines = viewModel.getVoucherLines(header.id)
-                                        com.example.util.PrintUtils.printVoucher(
-                                            context = context,
-                                            voucher = header,
-                                            lines = lines,
-                                            allAccounts = accounts,
-                                            currencies = currencies,
-                                            lang = lang
-                                        )
-                                    }
+                itemsIndexed(filteredHeaders) { idx, header ->
+                    val fyName = fyList.find { it.id == header.fiscalYearId }?.name ?: "FY Unknown"
+                    com.example.ui.StaggeredItem(index = idx) {
+                        VoucherHeaderItem(
+                            header = header,
+                            fiscalYearName = fyName,
+                            lang = lang,
+                            isLibyan = isLibyan,
+                            onClick = {
+                                viewModel.editVoucherDraft(header)
+                                onNavigateToEditor()
+                            },
+                            onPost = { viewModel.postActiveVoucher(header.id) },
+                            onUnpost = { viewModel.unpostActiveVoucher(header.id) },
+                            onDelete = { viewModel.deleteActiveVoucher(header.id) },
+                            onPrint = {
+                                scope.launch {
+                                    val lines = viewModel.getVoucherLines(header.id)
+                                    com.example.util.PrintUtils.printVoucher(
+                                        context = context,
+                                        voucher = header,
+                                        lines = lines,
+                                        allAccounts = accounts,
+                                        currencies = currencies,
+                                        lang = lang
+                                    )
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
             }

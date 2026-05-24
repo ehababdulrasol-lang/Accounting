@@ -499,8 +499,6 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                     15 -> ReportsScreen(viewModel = viewModel, forcedTab = 0)
                                     16 -> ReportsScreen(viewModel = viewModel, forcedTab = 1)
                                     17 -> ReportsScreen(viewModel = viewModel, forcedTab = 2)
-                                    18 -> ReportsScreen(viewModel = viewModel, forcedTab = 3)
-                                    19 -> ReportsScreen(viewModel = viewModel, forcedTab = 4)
                                 }
                             }
                         }
