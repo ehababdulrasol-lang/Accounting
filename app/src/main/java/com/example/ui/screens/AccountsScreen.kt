@@ -32,6 +32,7 @@ import com.example.util.FinancialUtils
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.Localization
+import androidx.compose.ui.text.style.TextOverflow
 
 @Composable
 fun AccountsScreen(
@@ -262,8 +263,18 @@ fun AccountTreeRow(
 
             Spacer(Modifier.width(8.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            var isNameExpanded by remember { mutableStateOf(false) }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .animateContentSize()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isNameExpanded = !isNameExpanded }
+                ) {
                     Text(
                         text = account.accountCode,
                         style = MaterialTheme.typography.titleMedium,
@@ -275,7 +286,10 @@ fun AccountTreeRow(
                         text = Localization.getAccountName(account.accountCode, account.name, lang),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = if (account.isGroup) FontWeight.SemiBold else FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = if (isNameExpanded) Int.MAX_VALUE else 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                 }
                 

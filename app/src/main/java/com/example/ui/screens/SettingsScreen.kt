@@ -56,6 +56,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     val localBackups by viewModel.localBackups.collectAsStateWithLifecycle()
 
+    var simulatedUserIsAdmin by remember { mutableStateOf(true) }
+
     LaunchedEffect(Unit) {
         viewModel.refreshLocalBackups(context)
     }
@@ -113,6 +115,115 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.padding(bottom = 12.dp)
             )
+
+            // Dynamic User Role Selector Board
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.VerifiedUser,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (lang == "ar") "محاكاة صلاحيات المستخدم (Role-based UI)" else "User Authorization Simulation (Role-based UI)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (simulatedUserIsAdmin) EmeraldGreen.copy(alpha = 0.15f)
+                                    else Color(0xFFFFB300).copy(alpha = 0.15f)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (simulatedUserIsAdmin) {
+                                    if (lang == "ar") "مدير النظام" else "Senior Admin"
+                                } else {
+                                    if (lang == "ar") "محاسب مبتدئ" else "Junior Accountant"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (simulatedUserIsAdmin) EmeraldGreen else Color(0xFFD84315)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (lang == "ar") {
+                            "اختر دورًا تاليًا لرؤية آلية إخفاء وتأمين الإعدادات الحساسة (مثل تكوين العملة، قفل الدورة الحسابية، وحذف/استرجاع قواعد البيانات) بنسق يحمل طابع حذر آمن."
+                        } else {
+                            "Select a role to see how sensitive operations are dynamically secured. Selecting 'Junior Accountant' locks database controls and currency setup, rendering them into custom compliance alert states."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = { simulatedUserIsAdmin = true },
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (simulatedUserIsAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Text(
+                                if (lang == "ar") "مدير النظام" else "Senior Admin",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Button(
+                            onClick = { simulatedUserIsAdmin = false },
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!simulatedUserIsAdmin) Color(0xFFF4511E) else MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (!simulatedUserIsAdmin) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) {
+                            Text(
+                                if (lang == "ar") "محاسب مبتدئ" else "Junior Acc",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
 
             // Category Navigation Pills for perfect organization
             Row(
@@ -517,6 +628,35 @@ fun SettingsScreen(
                                             )
                                         }
 
+                                        if (!simulatedUserIsAdmin) {
+                                            Card(
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = Color(0xFFFFF3E0)
+                                                ),
+                                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB74D)),
+                                                shape = RoundedCornerShape(10.dp),
+                                                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(10.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(Icons.Filled.Lock, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(20.dp))
+                                                    Spacer(Modifier.width(10.dp))
+                                                    Text(
+                                                        text = if (lang == "ar") {
+                                                            "تكوين العملات وأسعار الصرف مقيد. عذرًا، لا تملك صلاحية مدير النظام حاليًا لتعديل هذا الجزء السيادي."
+                                                        } else {
+                                                            "Currency parameters are read-only. Your current Junior Accountant profile does not permit adding new master currencies."
+                                                        },
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = Color(0xFF5D4037),
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                            }
+                                        }
+
                                         // Form Fields
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
@@ -527,7 +667,8 @@ fun SettingsScreen(
                                                 onValueChange = { if (it.length <= 4) currencyCode = it },
                                                 label = { Text(Localization.translate(Localization.Key.CURRENCY_CODE, lang)) },
                                                 modifier = Modifier.weight(1f).testTag("curr_input_code"),
-                                                singleLine = true
+                                                singleLine = true,
+                                                enabled = simulatedUserIsAdmin
                                             )
 
                                             OutlinedTextField(
@@ -535,7 +676,8 @@ fun SettingsScreen(
                                                 onValueChange = { currencyName = it },
                                                 label = { Text(Localization.translate(Localization.Key.NAME, lang)) },
                                                 modifier = Modifier.weight(1.5f).testTag("curr_input_name"),
-                                                singleLine = true
+                                                singleLine = true,
+                                                enabled = simulatedUserIsAdmin
                                             )
 
                                             OutlinedTextField(
@@ -544,7 +686,8 @@ fun SettingsScreen(
                                                 label = { Text(Localization.translate(Localization.Key.DECIMAL_PLACES, lang)) },
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                                 modifier = Modifier.weight(1f).testTag("curr_input_decimals"),
-                                                singleLine = true
+                                                singleLine = true,
+                                                enabled = simulatedUserIsAdmin
                                             )
                                         }
 
@@ -556,7 +699,7 @@ fun SettingsScreen(
                                                 currencyName = ""
                                                 currencyDecimals = "2"
                                             },
-                                            enabled = currencyCode.isNotBlank() && currencyName.isNotBlank(),
+                                            enabled = simulatedUserIsAdmin && currencyCode.isNotBlank() && currencyName.isNotBlank(),
                                             shape = RoundedCornerShape(8.dp),
                                             modifier = Modifier.align(Alignment.End).testTag("curr_btn_add")
                                         ) {
@@ -808,7 +951,11 @@ fun SettingsScreen(
                                                 )
                                             }
 
-                                            TextButton(onClick = { showCreateFyDialog = true }, modifier = Modifier.testTag("btn_add_fy")) {
+                                            TextButton(
+                                                onClick = { if (simulatedUserIsAdmin) showCreateFyDialog = true },
+                                                modifier = Modifier.testTag("btn_add_fy"),
+                                                enabled = simulatedUserIsAdmin
+                                            ) {
                                                 Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
                                                 Spacer(Modifier.width(4.dp))
                                                 Text(if (lang == "ar") "إضافة فترة" else "Add Period")
@@ -823,7 +970,8 @@ fun SettingsScreen(
                                                     FiscalYearPeriodRow(
                                                         fy = fy,
                                                         onToggleLock = { viewModel.toggleFiscalYearLock(fy.id, fy.isLocked) },
-                                                        lang = lang
+                                                        lang = lang,
+                                                        enabled = simulatedUserIsAdmin
                                                     )
                                                 }
                                             }
@@ -855,6 +1003,35 @@ fun SettingsScreen(
                                             )
                                         }
 
+                                        if (!simulatedUserIsAdmin) {
+                                            Card(
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = Color(0xFFFFEBEE)
+                                                ),
+                                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF9A9A)),
+                                                shape = RoundedCornerShape(10.dp),
+                                                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(Icons.Filled.Dangerous, contentDescription = null, tint = Color(0xFFC62828), modifier = Modifier.size(22.dp))
+                                                    Spacer(Modifier.width(10.dp))
+                                                    Text(
+                                                        text = if (lang == "ar") {
+                                                            "⚠️ تنبيه حماية النظام: الصلاحيات الحالية مقيدة بنمط القراءة فقط للمحاسبين المبتدئين. عمليات حذف قواعد البيانات أو استعادة البيانات الاحتياطية تتطلب صلاحيات مدير نظام لمنع التلاعب وتخريب السجلات الحساسة للشركة."
+                                                        } else {
+                                                            "⚠️ System Safeguard: Database recovery operations are restricted to Senior Admins under active ERP policy."
+                                                        },
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = Color(0xFF37474F),
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                        }
+
                                         Text(
                                             text = if (lang == "ar") "قم بحفظ بياناتك المالية في مساحة آمنة داخل تطبيق الجهاز لتجنب فقد السجلات، أو قم بتصدير واستيراد قواعد بياناتك كملفات خارجية في أي وقت." 
                                                    else "Secure your ledgers locally on this device, or export/import database snapshots to prevent data loss or migrate bookkeeping logs.",
@@ -869,7 +1046,8 @@ fun SettingsScreen(
                                             Button(
                                                 onClick = { viewModel.createBackup(context) },
                                                 modifier = Modifier.fillMaxWidth().testTag("btn_create_local_backup"),
-                                                shape = RoundedCornerShape(8.dp)
+                                                shape = RoundedCornerShape(8.dp),
+                                                enabled = simulatedUserIsAdmin
                                             ) {
                                                 Icon(Icons.Filled.CloudUpload, null, modifier = Modifier.size(18.dp))
                                                 Spacer(Modifier.width(8.dp))
@@ -883,7 +1061,8 @@ fun SettingsScreen(
                                                 OutlinedButton(
                                                     onClick = { exportLauncher.launch("ledger_backup_${System.currentTimeMillis()}.db") },
                                                     modifier = Modifier.weight(1f).testTag("btn_export_backup_saf"),
-                                                    shape = RoundedCornerShape(8.dp)
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    enabled = simulatedUserIsAdmin
                                                 ) {
                                                     Icon(Icons.Filled.Launch, null, modifier = Modifier.size(16.dp))
                                                     Spacer(Modifier.width(6.dp))
@@ -893,7 +1072,8 @@ fun SettingsScreen(
                                                 OutlinedButton(
                                                     onClick = { importLauncher.launch(arrayOf("*/*")) },
                                                     modifier = Modifier.weight(1f).testTag("btn_import_backup_saf"),
-                                                    shape = RoundedCornerShape(8.dp)
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    enabled = simulatedUserIsAdmin
                                                 ) {
                                                     Icon(Icons.Filled.FolderOpen, null, modifier = Modifier.size(16.dp))
                                                     Spacer(Modifier.width(6.dp))
@@ -936,7 +1116,7 @@ fun SettingsScreen(
                                                             .fillMaxWidth()
                                                             .clip(RoundedCornerShape(8.dp))
                                                             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
-                                                            .clickable { selectedBackupForAction = file }
+                                                            .clickable(enabled = simulatedUserIsAdmin) { selectedBackupForAction = file }
                                                             .padding(10.dp),
                                                         horizontalArrangement = Arrangement.SpaceBetween,
                                                         verticalAlignment = Alignment.CenterVertically
@@ -1095,7 +1275,8 @@ fun SettingsScreen(
 fun FiscalYearPeriodRow(
     fy: FiscalYear,
     onToggleLock: () -> Unit,
-    lang: String
+    lang: String,
+    enabled: Boolean = true
 ) {
     val formatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
     val startStr = remember(fy.startDate) { formatter.format(Date(fy.startDate)) }
@@ -1144,7 +1325,8 @@ fun FiscalYearPeriodRow(
 
         IconButton(
             onClick = onToggleLock,
-            modifier = Modifier.testTag("toggle_fiscal_lock_${fy.name}")
+            modifier = Modifier.testTag("toggle_fiscal_lock_${fy.name}"),
+            enabled = enabled
         ) {
             Icon(
                 imageVector = if (fy.isLocked) Icons.Filled.LockOpen else Icons.Filled.Lock,
