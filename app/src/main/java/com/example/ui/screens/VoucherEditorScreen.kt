@@ -122,6 +122,77 @@ fun VoucherEditorScreen(
     var dialogExchangeRateStr by remember { mutableStateOf("1.0") }
     var dialogMemo by remember { mutableStateOf("") }
 
+    // Dual form temporary states for PAYMENT and RECEIPT
+    var dualAmountStr by remember(formLines) {
+        val firstLine = formLines.firstOrNull()
+        mutableStateOf(firstLine?.let { if (it.debitStr.isNotEmpty()) it.debitStr else it.creditStr } ?: "")
+    }
+    var dualCurrencyId by remember(formLines) {
+        mutableStateOf(formLines.firstOrNull()?.currencyId ?: 1L)
+    }
+    var dualExchangeRateStr by remember(formLines) {
+        mutableStateOf(formLines.firstOrNull()?.exchangeRateStr ?: "1.0")
+    }
+    var payeeAccountId by remember(formLines) {
+        mutableStateOf(formLines.getOrNull(0)?.accountId ?: 0L)
+    }
+    var payerAccountId by remember(formLines) {
+        mutableStateOf(formLines.getOrNull(1)?.accountId ?: 0L)
+    }
+    var payeeMemo by remember(formLines) {
+        mutableStateOf(formLines.getOrNull(0)?.memo ?: "")
+    }
+    var payerMemo by remember(formLines) {
+        mutableStateOf(formLines.getOrNull(1)?.memo ?: "")
+    }
+
+    // A helper to push Dual values down into the standard formLines MutableStateFlow
+    val updateDualVoucherState = { amount: String, currId: Long, rateStr: String, payerId: Long, payeeId: Long, payerNote: String, payeeNote: String ->
+        val l0 = EditLineItem(
+            tempId = formLines.getOrNull(0)?.tempId ?: System.nanoTime(),
+            id = formLines.getOrNull(0)?.id ?: 0L,
+            accountId = payeeId,
+            debitStr = amount,
+            creditStr = "",
+            currencyId = currId,
+            exchangeRateStr = rateStr,
+            memo = payeeNote
+        )
+        val l1 = EditLineItem(
+            tempId = formLines.getOrNull(1)?.tempId ?: System.nanoTime(),
+            id = formLines.getOrNull(1)?.id ?: 0L,
+            accountId = payerId,
+            debitStr = "",
+            creditStr = amount,
+            currencyId = currId,
+            exchangeRateStr = rateStr,
+            memo = payerNote
+        )
+        viewModel.formLines.value = listOf(l0, l1)
+    }
+
+    // Force dual rows on receipt/payment
+    LaunchedEffect(formVoucherType) {
+        if (formVoucherType == VoucherType.RECEIPT || formVoucherType == VoucherType.PAYMENT) {
+            if (formLines.size != 2) {
+                val baseCurrId = currencies.firstOrNull()?.id ?: 1L
+                val l0 = formLines.getOrNull(0) ?: EditLineItem(currencyId = baseCurrId, exchangeRateStr = "1.0")
+                val l1 = formLines.getOrNull(1) ?: EditLineItem(currencyId = baseCurrId, exchangeRateStr = "1.0")
+                
+                // Force l0 to be debit, l1 to be credit
+                val syncedL0 = l0.copy(
+                    debitStr = if (l0.debitStr.isEmpty() && l0.creditStr.isNotEmpty()) l0.creditStr else if (l0.debitStr.isEmpty()) "0.0" else l0.debitStr,
+                    creditStr = ""
+                )
+                val syncedL1 = l1.copy(
+                    creditStr = if (l1.creditStr.isEmpty() && l1.debitStr.isNotEmpty()) l1.debitStr else if (l1.creditStr.isEmpty()) "0.0" else l1.creditStr,
+                    debitStr = ""
+                )
+                viewModel.formLines.value = listOf(syncedL0, syncedL1)
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -676,100 +747,362 @@ fun VoucherEditorScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Ledger Accounts rows section
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = if (lang == "ar") "أسطر وبنود الحركات اليومية" else "Voucher Journal Rows",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = if (lang == "ar") "يشتمل السند على طرفين مدين ودائن على الأقل لإقفاله" else "At least 2 offsets needed for general ledger journals",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                )
-            }
-            
-            Button(
-                onClick = {
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
-                    editingLineIndex = null
-                    dialogAccountId = 0L
-                    dialogSideIsDebit = true
-                    dialogAmountStr = ""
-                    dialogCurrencyId = currencies.firstOrNull()?.id ?: 1L
-                    dialogExchangeRateStr = "1.0"
-                    dialogMemo = ""
-                    showLineDialog = true
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        if (formVoucherType == VoucherType.RECEIPT || formVoucherType == VoucherType.PAYMENT) {
+            // Simplified dual-account form section for receipt and payment vouchers
+            Column(
                 modifier = Modifier
-                    .height(36.dp)
-                    .testTag("add_voucher_line_button")
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Filled.AddCircleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = if (lang == "ar") "إضافة بند" else "Add Line",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Header info
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (formVoucherType == VoucherType.RECEIPT) Icons.Filled.ArrowCircleDown else Icons.Filled.ArrowCircleUp,
+                                contentDescription = null,
+                                tint = if (formVoucherType == VoucherType.RECEIPT) EmeraldGreen else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (formVoucherType == VoucherType.RECEIPT) {
+                                    if (lang == "ar") "تفاصيل المعاملة (سند القبض المزدوج المالي)" else "Inward Receipt Voucher (Dual Account)"
+                                } else {
+                                    if (lang == "ar") "تفاصيل المعاملة (سند صرف مالي مبسط)" else "Simplified Payment Voucher (Dual Account)"
+                                },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        // SECTION 1: Amount, Currency, and Exchange Rate Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = dualAmountStr,
+                                onValueChange = {
+                                    dualAmountStr = it
+                                    updateDualVoucherState(it, dualCurrencyId, dualExchangeRateStr, payerAccountId, payeeAccountId, payerMemo, payeeMemo)
+                                },
+                                label = { Text(if (lang == "ar") "المبلغ المالي" else "Amount") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                leadingIcon = { Icon(Icons.Filled.Money, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                modifier = Modifier.weight(1.2f).testTag("dual_amount_input"),
+                                singleLine = true
+                            )
+
+                            // Currency Dropdown Selector box
+                            var dualCurrExpanded by remember { mutableStateOf(false) }
+                            val activeCurrency = currencies.find { it.id == dualCurrencyId } ?: currencies.firstOrNull()
+                            ExposedDropdownMenuBox(
+                                expanded = dualCurrExpanded,
+                                onExpandedChange = { dualCurrExpanded = !dualCurrExpanded },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = activeCurrency?.code ?: "LYD",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text(if (lang == "ar") "العملة" else "Currency") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dualCurrExpanded) },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                    modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = dualCurrExpanded,
+                                    onDismissRequest = { dualCurrExpanded = false }
+                                ) {
+                                    currencies.forEach { cur ->
+                                        DropdownMenuItem(
+                                            text = { Text("${cur.code} - ${cur.name}", style = MaterialTheme.typography.bodyMedium) },
+                                            onClick = {
+                                                dualCurrencyId = cur.id
+                                                dualCurrExpanded = false
+                                                updateDualVoucherState(dualAmountStr, cur.id, dualExchangeRateStr, payerAccountId, payeeAccountId, payerMemo, payeeMemo)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (activeCurrency?.isBase == false) {
+                                OutlinedTextField(
+                                    value = dualExchangeRateStr,
+                                    onValueChange = {
+                                        dualExchangeRateStr = it
+                                        updateDualVoucherState(dualAmountStr, dualCurrencyId, it, payerAccountId, payeeAccountId, payerMemo, payeeMemo)
+                                    },
+                                    label = { Text(if (lang == "ar") "سعر الصرف" else "Rate") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.weight(0.8f).testTag("dual_rate_input"),
+                                    singleLine = true
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+
+                        // SECTION 2: Recipient Account & Narration
+                        Text(
+                            text = if (formVoucherType == VoucherType.RECEIPT) {
+                                if (lang == "ar") "١. حساب المستلم (مدفوع له) (الطرف المدين Debit) 🏦 [الخزينة أو البنك المحلي]"
+                                else "1. Receiving Vault (Paid to / Dr Side) 🏦 [Vault or Local Bank]"
+                            } else {
+                                if (lang == "ar") "١. المستفيد / حساب مدفوع له (الطرف المدين Debit) 👤 [مورد، عهدة موظف، مصاريف]"
+                                else "1. Payee / Recipient Account (Dr Side) 👤 [Vendor, Employee Vault, Expense]"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            var payeeExpanded by remember { mutableStateOf(false) }
+                            val activePayee = leafAccounts.find { it.id == payeeAccountId }
+                            ExposedDropdownMenuBox(
+                                expanded = payeeExpanded,
+                                onExpandedChange = { payeeExpanded = !payeeExpanded },
+                                modifier = Modifier.weight(1.8f)
+                            ) {
+                                OutlinedTextField(
+                                    value = activePayee?.let { "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: (if (lang == "ar") "اختر حساب مدفوع له..." else "Choose Recipient..."),
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = payeeExpanded) },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent
+                                    ),
+                                    modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable).testTag("dual_payee_select")
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = payeeExpanded,
+                                    onDismissRequest = { payeeExpanded = false }
+                                ) {
+                                    leafAccounts.forEach { acc ->
+                                        DropdownMenuItem(
+                                            text = { Text("${acc.accountCode} - ${com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)}", maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
+                                            onClick = {
+                                                payeeAccountId = acc.id
+                                                payeeExpanded = false
+                                                updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, payerAccountId, acc.id, payerMemo, payeeMemo)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = payeeMemo,
+                                onValueChange = {
+                                    payeeMemo = it
+                                    updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, payerAccountId, payeeAccountId, payerMemo, it)
+                                },
+                                label = { Text(if (lang == "ar") "البيان (شرح المستلم)" else "Narration / Statement") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1.4f).testTag("dual_payee_memo_input"),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                            )
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+
+                        // SECTION 3: Payer Account & Narration
+                        Text(
+                            text = if (formVoucherType == VoucherType.RECEIPT) {
+                                if (lang == "ar") "٢. المسدد / حساب دافع (الطرف الدائن Credit) 📤 [الزبون أو مصدر خارجي]"
+                                else "2. Payer Account (Paid From / Cr Side) 📤 [Client or Contributor Source]"
+                            } else {
+                                if (lang == "ar") "٢. مصدر الدفع / حساب دافع (الطرف الدائن Credit) 📤 [الخزينة المفرجة عن النقود]"
+                                else "2. Payment Vault / Payer (Cr Side) 📤 [The Vault Disbursing Cash]"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = RoseRed
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            var payerExpanded by remember { mutableStateOf(false) }
+                            val activePayer = leafAccounts.find { it.id == payerAccountId }
+                            ExposedDropdownMenuBox(
+                                expanded = payerExpanded,
+                                onExpandedChange = { payerExpanded = !payerExpanded },
+                                modifier = Modifier.weight(1.8f)
+                            ) {
+                                OutlinedTextField(
+                                    value = activePayer?.let { "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: (if (lang == "ar") "اختر حساب دافع..." else "Choose Payer..."),
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = payerExpanded) },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent
+                                    ),
+                                    modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable).testTag("dual_payer_select")
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = payerExpanded,
+                                    onDismissRequest = { payerExpanded = false }
+                                ) {
+                                    leafAccounts.forEach { acc ->
+                                        DropdownMenuItem(
+                                            text = { Text("${acc.accountCode} - ${com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)}", maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
+                                            onClick = {
+                                                payerAccountId = acc.id
+                                                payerExpanded = false
+                                                updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, acc.id, payeeAccountId, payerMemo, payeeMemo)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = payerMemo,
+                                onValueChange = {
+                                    payerMemo = it
+                                    updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, payerAccountId, payeeAccountId, it, payeeMemo)
+                                },
+                                label = { Text(if (lang == "ar") "البيان (شرح الدافع)" else "Narration / Statement") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1.4f).testTag("dual_payer_memo_input"),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                            )
+                        }
+                    }
+                }
             }
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        // Scrollable listing of rows with smooth staggered entry sliding transitions
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(bottom = 20.dp)
-        ) {
-            itemsIndexed(formLines, key = { _, item -> item.tempId }) { idx, line ->
-                val activeAcc = leafAccounts.find { it.id == line.accountId }
-                val isDebit = line.debitStr.isNotEmpty()
-                val amountText = if (isDebit) line.debitStr else line.creditStr
-                val activeCurrency = currencies.find { it.id == line.currencyId } ?: currencies.firstOrNull()
-
-                com.example.ui.StaggeredItem(index = idx) {
-                    VoucherLineItemCard(
-                        index = idx,
-                        accountName = activeAcc?.let { "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: if (lang == "ar") "حدد الحساب المحاسبي من التعديل" else "Not Specified (Edit to map)",
-                        isDebit = isDebit,
-                        amount = amountText,
-                        currencyCode = activeCurrency?.code ?: "LYD",
-                        memo = line.memo,
-                        onEdit = {
-                            keyboardController?.hide()
-                            focusManager.clearFocus()
-                            editingLineIndex = idx
-                            dialogAccountId = line.accountId
-                            dialogSideIsDebit = isDebit
-                            dialogAmountStr = amountText
-                            dialogCurrencyId = line.currencyId
-                            dialogExchangeRateStr = line.exchangeRateStr
-                            dialogMemo = line.memo
-                            showLineDialog = true
-                        },
-                        onRemove = {
-                            viewModel.removeVoucherLineRow(idx)
-                        },
-                        lang = lang
+        } else {
+            // General Journal Multi-line voucher table list
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = if (lang == "ar") "أسطر وبنود الحركات اليومية" else "Voucher Journal Rows",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
+                    Text(
+                        text = if (lang == "ar") "يشتمل السند على طرفين مدين ودائن على الأقل لإقفاله" else "At least 2 offsets needed for general ledger journals",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    )
+                }
+                
+                Button(
+                    onClick = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                        editingLineIndex = null
+                        dialogAccountId = 0L
+                        dialogSideIsDebit = true
+                        dialogAmountStr = ""
+                        dialogCurrencyId = currencies.firstOrNull()?.id ?: 1L
+                        dialogExchangeRateStr = "1.0"
+                        dialogMemo = ""
+                        showLineDialog = true
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .height(36.dp)
+                        .testTag("add_voucher_line_button")
+                ) {
+                    Icon(Icons.Filled.AddCircleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = if (lang == "ar") "إضافة بند" else "Add Line",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Scrollable listing of rows with smooth staggered entry sliding transitions
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 20.dp)
+            ) {
+                itemsIndexed(formLines, key = { _, item -> item.tempId }) { idx, line ->
+                    val activeAcc = leafAccounts.find { it.id == line.accountId }
+                    val isDebit = line.debitStr.isNotEmpty()
+                    val amountText = if (isDebit) line.debitStr else line.creditStr
+                    val activeCurrency = currencies.find { it.id == line.currencyId } ?: currencies.firstOrNull()
+
+                    com.example.ui.StaggeredItem(index = idx) {
+                        VoucherLineItemCard(
+                            index = idx,
+                            accountName = activeAcc?.let { "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: if (lang == "ar") "حدد الحساب المحاسبي من التعديل" else "Not Specified (Edit to map)",
+                            isDebit = isDebit,
+                            amount = amountText,
+                            currencyCode = activeCurrency?.code ?: "LYD",
+                            memo = line.memo,
+                            onEdit = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                editingLineIndex = idx
+                                dialogAccountId = line.accountId
+                                dialogSideIsDebit = isDebit
+                                dialogAmountStr = amountText
+                                dialogCurrencyId = line.currencyId
+                                dialogExchangeRateStr = line.exchangeRateStr
+                                dialogMemo = line.memo
+                                showLineDialog = true
+                            },
+                            onRemove = {
+                                viewModel.removeVoucherLineRow(idx)
+                            },
+                            lang = lang
+                        )
+                    }
                 }
             }
         }

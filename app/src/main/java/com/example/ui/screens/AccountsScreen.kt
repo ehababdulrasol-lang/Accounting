@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -209,6 +210,7 @@ fun AccountsScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun AccountTreeRow(
     account: Account,
@@ -226,6 +228,7 @@ fun AccountTreeRow(
     onEdit: (Account) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(depth < 1) } // Default expand roots
+    var showTooltipDialog by remember { mutableStateOf(false) }
     val subAccounts = remember(allAccounts, account) {
         allAccounts.filter { it.parentId == account.id }
     }
@@ -273,7 +276,10 @@ fun AccountTreeRow(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { isNameExpanded = !isNameExpanded }
+                        .combinedClickable(
+                            onClick = { isNameExpanded = !isNameExpanded },
+                            onLongClick = { showTooltipDialog = true }
+                        )
                 ) {
                     Text(
                         text = account.accountCode,
@@ -461,6 +467,83 @@ fun AccountTreeRow(
                         onViewStatement = onViewStatement,
                         onEdit = onEdit
                     )
+                }
+            }
+        }
+
+        if (showTooltipDialog) {
+            Dialog(onDismissRequest = { showTooltipDialog = false }) {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        
+                        Spacer(Modifier.height(16.dp))
+                        
+                        Text(
+                            text = if (lang == "ar") "تفاصيل الحساب المحاسبي" else "Account Details",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        Spacer(Modifier.height(16.dp))
+                        
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = if (lang == "ar") "رمز الحساب:" else "Code:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = account.accountCode, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = if (lang == "ar") "الاسم بالكامل:" else "Full Name:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = Localization.getAccountName(account.accountCode, account.name, lang), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = if (lang == "ar") "النوع:" else "Type:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = if (account.isGroup) (if (lang == "ar") "حساب رئيسي (مجموعة)" else "Main Group Account") else (if (lang == "ar") "حساب فرعي (تفصيلي)" else "Detail Account"), style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = if (lang == "ar") "الرصيد المحاسبي:" else "Balance:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    text = "${FinancialUtils.formatBase(balance)} ${if (isLibyan) (if (lang == "ar") "د.ل" else "LYD") else ""}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (balance >= 0) EmeraldGreen else RoseRed
+                                )
+                            }
+                        }
+                        
+                        Spacer(Modifier.height(20.dp))
+                        
+                        Button(
+                            onClick = { showTooltipDialog = false },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(text = if (lang == "ar") "إغلاق" else "Close")
+                        }
+                    }
                 }
             }
         }
