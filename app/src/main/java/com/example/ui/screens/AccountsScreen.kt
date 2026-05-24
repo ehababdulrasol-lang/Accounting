@@ -29,6 +29,7 @@ import com.example.ui.viewmodel.LedgerViewModel
 import com.example.util.FinancialUtils
 
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.Localization
 
 @Composable
@@ -36,13 +37,14 @@ fun AccountsScreen(
     viewModel: LedgerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val isLibyan by viewModel.isLibyanMode.collectAsState()
-    val allAccounts by viewModel.accounts.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
     val rootAccounts = remember(allAccounts) { allAccounts.filter { it.parentId == null } }
-    val snapshots by viewModel.accountSnapshots.collectAsState()
-    val cashBoxes by viewModel.cashBoxes.collectAsState()
-    val bankAccounts by viewModel.allBankAccounts.collectAsState()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val cashBoxes by viewModel.cashBoxes.collectAsStateWithLifecycle()
+    val bankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
+    val currencies by viewModel.currencies.collectAsStateWithLifecycle()
     
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedParentAccount by remember { mutableStateOf<Account?>(null) }
@@ -137,7 +139,7 @@ fun AccountsScreen(
             if (showAddDialog) {
                 AddAccountDialog(
                     parentAccount = selectedParentAccount,
-                    currencies = viewModel.currencies.collectAsState().value,
+                    currencies = currencies,
                     onDismiss = { showAddDialog = false },
                     onSave = { code, name, type, currencyId, isGroup ->
                         viewModel.addAccount(
@@ -457,7 +459,7 @@ fun AddAccountDialog(
     onSave: (code: String, name: String, type: AccountType, currencyId: Long, isGroup: Boolean) -> Unit,
     viewModel: LedgerViewModel
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
     var code by remember { mutableStateOf(parentAccount?.let { "${it.accountCode}01" } ?: "") }
     var name by remember { mutableStateOf("") }
     var isGroup by remember { mutableStateOf(false) }
@@ -700,8 +702,8 @@ fun AccountStatementDialog(
     viewModel: LedgerViewModel,
     onDismiss: () -> Unit
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val isLibyan by viewModel.isLibyanMode.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
     var statementRows by remember { mutableStateOf<List<com.example.ui.viewmodel.AccountStatementRow>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -962,7 +964,7 @@ fun EditAccountDialog(
     onSave: (code: String, name: String) -> Unit,
     viewModel: LedgerViewModel
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
     var code by remember { mutableStateOf(account.accountCode) }
     var name by remember { mutableStateOf(account.name) }
 

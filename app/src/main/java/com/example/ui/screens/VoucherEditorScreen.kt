@@ -34,6 +34,7 @@ import com.example.data.Currency
 import com.example.data.VoucherType
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.RoseRed
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.viewmodel.EditLineItem
 import com.example.ui.viewmodel.LedgerViewModel
 import com.example.util.FinancialUtils
@@ -45,22 +46,22 @@ fun VoucherEditorScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val allAccounts by viewModel.accounts.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
     val leafAccounts = remember(allAccounts) { allAccounts.filter { !it.isGroup } }
 
-    val currencies by viewModel.currencies.collectAsState()
-    val fiscalYears by viewModel.fiscalYears.collectAsState()
+    val currencies by viewModel.currencies.collectAsStateWithLifecycle()
+    val fiscalYears by viewModel.fiscalYears.collectAsStateWithLifecycle()
 
-    val formVoucherNo by viewModel.formVoucherNo.collectAsState()
-    val formDescription by viewModel.formDescription.collectAsState()
-    val formVoucherType by viewModel.formVoucherType.collectAsState()
-    val formFiscalYearId by viewModel.formFiscalYearId.collectAsState()
-    val formLines by viewModel.formLines.collectAsState()
-    val editingVoucherId by viewModel.editingVoucherId.collectAsState()
+    val formVoucherNo by viewModel.formVoucherNo.collectAsStateWithLifecycle()
+    val formDescription by viewModel.formDescription.collectAsStateWithLifecycle()
+    val formVoucherType by viewModel.formVoucherType.collectAsStateWithLifecycle()
+    val formFiscalYearId by viewModel.formFiscalYearId.collectAsStateWithLifecycle()
+    val formLines by viewModel.formLines.collectAsStateWithLifecycle()
+    val editingVoucherId by viewModel.editingVoucherId.collectAsStateWithLifecycle()
 
     // Live Double Entry check vectors
-    val validationTriple by viewModel.liveValidationState.collectAsState()
+    val validationTriple by viewModel.liveValidationState.collectAsStateWithLifecycle()
     val debitTotalBase = validationTriple.first
     val creditTotalBase = validationTriple.second
     val isBalanced = validationTriple.third

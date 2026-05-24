@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.example.data.Account
 import com.example.data.AccountType
 import com.example.ui.Localization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.RoseRed
 import com.example.ui.viewmodel.AccountStatementRow
@@ -39,9 +40,9 @@ fun AccountStatementScreen(
     viewModel: LedgerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val isLibyan by viewModel.isLibyanMode.collectAsState()
-    val allAccounts by viewModel.accounts.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
     
     // Filter down to only non-group accounts (leaf accounts) since those receive financial transactions, or let them pick of both!
     // Since getAccountStatement handles recursive group consolidations (WHICH IS MAJESTIC!), let's allow selecting ALL accounts!
@@ -49,7 +50,7 @@ fun AccountStatementScreen(
     var statementRows by remember { mutableStateOf<List<AccountStatementRow>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     
-    val externalTargetId by viewModel.statementTargetAccountId.collectAsState()
+    val externalTargetId by viewModel.statementTargetAccountId.collectAsStateWithLifecycle()
 
     LaunchedEffect(externalTargetId, allAccounts) {
         externalTargetId?.let { targetId ->

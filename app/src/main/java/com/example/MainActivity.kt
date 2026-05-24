@@ -28,6 +28,7 @@ import com.example.ui.screens.*
 import com.example.ui.theme.GoldAccent
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.LedgerViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
@@ -40,9 +41,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val lang by viewModel.currentLanguage.collectAsState()
-            val isDarkMode by viewModel.isDarkMode.collectAsState()
-            val themeStyle by viewModel.currentThemeStyle.collectAsState()
+            val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+            val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+            val themeStyle by viewModel.currentThemeStyle.collectAsStateWithLifecycle()
             val direction = com.example.ui.Localization.getLayoutDirection(lang)
             androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides direction) {
                 MyApplicationTheme(darkTheme = isDarkMode, style = themeStyle) {
@@ -56,9 +57,9 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainLayout(viewModel: LedgerViewModel) {
-    val isSeeding by viewModel.isSeeding.collectAsState()
-    val uiMessage by viewModel.uiMessage.collectAsState()
-    val lang by viewModel.currentLanguage.collectAsState()
+    val isSeeding by viewModel.isSeeding.collectAsStateWithLifecycle()
+    val uiMessage by viewModel.uiMessage.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
 
     var activeTab by remember { mutableStateOf(0) } // 0 = Dashboard, 1 = CoA, 2 = Customers, 3 = Vouchers, 4 = Account Statement, 5 = Reports, 6 = Settings
     var showEditor by remember { mutableStateOf(false) }

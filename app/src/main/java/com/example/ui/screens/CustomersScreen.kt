@@ -26,6 +26,7 @@ import androidx.compose.ui.window.Dialog
 import com.example.data.Account
 import com.example.data.Customer
 import com.example.ui.Localization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.RoseRed
 import com.example.ui.viewmodel.LedgerViewModel
@@ -37,11 +38,11 @@ fun CustomersScreen(
     viewModel: LedgerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val customers by viewModel.customers.collectAsState()
-    val allAccounts by viewModel.accounts.collectAsState()
-    val leafAccounts by viewModel.leafAccounts.collectAsState()
-    val snapshots by viewModel.accountSnapshots.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val customers by viewModel.customers.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val leafAccounts by viewModel.leafAccounts.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingCustomer by remember { mutableStateOf<Customer?>(null) }

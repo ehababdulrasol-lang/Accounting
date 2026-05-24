@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.example.data.Account
 import com.example.data.AccountType
 import com.example.ui.Localization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.CorporateAmethyst
 import com.example.ui.theme.CorporateSky
 import com.example.ui.theme.EmeraldGreen
@@ -35,7 +36,7 @@ fun ReportsScreen(
     forcedTab: Int? = null
 ) {
     var activeTab by remember { mutableStateOf(forcedTab ?: 0) } // 0 = Trial Balance, 1 = Balance Sheet, 2 = Income Statement, 3 = Cash Flow, 4 = Debt Aging
-    val lang by viewModel.currentLanguage.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
 
     LaunchedEffect(forcedTab) {
         if (forcedTab != null) {
@@ -135,9 +136,9 @@ fun ReportsScreen(
 
 @Composable
 fun TrialBalanceView(viewModel: LedgerViewModel) {
-    val rows by viewModel.trialBalanceRows.collectAsState()
-    val loading by viewModel.trialBalanceLoading.collectAsState()
-    val lang by viewModel.currentLanguage.collectAsState()
+    val rows by viewModel.trialBalanceRows.collectAsStateWithLifecycle()
+    val loading by viewModel.trialBalanceLoading.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
 
     val totalOpDr = remember(rows) { rows.sumOf { it.openingDebit } }
     val totalOpCr = remember(rows) { rows.sumOf { it.openingCredit } }
@@ -299,10 +300,10 @@ fun TrialBalanceView(viewModel: LedgerViewModel) {
 
 @Composable
 fun BalanceSheetView(viewModel: LedgerViewModel) {
-    val accounts by viewModel.accounts.collectAsState()
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val snapshotsList = remember(accounts) { accounts.filter { !it.isGroup } } // only leaf for accuracy
-    val snapshots by viewModel.accountSnapshots.collectAsState()
-    val lang by viewModel.currentLanguage.collectAsState()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
 
     // Filter accounts by category
     val assetAccounts = remember(snapshotsList) { snapshotsList.filter { it.accountType == AccountType.ASSET } }
@@ -560,11 +561,11 @@ fun BalanceSheetView(viewModel: LedgerViewModel) {
 
 @Composable
 fun IncomeStatementView(viewModel: LedgerViewModel) {
-    val accounts by viewModel.accounts.collectAsState()
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val snapshotsList = remember(accounts) { accounts.filter { !it.isGroup } }
-    val snapshots by viewModel.accountSnapshots.collectAsState()
-    val lang by viewModel.currentLanguage.collectAsState()
-    val isLibyan by viewModel.isLibyanMode.collectAsState()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
 
     val revenueAccounts = remember(snapshotsList) { snapshotsList.filter { it.accountType == AccountType.REVENUE } }
     val expenseAccounts = remember(snapshotsList) { snapshotsList.filter { it.accountType == AccountType.EXPENSE } }
@@ -777,12 +778,12 @@ fun IncomeStatementView(viewModel: LedgerViewModel) {
 
 @Composable
 fun AgingReportView(viewModel: LedgerViewModel) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val isLibyan by viewModel.isLibyanMode.collectAsState()
-    val customers by viewModel.customers.collectAsState()
-    val suppliers by viewModel.suppliers.collectAsState()
-    val snapshots by viewModel.accountSnapshots.collectAsState()
-    val vouchers by viewModel.vouchers.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
+    val customers by viewModel.customers.collectAsStateWithLifecycle()
+    val suppliers by viewModel.suppliers.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val vouchers by viewModel.vouchers.collectAsStateWithLifecycle()
 
     var isCustomerView by remember { mutableStateOf(true) }
     var rawLines by remember { mutableStateOf<List<com.example.data.VoucherLine>>(emptyList()) }
@@ -1184,10 +1185,10 @@ data class AgingRow(
 
 @Composable
 fun CashFlowView(viewModel: LedgerViewModel) {
-    val loading by viewModel.cashFlowLoading.collectAsState()
-    val statementState by viewModel.cashFlowStatement.collectAsState()
-    val lang by viewModel.currentLanguage.collectAsState()
-    val isLibyan by viewModel.isLibyanMode.collectAsState()
+    val loading by viewModel.cashFlowLoading.collectAsStateWithLifecycle()
+    val statementState by viewModel.cashFlowStatement.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
 
     // Trigger calculation when the screen opens if statement is null
     LaunchedEffect(Unit) {

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.VoucherHeader
 import com.example.data.VoucherType
 import com.example.ui.Localization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.RoseRed
 import com.example.ui.viewmodel.LedgerViewModel
@@ -48,10 +49,12 @@ fun VouchersScreen(
     modifier: Modifier = Modifier,
     forcedType: VoucherType? = null
 ) {
-    val headers by viewModel.vouchers.collectAsState()
-    val fyList by viewModel.fiscalYears.collectAsState()
-    val lang by viewModel.currentLanguage.collectAsState()
-    val isLibyan by viewModel.isLibyanMode.collectAsState()
+    val headers by viewModel.vouchers.collectAsStateWithLifecycle()
+    val fyList by viewModel.fiscalYears.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val currencies by viewModel.currencies.collectAsStateWithLifecycle()
 
     var selectedTypeFilter by remember { mutableStateOf<VoucherType?>(forcedType) }
     var selectedStatusFilter by remember { mutableStateOf<Boolean?>(null) } // true for Posted, false for Draft
@@ -401,8 +404,6 @@ fun VouchersScreen(
             } else {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val scope = rememberCoroutineScope()
-                val accounts by viewModel.accounts.collectAsState()
-                val currencies by viewModel.currencies.collectAsState()
 
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp),

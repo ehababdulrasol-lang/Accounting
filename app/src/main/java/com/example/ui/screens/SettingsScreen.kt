@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
@@ -47,13 +48,13 @@ fun SettingsScreen(
     viewModel: LedgerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val fiscalYears by viewModel.fiscalYears.collectAsState()
-    val fullLogs by viewModel.auditLogs.collectAsState()
-    val currencies by viewModel.currencies.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val fiscalYears by viewModel.fiscalYears.collectAsStateWithLifecycle()
+    val fullLogs by viewModel.auditLogs.collectAsStateWithLifecycle()
+    val currencies by viewModel.currencies.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val localBackups by viewModel.localBackups.collectAsState()
+    val localBackups by viewModel.localBackups.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refreshLocalBackups(context)
@@ -253,7 +254,7 @@ fun SettingsScreen(
 
                             // Accounting Mode Toggle Card
                             item {
-                                val isLibyan by viewModel.isLibyanMode.collectAsState()
+                                val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
                                 Card(
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth().testTag("accounting_mode_card"),
@@ -335,7 +336,7 @@ fun SettingsScreen(
 
                             // Theme Mode Card
                             item {
-                                val isDark by viewModel.isDarkMode.collectAsState()
+                                val isDark by viewModel.isDarkMode.collectAsStateWithLifecycle()
                                 Card(
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth().testTag("theme_mode_card"),
@@ -417,7 +418,7 @@ fun SettingsScreen(
 
                             // Accent Palette Card
                             item {
-                                val currentStyle by viewModel.currentThemeStyle.collectAsState()
+                                val currentStyle by viewModel.currentThemeStyle.collectAsStateWithLifecycle()
                                 Card(
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth().testTag("theme_style_card"),

@@ -29,6 +29,7 @@ import com.example.data.Bank
 import com.example.data.BankBranch
 import com.example.data.BankAccount
 import com.example.ui.Localization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.RoseRed
 import com.example.ui.viewmodel.LedgerViewModel
@@ -40,13 +41,13 @@ fun BanksScreen(
     viewModel: LedgerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val banks by viewModel.banks.collectAsState()
-    val allBranches by viewModel.allBranches.collectAsState()
-    val allBankAccounts by viewModel.allBankAccounts.collectAsState()
-    val leafAccounts by viewModel.leafAccounts.collectAsState()
-    val snapshots by viewModel.accountSnapshots.collectAsState()
-    val allAccounts by viewModel.accounts.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val banks by viewModel.banks.collectAsStateWithLifecycle()
+    val allBranches by viewModel.allBranches.collectAsStateWithLifecycle()
+    val allBankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
+    val leafAccounts by viewModel.leafAccounts.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
 
     var selectedBank by remember { mutableStateOf<Bank?>(null) }
     var showAddBankDialog by remember { mutableStateOf(false) }

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.AccountType
 import com.example.ui.Localization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.GoldAccent
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.RoseRed
@@ -48,19 +49,19 @@ fun DashboardScreen(
     onNavigateToReports: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val allAccounts by viewModel.accounts.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
     val leafAccounts = remember(allAccounts) { allAccounts.filter { !it.isGroup } }
 
-    val recentLogs by viewModel.auditLogs.collectAsState()
-    val headers by viewModel.vouchers.collectAsState()
-    val snapshots by viewModel.accountSnapshots.collectAsState()
-    val isLibyanMode by viewModel.isLibyanMode.collectAsState()
+    val recentLogs by viewModel.auditLogs.collectAsStateWithLifecycle()
+    val headers by viewModel.vouchers.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val isLibyanMode by viewModel.isLibyanMode.collectAsStateWithLifecycle()
 
-    val customersList by viewModel.customers.collectAsState()
-    val suppliersList by viewModel.suppliers.collectAsState()
-    val cashBoxesList by viewModel.cashBoxes.collectAsState()
-    val bankAccountsList by viewModel.allBankAccounts.collectAsState()
+    val customersList by viewModel.customers.collectAsStateWithLifecycle()
+    val suppliersList by viewModel.suppliers.collectAsStateWithLifecycle()
+    val cashBoxesList by viewModel.cashBoxes.collectAsStateWithLifecycle()
+    val bankAccountsList by viewModel.allBankAccounts.collectAsStateWithLifecycle()
 
     // Real Customers Balance (Dynamic from snapshots)
     val totalCustomersBalance = remember(customersList, snapshots) {

@@ -26,6 +26,7 @@ import androidx.compose.ui.window.Dialog
 import com.example.data.Account
 import com.example.data.Supplier
 import com.example.ui.Localization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.GoldAccent
 import com.example.ui.theme.RoseRed
@@ -38,11 +39,11 @@ fun SuppliersScreen(
     viewModel: LedgerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val lang by viewModel.currentLanguage.collectAsState()
-    val suppliers by viewModel.suppliers.collectAsState()
-    val allAccounts by viewModel.accounts.collectAsState()
-    val leafAccounts by viewModel.leafAccounts.collectAsState()
-    val snapshots by viewModel.accountSnapshots.collectAsState()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val suppliers by viewModel.suppliers.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val leafAccounts by viewModel.leafAccounts.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingSupplier by remember { mutableStateOf<Supplier?>(null) }
