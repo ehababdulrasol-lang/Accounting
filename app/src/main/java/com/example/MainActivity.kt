@@ -63,8 +63,8 @@ fun MainLayout(viewModel: LedgerViewModel) {
 
     var activeTab by remember { mutableStateOf(0) } // 0 = Dashboard, 1 = CoA, 2 = Customers, 3 = Vouchers, 4 = Account Statement, 5 = Reports, 6 = Settings
     var showEditor by remember { mutableStateOf(false) }
-    var isVouchersGroupExpanded by remember { mutableStateOf(true) }
-    var isReportsGroupExpanded by remember { mutableStateOf(true) }
+    var isVouchersGroupExpanded by remember { mutableStateOf(false) }
+    var isReportsGroupExpanded by remember { mutableStateOf(false) }
 
     var activeToast by remember { mutableStateOf<CustomToast?>(null) }
 
@@ -279,8 +279,7 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                 val voucherSubItems = listOf(
                                     Triple(10, Icons.Filled.ArrowDownward, if (lang == "ar") "سند قبض مالي" else "Receipt Voucher"),
                                     Triple(11, Icons.Filled.ArrowUpward, if (lang == "ar") "سند دفع وصرف" else "Payment Voucher"),
-                                    Triple(12, Icons.Filled.CompareArrows, if (lang == "ar") "قيد اليومية والتسوية" else "Journal Entry"),
-                                    Triple(6, Icons.Filled.Assignment, if (lang == "ar") "أرشيف القيود العام" else "General Vouchers Log")
+                                    Triple(12, Icons.Filled.CompareArrows, if (lang == "ar") "قيد اليومية والتسوية" else "Journal Entry")
                                 )
                                 voucherSubItems.forEach { (index, icon, label) ->
                                     val isSelected = activeTab == index
@@ -334,10 +333,7 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                 val reportsSubItems = listOf(
                                     Triple(15, Icons.Filled.AccountBalance, if (lang == "ar") "ميزان المراجعة" else "Trial Balance"),
                                     Triple(16, Icons.Filled.Assessment, if (lang == "ar") "الميزانية العمومية" else "Balance Sheet"),
-                                    Triple(17, Icons.Filled.TrendingUp, if (lang == "ar") "قائمة الدخل والأرباح" else "Income Statement"),
-                                    Triple(18, Icons.Filled.SwapVert, if (lang == "ar") "كشف التدفق المالي" else "Cash Flow Statement"),
-                                    Triple(19, Icons.Filled.Schedule, if (lang == "ar") "كشف أعمار الديون" else "Debt Aging Report"),
-                                    Triple(8, Icons.Filled.Assessment, if (lang == "ar") "لوحة القوائم العامة" else "General Reports Hub")
+                                    Triple(17, Icons.Filled.TrendingUp, if (lang == "ar") "قائمة الدخل والأرباح" else "Income Statement")
                                 )
                                 reportsSubItems.forEach { (index, icon, label) ->
                                     val isSelected = activeTab == index

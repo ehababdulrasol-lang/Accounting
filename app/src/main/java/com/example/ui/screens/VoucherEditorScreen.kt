@@ -493,7 +493,11 @@ fun VoucherEditorScreen(
                                 Box(
                                     modifier = Modifier
                                         .matchParentSize()
-                                        .clickable { showDatePicker = true }
+                                        .clickable {
+                                            keyboardController?.hide()
+                                            focusManager.clearFocus()
+                                            showDatePicker = true
+                                        }
                                 )
                             }
 
@@ -694,6 +698,8 @@ fun VoucherEditorScreen(
             
             Button(
                 onClick = {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
                     editingLineIndex = null
                     dialogAccountId = 0L
                     dialogSideIsDebit = true
@@ -748,6 +754,8 @@ fun VoucherEditorScreen(
                         currencyCode = activeCurrency?.code ?: "LYD",
                         memo = line.memo,
                         onEdit = {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
                             editingLineIndex = idx
                             dialogAccountId = line.accountId
                             dialogSideIsDebit = isDebit

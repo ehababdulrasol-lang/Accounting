@@ -60,19 +60,53 @@ fun VouchersScreen(
     var selectedTypeFilter by remember { mutableStateOf<VoucherType?>(forcedType) }
     var selectedStatusFilter by remember { mutableStateOf<Boolean?>(null) } // true for Posted, false for Draft
     var searchTxt by remember { mutableStateOf("") }
+    var selectedDateFilter by remember { mutableStateOf<Long?>(null) }
+    var showDatePickerDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(forcedType) {
         selectedTypeFilter = forcedType
     }
 
-    val filteredHeaders = remember(headers, selectedTypeFilter, selectedStatusFilter, searchTxt) {
+    val filteredHeaders = remember(headers, selectedTypeFilter, selectedStatusFilter, searchTxt, selectedDateFilter) {
         headers.filter { header ->
             val typeMatch = selectedTypeFilter == null || header.type == selectedTypeFilter
             val statusMatch = selectedStatusFilter == null || header.isPosted == selectedStatusFilter
             val searchMatch = searchTxt.isBlank() ||
                     header.voucherNo.contains(searchTxt, ignoreCase = true) ||
                     header.description.contains(searchTxt, ignoreCase = true)
-            typeMatch && statusMatch && searchMatch
+            val dateMatch = selectedDateFilter == null || {
+                val fmt = SimpleDateFormat("yyyyMMdd", Locale.US)
+                fmt.format(Date(header.date)) == fmt.format(Date(selectedDateFilter!!))
+            }()
+            typeMatch && statusMatch && searchMatch && dateMatch
+        }
+    }
+
+    if (showDatePickerDialog) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateFilter ?: System.currentTimeMillis())
+        DatePickerDialog(
+            onDismissRequest = { showDatePickerDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedDateFilter = datePickerState.selectedDateMillis
+                        showDatePickerDialog = false
+                    }
+                ) {
+                    Text(if (lang == "ar") "موافق" else "OK")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDatePickerDialog = false
+                    }
+                ) {
+                    Text(if (lang == "ar") "إلغاء" else "Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 
@@ -104,19 +138,65 @@ fun VouchersScreen(
                     }
                     Text(
                         text = customTitle,
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onBackground,
                         letterSpacing = (-0.5).sp
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = customSubtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    
+                    if (selectedDateFilter != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                .clickable { selectedDateFilter = null }
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = "Clear", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Spacer(Modifier.width(4.dp))
+                            val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                            Text(
+                                text = fmt.format(Date(selectedDateFilter!!)),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
                 
+                // Calendar selection icon button
+                IconButton(
+                    onClick = {
+                        showDatePickerDialog = true
+                    },
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(
+                            if (selectedDateFilter != null) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            CircleShape
+                        )
+                        .clip(CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DateRange,
+                        contentDescription = "Choose Date",
+                        tint = if (selectedDateFilter != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Spacer(Modifier.width(8.dp))
+
                 // Add Quick Voucher shortcut header
                 IconButton(
                     onClick = {
