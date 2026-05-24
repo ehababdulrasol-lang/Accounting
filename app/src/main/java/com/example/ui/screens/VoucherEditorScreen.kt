@@ -38,6 +38,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.viewmodel.EditLineItem
 import com.example.ui.viewmodel.LedgerViewModel
 import com.example.util.FinancialUtils
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +63,10 @@ fun VoucherEditorScreen(
     val formFiscalYearId by viewModel.formFiscalYearId.collectAsStateWithLifecycle()
     val formLines by viewModel.formLines.collectAsStateWithLifecycle()
     val editingVoucherId by viewModel.editingVoucherId.collectAsStateWithLifecycle()
+    val formDate by viewModel.formDate.collectAsStateWithLifecycle()
+
+    val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val formattedFormDate = remember(formDate) { dateFormatter.format(Date(formDate)) }
 
     // Live Double Entry check vectors
     val validationTriple by viewModel.liveValidationState.collectAsStateWithLifecycle()
@@ -75,6 +83,44 @@ fun VoucherEditorScreen(
     val activeFiscalYear = remember(formFiscalYearId, fiscalYears) {
         fiscalYears.find { it.id == formFiscalYearId }
     }
+
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = formDate)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { selected ->
+                            viewModel.formDate.value = selected
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text(if (lang == "ar") "موافق" else "OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(if (lang == "ar") "إلغاء" else "Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    // Modal/Dialog state managers for Line rows inputs
+    var showLineDialog by remember { mutableStateOf(false) }
+    var editingLineIndex by remember { mutableStateOf<Int?>(null) } // null means adding a new line
+    var dialogAccountId by remember { mutableStateOf(0L) }
+    var dialogSideIsDebit by remember { mutableStateOf(true) } // true = Debit, false = Credit
+    var dialogAmountStr by remember { mutableStateOf("") }
+    var dialogCurrencyId by remember { mutableStateOf(1L) }
+    var dialogExchangeRateStr by remember { mutableStateOf("1.0") }
+    var dialogMemo by remember { mutableStateOf("") }
 
     Column(
         modifier = modifier
@@ -120,7 +166,7 @@ fun VoucherEditorScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = if (lang == "ar") "توجيه مزدوج القيد ماليًا" else "Double-entry ledger ledger bookkeeper",
+                    text = if (lang == "ar") "توجيه مزدوج القيد ماليًا" else "Double-entry ledger bookkeeper",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
@@ -208,9 +254,9 @@ fun VoucherEditorScreen(
                             }
                             Spacer(Modifier.width(10.dp))
                             val summary = if (lang == "ar") {
-                                "السند: ${formVoucherNo.ifBlank { "بلا رقم" }} • ${formDescription.ifBlank { "بلا شرح" }}"
+                                "السند: ${formVoucherNo.ifBlank { "بلا رقم" }} • ${formDescription.ifBlank { "بلا شرح" }} • $formattedFormDate"
                             } else {
-                                "Voucher: ${formVoucherNo.ifBlank { "N/A" }} • ${formDescription.ifBlank { "No Narration" }}"
+                                "Voucher: ${formVoucherNo.ifBlank { "N/A" }} • ${formDescription.ifBlank { "No Narration" }} • $formattedFormDate"
                             }
                             Text(
                                 text = summary,
@@ -223,7 +269,7 @@ fun VoucherEditorScreen(
                         }
                         
                         Text(
-                            text = if (lang == "ar") "تعديل التفاصيل ✎" else "Define Primary ✎",
+                            text = if (lang == "ar") "تعديل البيانات الأساسية ✎" else "Define Primary ✎",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Black
@@ -285,25 +331,13 @@ fun VoucherEditorScreen(
                             }
                         }
 
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(8.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            OutlinedTextField(
-                                value = formVoucherNo,
-                                onValueChange = { viewModel.formVoucherNo.value = it },
-                                label = { Text(if (lang == "ar") "رقم السند" else "Voucher No") },
-                                trailingIcon = { Icon(Icons.Filled.Tag, null, modifier = Modifier.size(16.dp)) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("voucher_number_input")
-                            )
-
-                            // Voucher Category select drop grid
+                            // 1. Voucher Type Selection Dropdown Box
                             var typeDropdownExpanded by remember { mutableStateOf(false) }
                             ExposedDropdownMenuBox(
                                 expanded = typeDropdownExpanded,
@@ -311,18 +345,23 @@ fun VoucherEditorScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 val classificationText = when (formVoucherType) {
-                                    VoucherType.JOURNAL -> if (lang == "ar") "قيد تسوية يومية" else "Journal Entry"
-                                    VoucherType.RECEIPT -> if (lang == "ar") "سند قبض مالي" else "Receipt Voucher"
-                                    VoucherType.PAYMENT -> if (lang == "ar") "سند صرف نقدي" else "Payment Voucher"
+                                    VoucherType.JOURNAL -> if (lang == "ar") "تسوية" else "Journal"
+                                    VoucherType.RECEIPT -> if (lang == "ar") "قبض" else "Receipt"
+                                    VoucherType.PAYMENT -> if (lang == "ar") "صرف" else "Payment"
                                 }
                                 OutlinedTextField(
                                     value = classificationText,
                                     onValueChange = {},
                                     readOnly = true,
-                                    label = { Text(if (lang == "ar") "نوع السند" else "Voucher Type") },
+                                    label = { Text(if (lang == "ar") "نوع السند" else "Type") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeDropdownExpanded) },
                                     singleLine = true,
                                     shape = RoundedCornerShape(10.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent
+                                    ),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
@@ -347,16 +386,21 @@ fun VoucherEditorScreen(
                                     }
                                 }
                             }
-                        }
 
-                        Spacer(Modifier.height(8.dp))
+                            // 2. Voucher Number Input TextField
+                            OutlinedTextField(
+                                value = formVoucherNo,
+                                onValueChange = { viewModel.formVoucherNo.value = it },
+                                label = { Text(if (lang == "ar") "رقم السند" else "Voucher No") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("voucher_number_input")
+                            )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Fiscal Period select drop grid
+                            // 3. Fiscal Cycle Selection Dropdown Box
                             ExposedDropdownMenuBox(
                                 expanded = fyDropdownExpanded,
                                 onExpandedChange = { fyDropdownExpanded = !fyDropdownExpanded },
@@ -371,10 +415,11 @@ fun VoucherEditorScreen(
                                     value = activeFyName,
                                     onValueChange = {},
                                     readOnly = true,
-                                    label = { Text(if (lang == "ar") "السنة المالية" else "Fiscal Cycle") },
+                                    label = { Text(if (lang == "ar") "السنة المالية" else "Fiscal Year") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fyDropdownExpanded) },
                                     singleLine = true,
                                     shape = RoundedCornerShape(10.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
@@ -415,38 +460,63 @@ fun VoucherEditorScreen(
                                     }
                                 }
                             }
-
-                            // Optional auto-generated timestamp representation
-                            OutlinedTextField(
-                                value = if (lang == "ar") "تاريخ قفل تلقائي" else "Auto Realtime",
-                                onValueChange = {},
-                                enabled = false,
-                                label = { Text(if (lang == "ar") "تاريخ المعاملة" else "Entry Posting Date") },
-                                trailingIcon = { Icon(Icons.Filled.DateRange, null, modifier = Modifier.size(16.dp)) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                             )
                         }
 
                         Spacer(Modifier.height(8.dp))
 
-                        OutlinedTextField(
-                            value = formDescription,
-                            onValueChange = { viewModel.formDescription.value = it },
-                            label = { Text(if (lang == "ar") "بيان الشرح العام للسند / مذكرات اليومية" else "General Narration Memo / Document Explain Statement") },
-                            placeholder = { Text(if (lang == "ar") "اكتب شرحاً للموازنة والمستندات..." else "Provide internal/external auditing memo...") },
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("voucher_narration_input")
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Column 1: Configurable Date Picker TextField with click recognition
+                            Box(
+                                modifier = Modifier
+                                    .weight(1.1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = formattedFormDate,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text(if (lang == "ar") "تاريخ المعاملة" else "Posting Date") },
+                                    trailingIcon = { Icon(Icons.Filled.DateRange, null, modifier = Modifier.size(16.dp)) },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                // Overlaid touch interceptor
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clickable { showDatePicker = true }
+                                )
+                            }
+
+                            // Column 2: Compact Description / Voucher Narration Memo Input Field
+                            OutlinedTextField(
+                                value = formDescription,
+                                onValueChange = { viewModel.formDescription.value = it },
+                                label = { Text(if (lang == "ar") "بيان الشرح العام للسند" else "General Narration") },
+                                placeholder = { Text(if (lang == "ar") "اكتب شرحاً للموازنة والمستندات..." else "Provide internal memo...") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                modifier = Modifier
+                                    .weight(1.9f)
+                                    .testTag("voucher_narration_input")
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Ledger Summary Balancing Console Redesign (The absolute spotlight of accounting UI!)
+        // Ledger Summary Balancing Console Redesign
         val diffBase = Math.abs(debitTotalBase - creditTotalBase)
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -521,14 +591,12 @@ fun VoucherEditorScreen(
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
                 ) {
                     if (isBalanced) {
-                        // Perfectly centered stable gauge
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(EmeraldGreen)
                         )
                     } else {
-                        // Split gauge proportional representation
                         val totalBase = (debitTotalBase + creditTotalBase).coerceAtLeast(1L)
                         val debitWeight = (debitTotalBase.toFloat() / totalBase).coerceIn(0.05f, 0.95f)
                         val creditWeight = 1f - debitWeight
@@ -625,7 +693,16 @@ fun VoucherEditorScreen(
             }
             
             Button(
-                onClick = { viewModel.addVoucherLineRow() },
+                onClick = {
+                    editingLineIndex = null
+                    dialogAccountId = 0L
+                    dialogSideIsDebit = true
+                    dialogAmountStr = ""
+                    dialogCurrencyId = currencies.firstOrNull()?.id ?: 1L
+                    dialogExchangeRateStr = "1.0"
+                    dialogMemo = ""
+                    showLineDialog = true
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -639,7 +716,7 @@ fun VoucherEditorScreen(
                 Icon(Icons.Filled.AddCircleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = if (lang == "ar") "إضافة سطر مالي" else "Add Line",
+                    text = if (lang == "ar") "إضافة بند" else "Add Line",
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
@@ -648,27 +725,236 @@ fun VoucherEditorScreen(
 
         Spacer(Modifier.height(10.dp))
 
-        // Scrollable listing of rows with smooth transitions
+        // Scrollable listing of rows with smooth staggered entry sliding transitions
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(bottom = 20.dp)
         ) {
             itemsIndexed(formLines, key = { _, item -> item.tempId }) { idx, line ->
-                VoucherLineRowItem(
-                    index = idx,
-                    line = line,
-                    leafAccounts = leafAccounts,
-                    currencies = currencies,
-                    lang = lang,
-                    onUpdate = { updatedLine ->
-                        viewModel.updateVoucherLineRow(idx, updatedLine)
-                    },
-                    onRemove = {
-                        viewModel.removeVoucherLineRow(idx)
-                    }
+                val activeAcc = leafAccounts.find { it.id == line.accountId }
+                val isDebit = line.debitStr.isNotEmpty()
+                val amountText = if (isDebit) line.debitStr else line.creditStr
+                val activeCurrency = currencies.find { it.id == line.currencyId } ?: currencies.firstOrNull()
+
+                com.example.ui.StaggeredItem(index = idx) {
+                    VoucherLineItemCard(
+                        index = idx,
+                        accountName = activeAcc?.let { "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: if (lang == "ar") "حدد الحساب المحاسبي من التعديل" else "Not Specified (Edit to map)",
+                        isDebit = isDebit,
+                        amount = amountText,
+                        currencyCode = activeCurrency?.code ?: "LYD",
+                        memo = line.memo,
+                        onEdit = {
+                            editingLineIndex = idx
+                            dialogAccountId = line.accountId
+                            dialogSideIsDebit = isDebit
+                            dialogAmountStr = amountText
+                            dialogCurrencyId = line.currencyId
+                            dialogExchangeRateStr = line.exchangeRateStr
+                            dialogMemo = line.memo
+                            showLineDialog = true
+                        },
+                        onRemove = {
+                            viewModel.removeVoucherLineRow(idx)
+                        },
+                        lang = lang
+                    )
+                }
+            }
+        }
+    }
+
+    // High performance popup voucher sub-row details dialog
+    if (showLineDialog) {
+        VoucherLineEditorDialog(
+            show = showLineDialog,
+            onDismiss = { showLineDialog = false },
+            lang = lang,
+            isEditMode = (editingLineIndex != null),
+            leafAccounts = leafAccounts,
+            currencies = currencies,
+            initialAccountId = dialogAccountId,
+            initialSideIsDebit = dialogSideIsDebit,
+            initialAmountStr = dialogAmountStr,
+            initialCurrencyId = dialogCurrencyId,
+            initialExchangeRateStr = dialogExchangeRateStr,
+            initialMemo = dialogMemo,
+            onApply = { accountId, isDebit, amountStr, currId, rateStr, memo ->
+                val lineItem = EditLineItem(
+                    tempId = if (editingLineIndex == null) System.nanoTime() else formLines[editingLineIndex!!].tempId,
+                    id = if (editingLineIndex == null) 0L else formLines[editingLineIndex!!].id,
+                    accountId = accountId,
+                    debitStr = if (isDebit) amountStr else "",
+                    creditStr = if (!isDebit) amountStr else "",
+                    currencyId = currId,
+                    exchangeRateStr = rateStr,
+                    memo = memo
                 )
+                val newList = formLines.toMutableList()
+                if (editingLineIndex != null) {
+                    newList[editingLineIndex!!] = lineItem
+                } else {
+                    newList.add(lineItem)
+                }
+                viewModel.formLines.value = newList
+            }
+        )
+    }
+}
+
+@Composable
+fun VoucherLineItemCard(
+    index: Int,
+    accountName: String,
+    isDebit: Boolean,
+    amount: String,
+    currencyCode: String,
+    memo: String,
+    onEdit: () -> Unit,
+    onRemove: () -> Unit,
+    lang: String
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onEdit() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isDebit) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+            else RoseRed.copy(alpha = 0.15f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Circle Badge indicator
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(
+                        color = if (isDebit) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        else RoseRed.copy(alpha = 0.1f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "${index + 1}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDebit) MaterialTheme.colorScheme.primary else RoseRed
+                )
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = accountName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                if (memo.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = memo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                if (isDebit) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                else RoseRed.copy(alpha = 0.12f)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = if (isDebit) {
+                                if (lang == "ar") "مدين" else "DEBIT"
+                            } else {
+                                if (lang == "ar") "دائن" else "CREDIT"
+                            },
+                            color = if (isDebit) MaterialTheme.colorScheme.primary else RoseRed,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                    if (currencyCode.isNotBlank()) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "($currencyCode)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            // Amount representation Column
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.padding(end = 4.dp)
+            ) {
+                Text(
+                    text = if (amount.isBlank()) "0.00" else amount,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Black,
+                    color = if (isDebit) MaterialTheme.colorScheme.primary else RoseRed
+                )
+            }
+
+            Spacer(Modifier.width(4.dp))
+
+            // Action triggers
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Edit",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Delete",
+                        tint = RoseRed.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }
@@ -676,276 +962,385 @@ fun VoucherEditorScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VoucherLineRowItem(
-    index: Int,
-    line: EditLineItem,
+fun VoucherLineEditorDialog(
+    show: Boolean,
+    onDismiss: () -> Unit,
+    lang: String,
+    isEditMode: Boolean,
     leafAccounts: List<Account>,
     currencies: List<Currency>,
-    lang: String,
-    onUpdate: (EditLineItem) -> Unit,
-    onRemove: () -> Unit
+    initialAccountId: Long,
+    initialSideIsDebit: Boolean,
+    initialAmountStr: String,
+    initialCurrencyId: Long,
+    initialExchangeRateStr: String,
+    initialMemo: String,
+    onApply: (accountId: Long, isDebit: Boolean, amountStr: String, currencyId: Long, exchangeRateStr: String, memo: String) -> Unit
 ) {
+    if (!show) return
+
+    var accountId by remember { mutableStateOf(initialAccountId) }
+    var sideIsDebit by remember { mutableStateOf(initialSideIsDebit) }
+    var amountStr by remember { mutableStateOf(initialAmountStr) }
+    var currencyId by remember { mutableStateOf(initialCurrencyId) }
+    var exchangeRateStr by remember { mutableStateOf(initialExchangeRateStr) }
+    var memo by remember { mutableStateOf(initialMemo) }
+
+    var showAccountSearch by remember { mutableStateOf(false) }
     var currencyDropdownExpanded by remember { mutableStateOf(false) }
 
-    val activeCurrency = currencies.find { it.id == line.currencyId } ?: currencies.firstOrNull()
-    val activeAcc = leafAccounts.find { it.id == line.accountId }
-    var showAccountSearchDialog by remember { mutableStateOf(false) }
+    val activeAcc = leafAccounts.find { it.id == accountId }
+    val activeCurrency = currencies.find { it.id == currencyId } ?: currencies.firstOrNull()
 
-    val isDebitActive = line.debitStr.isNotBlank()
-    val isCreditActive = line.creditStr.isNotBlank()
-
-    Card(
-        shape = RoundedCornerShape(14.dp),
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(2.dp, RoundedCornerShape(14.dp), spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isDebitActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-            else if (isCreditActive) RoseRed.copy(alpha = 0.25f)
-            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-        ) {
-            // First row: Circular key index + Account target and delete control button
+            .padding(16.dp)
+            .widthIn(max = 500.dp),
+        confirmButton = {},
+        dismissButton = {},
+        title = {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Monospaced circular card indicator
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
-                        .background(
-                            color = if (isDebitActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                            else if (isCreditActive) RoseRed.copy(alpha = 0.12f)
-                            else MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
-                            shape = CircleShape
-                        ),
+                        .size(36.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "${index + 1}",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (isDebitActive) MaterialTheme.colorScheme.primary
-                        else if (isCreditActive) RoseRed
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
-                Spacer(Modifier.width(8.dp))
-
-                // Modern Searchable Account Trigger text block
-                val activeSelectionText = activeAcc?.let {
-                    "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}"
-                } ?: (if (lang == "ar") "حدد حساباً محاسبياً مستهدفاً..." else "Tap to link a ledger account...")
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                        .clickable { showAccountSearchDialog = true }
-                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = activeSelectionText,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (activeAcc != null) FontWeight.Bold else FontWeight.Medium,
-                            color = if (activeAcc != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                AccountSearchDialog(
-                    show = showAccountSearchDialog,
-                    onDismiss = { showAccountSearchDialog = false },
-                    accounts = leafAccounts,
-                    lang = lang,
-                    onSelect = { acc ->
-                        onUpdate(line.copy(accountId = acc.id, currencyId = acc.currencyId))
-                    }
-                )
-
-                Spacer(Modifier.width(8.dp))
-
-                // Delete Entry row trigger
-                IconButton(
-                    onClick = onRemove,
-                    modifier = Modifier
-                        .size(34.dp)
-                        .background(RoseRed.copy(alpha = 0.08f), CircleShape)
-                ) {
                     Icon(
-                        imageVector = Icons.Filled.DeleteOutline,
-                        contentDescription = "Remove Row",
-                        tint = RoseRed,
-                        modifier = Modifier.size(18.dp)
+                        imageVector = if (isEditMode) Icons.Filled.EditNote else Icons.Filled.LibraryAdd,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            // Money entries row side by side with responsive visual states
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedTextField(
-                    value = line.debitStr,
-                    onValueChange = { input ->
-                        val filtered = input.filter { it.isDigit() || it == '.' }
-                        onUpdate(line.copy(debitStr = filtered, creditStr = ""))
+                Text(
+                    text = if (isEditMode) {
+                        if (lang == "ar") "تعديل سطر الحركة ماليًا" else "Update Transaction Line"
+                    } else {
+                        if (lang == "ar") "إضافة سطر حركة جديد" else "Add New Transaction Line"
                     },
-                    label = {
-                        Text(
-                            text = if (lang == "ar") "المدين (Dr)" else "Debit (Dr)",
-                            fontWeight = if (isDebitActive) FontWeight.Bold else FontWeight.Medium
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedContainerColor = if (isDebitActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.02f) else Color.Transparent
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("voucher_row_debit_input_$index"),
-                    placeholder = { Text("0.00", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)) }
-                )
-
-                OutlinedTextField(
-                    value = line.creditStr,
-                    onValueChange = { input ->
-                        val filtered = input.filter { it.isDigit() || it == '.' }
-                        onUpdate(line.copy(creditStr = filtered, debitStr = ""))
-                    },
-                    label = {
-                        Text(
-                            text = if (lang == "ar") "الدائن (Cr)" else "Credit (Cr)",
-                            fontWeight = if (isCreditActive) FontWeight.Bold else FontWeight.Medium
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = RoseRed,
-                        focusedLabelColor = RoseRed,
-                        unfocusedContainerColor = if (isCreditActive) RoseRed.copy(alpha = 0.02f) else Color.Transparent
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("voucher_row_credit_input_$index"),
-                    placeholder = { Text("0.00", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)) }
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
-
-            Spacer(Modifier.height(10.dp))
-
-            // Multi currency logic + Exchange Rates (Adaptive UI grid saving vertical clutter)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Currency dropdown capsule selection
-                ExposedDropdownMenuBox(
-                    expanded = currencyDropdownExpanded,
-                    onExpandedChange = { currencyDropdownExpanded = !currencyDropdownExpanded },
-                    modifier = Modifier.weight(1.1f)
-                ) {
-                    OutlinedTextField(
-                        value = activeCurrency?.code ?: "LYD",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(if (lang == "ar") "العملة" else "Currency") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyDropdownExpanded) },
-                        shape = RoundedCornerShape(8.dp),
+                // 1. Account Search trigger
+                Column {
+                    Text(
+                        text = if (lang == "ar") "الحساب المحاسبي" else "Ledger Account",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+
+                    val selectionLabel = activeAcc?.let {
+                        "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}"
+                    } ?: if (lang == "ar") "اضغط للبحث واختيار حساب مالي..." else "Tap to search & select account..."
+
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = currencyDropdownExpanded,
-                        onDismissRequest = { currencyDropdownExpanded = false }
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .clickable { showAccountSearch = true }
+                            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
-                        currencies.forEach { curr ->
-                            val currName = if (lang == "ar") {
-                                when (curr.code) {
-                                    "LYD" -> "دينار ليبي"
-                                    "USD" -> "دولار أمريكي"
-                                    "EUR" -> "يورو أوروبي"
-                                    else -> curr.name
-                                }
-                            } else {
-                                curr.name
-                            }
-                            DropdownMenuItem(
-                                text = { Text("${curr.code} - $currName", style = MaterialTheme.typography.bodyMedium) },
-                                onClick = {
-                                    val isBase = curr.isBase
-                                    val rate = if (isBase) "1.0" else line.exchangeRateStr
-                                    onUpdate(line.copy(currencyId = curr.id, exchangeRateStr = rate))
-                                    currencyDropdownExpanded = false
-                                }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = selectionLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (activeAcc != null) FontWeight.Bold else FontWeight.Medium,
+                                color = if (activeAcc != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
                             )
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    AccountSearchDialog(
+                        show = showAccountSearch,
+                        onDismiss = { showAccountSearch = false },
+                        accounts = leafAccounts,
+                        lang = lang,
+                        onSelect = { acc ->
+                            accountId = acc.id
+                            currencyId = acc.currencyId
+                        }
+                    )
+                }
+
+                // 2. Type Selector (Debit vs Credit)
+                Column {
+                    Text(
+                        text = if (lang == "ar") "طبيعة الحركة" else "Entry Side",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Debit Selector
+                        Card(
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { sideIsDebit = true },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (sideIsDebit) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                                }
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                if (sideIsDebit) 2.dp else 1.dp,
+                                if (sideIsDebit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp, horizontal = 10.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (sideIsDebit) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                Text(
+                                    text = if (lang == "ar") "مدين (Debit)" else "Debit (Dr)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = if (sideIsDebit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+
+                        // Credit Selector
+                        Card(
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { sideIsDebit = false },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (!sideIsDebit) {
+                                    RoseRed.copy(alpha = 0.12f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                                }
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                if (!sideIsDebit) 2.dp else 1.dp,
+                                if (!sideIsDebit) RoseRed else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp, horizontal = 10.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (!sideIsDebit) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = RoseRed,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                Text(
+                                    text = if (lang == "ar") "دائن (Credit)" else "Credit (Cr)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = if (!sideIsDebit) RoseRed else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
                         }
                     }
                 }
 
-                // Exchange Rate: Only visible dynamically if non-base currency selected! Otherwise hidden or simple base tag.
-                val isNonBase = activeCurrency != null && !activeCurrency.isBase
-                if (isNonBase) {
+                // 3. Amount and currency selection
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     OutlinedTextField(
-                        value = line.exchangeRateStr,
+                        value = amountStr,
                         onValueChange = { input ->
                             val filtered = input.filter { it.isDigit() || it == '.' }
-                            onUpdate(line.copy(exchangeRateStr = filtered))
+                            amountStr = filtered
                         },
-                        label = { Text(if (lang == "ar") "سعر الصرف" else "Rate") },
+                        label = { Text(if (lang == "ar") "القيمة المالية" else "Amount") },
+                        placeholder = { Text("0.00") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(0.9f)
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (sideIsDebit) MaterialTheme.colorScheme.primary else RoseRed,
+                            focusedLabelColor = if (sideIsDebit) MaterialTheme.colorScheme.primary else RoseRed
+                        ),
+                        modifier = Modifier.weight(1.2f)
+                    )
+
+                    // Currency Dropdown Selector box
+                    ExposedDropdownMenuBox(
+                        expanded = currencyDropdownExpanded,
+                        onExpandedChange = { currencyDropdownExpanded = !currencyDropdownExpanded },
+                        modifier = Modifier.weight(0.8f)
+                    ) {
+                        OutlinedTextField(
+                            value = activeCurrency?.code ?: "LYD",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(if (lang == "ar") "العملة" else "Currency") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyDropdownExpanded) },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                        )
+                        ExposedDropdownMenu(
+                            expanded = currencyDropdownExpanded,
+                            onDismissRequest = { currencyDropdownExpanded = false }
+                        ) {
+                            currencies.forEach { curr ->
+                                val currName = if (lang == "ar") {
+                                    when (curr.code) {
+                                        "LYD" -> "دينار ليبي"
+                                        "USD" -> "دولار أمريكي"
+                                        "EUR" -> "يورو أوروبي"
+                                        else -> curr.name
+                                    }
+                                } else {
+                                    curr.name
+                                }
+                                DropdownMenuItem(
+                                    text = { Text("${curr.code} - $currName", style = MaterialTheme.typography.bodyMedium) },
+                                    onClick = {
+                                        currencyId = curr.id
+                                        if (curr.isBase) {
+                                            exchangeRateStr = "1.0"
+                                        }
+                                        currencyDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Exchange Rate (only display if non-base currency selected)
+                val isNonBase = activeCurrency != null && !activeCurrency.isBase
+                AnimatedVisibility(visible = isNonBase) {
+                    OutlinedTextField(
+                        value = exchangeRateStr,
+                        onValueChange = { input ->
+                            val filtered = input.filter { it.isDigit() || it == '.' }
+                            exchangeRateStr = filtered
+                        },
+                        label = { Text(if (lang == "ar") "سعر الصرف لليورو / الدولار" else "Exchange Rate") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                // Line audit notes
+                // 4. Item Memo (شرح البند الفرعي)
                 OutlinedTextField(
-                    value = line.memo,
-                    onValueChange = { onUpdate(line.copy(memo = it)) },
-                    label = { Text(if (lang == "ar") "بيان البند الفرعي" else "Line Narration") },
-                    placeholder = { Text(if (lang == "ar") "ملاحظات سطرية..." else "Line detail...") },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1.8f)
+                    value = memo,
+                    onValueChange = { memo = it },
+                    label = { Text(if (lang == "ar") "شرح بند الحركة التفصيلي" else "Line Narration / Memo") },
+                    placeholder = { Text(if (lang == "ar") "اكتب بياناً تفصيلياً للبند..." else "Write specific detailing note...") },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
                 )
+
+                // Dialog Action Buttons row at the bottom
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "إلغاء الأمر" else "Cancel",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    val isFormValid = accountId != 0L && amountStr.isNotBlank() && (amountStr.toDoubleOrNull() ?: 0.0) > 0.0
+                    Button(
+                        onClick = {
+                            if (isFormValid) {
+                                onApply(accountId, sideIsDebit, amountStr, currencyId, exchangeRateStr, memo)
+                                onDismiss()
+                            }
+                        },
+                        enabled = isFormValid,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = if (isEditMode) {
+                                if (lang == "ar") "تعديل وحفظ" else "Apply Changes"
+                            } else {
+                                if (lang == "ar") "إدراج السطر" else "Add Line"
+                            },
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
-    }
+    )
 }

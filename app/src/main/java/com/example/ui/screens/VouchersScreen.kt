@@ -486,34 +486,41 @@ fun VoucherHeaderItem(
         VoucherType.PAYMENT -> RoseRed
     }
 
-    var isMenuExpanded by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .testTag("voucher_header_card_${header.voucherNo}"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            // Lateral side stripe
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .matchParentSize()
-                    .align(if (lang == "ar") Alignment.CenterEnd else Alignment.CenterStart)
-                    .background(accentColor)
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (lang != "ar") {
+                // Colored side strip on LTR
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .fillMaxHeight()
+                        .background(accentColor)
+                )
+            }
 
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = if (lang == "ar") 16.dp else 20.dp, end = if (lang == "ar") 20.dp else 16.dp)
-                    .padding(vertical = 16.dp)
+                    .weight(1f)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
                 // Top Metadata line
                 Row(
@@ -523,9 +530,9 @@ fun VoucherHeaderItem(
                     // Styled Code Label
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(accentColor.copy(alpha = 0.12f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(accentColor.copy(alpha = 0.1f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         val typeText = when (header.type) {
                             VoucherType.JOURNAL -> Localization.translate(Localization.Key.ST_JOURNAL, lang)
@@ -536,7 +543,8 @@ fun VoucherHeaderItem(
                             text = typeText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.ExtraBold,
-                            color = accentColor
+                            color = accentColor,
+                            fontSize = 11.sp
                         )
                     }
 
@@ -547,7 +555,8 @@ fun VoucherHeaderItem(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp
                     )
 
                     Spacer(Modifier.weight(1f))
@@ -560,15 +569,15 @@ fun VoucherHeaderItem(
                                 if (header.isPosted) EmeraldGreen.copy(alpha = 0.08f)
                                 else MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
                             )
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(6.dp)
+                                    .size(5.dp)
                                     .background(if (header.isPosted) EmeraldGreen else MaterialTheme.colorScheme.primary, CircleShape)
                             )
-                            Spacer(Modifier.width(6.dp))
+                            Spacer(Modifier.width(4.dp))
                             Text(
                                 text = if (header.isPosted) {
                                     if (lang == "ar") "مُعتمد" else "POSTED"
@@ -577,26 +586,27 @@ fun VoucherHeaderItem(
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (header.isPosted) EmeraldGreen else MaterialTheme.colorScheme.primary
+                                color = if (header.isPosted) EmeraldGreen else MaterialTheme.colorScheme.primary,
+                                fontSize = 10.sp
                             )
                         }
                     }
                 }
 
                 // Description Block
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     text = header.description.ifBlank {
-                        if (lang == "ar") "لا تتوفر مذكرات توضيحية لهذه القيود الحالية" else "No explanation or memoirs attached"
+                        if (lang == "ar") "لا تتوفر مذكرات توضيحية لهذه القيود المحالية" else "No explanation or memoirs attached"
                     },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (header.description.isBlank()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                    maxLines = 2,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (header.description.isBlank()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
                 // Date, Period + Grand Amount Block
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -604,15 +614,16 @@ fun VoucherHeaderItem(
                     Icon(
                         imageVector = Icons.Filled.DateRange,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(12.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     )
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(4.dp))
                     Text(
                         text = "$formattedDate  •  $fiscalYearName",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 11.sp
                     )
 
                     Spacer(Modifier.weight(1f))
@@ -620,39 +631,33 @@ fun VoucherHeaderItem(
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = FinancialUtils.formatBase(header.totalAmountBase),
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(3.dp))
                         Text(
                             text = if (isLibyan) "د.ل" else "LYD",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             fontWeight = Bold,
-                            modifier = Modifier.padding(bottom = 2.dp)
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(bottom = 1.dp)
                         )
                     }
                 }
 
-                // Decorative Invoice dotted dividing trace
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(1.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-                            )
-                    )
-                }
+                // Decorative Divider
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                )
 
                 // Expanded Actions Footer Panel on Each Header card
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -663,14 +668,14 @@ fun VoucherHeaderItem(
                         IconButton(
                             onClick = onPrint,
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(30.dp)
                                 .testTag("print_voucher_item_${header.voucherNo}")
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Print,
                                 contentDescription = "Print Voucher",
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
 
@@ -678,13 +683,13 @@ fun VoucherHeaderItem(
                             Spacer(Modifier.width(4.dp))
                             IconButton(
                                 onClick = onDelete,
-                                modifier = Modifier.size(34.dp)
+                                modifier = Modifier.size(30.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.DeleteOutline,
                                     contentDescription = "Delete",
                                     tint = RoseRed.copy(alpha = 0.8f),
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
@@ -699,20 +704,21 @@ fun VoucherHeaderItem(
                                 contentColor = Color.White
                             ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            modifier = Modifier.height(34.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(28.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.AssignmentTurnedIn,
                                 contentDescription = null,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(12.dp)
                             )
-                            Spacer(Modifier.width(6.dp))
+                            Spacer(Modifier.width(4.dp))
                             Text(
-                                text = if (lang == "ar") "اعتماد وترحيل" else "Post Ledger",
+                                text = if (lang == "ar") "اعتماد" else "Post",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
                             )
                         }
                     } else {
@@ -722,24 +728,35 @@ fun VoucherHeaderItem(
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.primary
                             ),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            modifier = Modifier.height(34.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(28.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Undo,
                                 contentDescription = null,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(12.dp)
                             )
-                            Spacer(Modifier.width(6.dp))
+                            Spacer(Modifier.width(4.dp))
                             Text(
-                                text = if (lang == "ar") "إرجاع لمسودة" else "Revert Draft",
+                                text = if (lang == "ar") "مسودة" else "Draft",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
                             )
                         }
                     }
                 }
+            }
+
+            if (lang == "ar") {
+                // Colored side strip on RTL
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .fillMaxHeight()
+                        .background(accentColor)
+                )
             }
         }
     }
