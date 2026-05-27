@@ -232,6 +232,18 @@ interface CustomerDao {
 
     @Delete
     suspend fun delete(customer: Customer)
+
+    @Query("SELECT * FROM customer_groups ORDER BY name")
+    fun getAllCustomerGroupsFlow(): Flow<List<CustomerGroup>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGroup(group: CustomerGroup): Long
+
+    @Update
+    suspend fun updateGroup(group: CustomerGroup)
+
+    @Delete
+    suspend fun deleteGroup(group: CustomerGroup)
 }
 
 @Dao
@@ -250,6 +262,18 @@ interface SupplierDao {
 
     @Delete
     suspend fun delete(supplier: Supplier)
+
+    @Query("SELECT * FROM supplier_groups ORDER BY name")
+    fun getAllSupplierGroupsFlow(): Flow<List<SupplierGroup>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGroup(group: SupplierGroup): Long
+
+    @Update
+    suspend fun updateGroup(group: SupplierGroup)
+
+    @Delete
+    suspend fun deleteGroup(group: SupplierGroup)
 }
 
 @Dao

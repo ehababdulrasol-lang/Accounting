@@ -49,6 +49,8 @@ class LedgerRepository(private val db: AppDatabase) {
     val auditLogs: Flow<List<AuditLog>> = auditLogDao.getAllLogs()
     val customers: Flow<List<Customer>> = customerDao.getAllCustomersFlow()
     val suppliers: Flow<List<Supplier>> = supplierDao.getAllSuppliersFlow()
+    val customerGroups: Flow<List<CustomerGroup>> = customerDao.getAllCustomerGroupsFlow()
+    val supplierGroups: Flow<List<SupplierGroup>> = supplierDao.getAllSupplierGroupsFlow()
     val allSnapshots: Flow<List<AccountBalanceSnapshot>> = snapshotDao.getAllSnapshotsFlow()
     val cashBoxes: Flow<List<CashBox>> = cashBoxDao.getAllCashBoxesFlow()
     val banks: Flow<List<Bank>> = bankDao.getAllBanksFlow()
@@ -359,7 +361,7 @@ class LedgerRepository(private val db: AppDatabase) {
     }
 
     // Customer setup with automatic dynamic account creation under accounts receivable (1103)
-    suspend fun createCustomer(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = ""): Long = withContext(Dispatchers.IO) {
+    suspend fun createCustomer(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = "", groupId: Long? = null): Long = withContext(Dispatchers.IO) {
         var activeAccountLinkId: Long = 0L
         
         if (existingAccountId != null && existingAccountId > 0L) {
@@ -432,7 +434,8 @@ class LedgerRepository(private val db: AppDatabase) {
                 phone = phone,
                 email = email,
                 accountId = activeAccountLinkId,
-                groupName = groupName
+                groupName = groupName,
+                groupId = groupId
             )
         )
         
@@ -465,7 +468,7 @@ class LedgerRepository(private val db: AppDatabase) {
     }
 
     // Supplier functions
-    suspend fun createSupplier(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = ""): Long = withContext(Dispatchers.IO) {
+    suspend fun createSupplier(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = "", groupId: Long? = null): Long = withContext(Dispatchers.IO) {
         var activeAccountLinkId: Long = 0L
         
         if (existingAccountId != null && existingAccountId > 0L) {
@@ -554,7 +557,8 @@ class LedgerRepository(private val db: AppDatabase) {
                 phone = phone,
                 email = email,
                 accountId = activeAccountLinkId,
-                groupName = groupName
+                groupName = groupName,
+                groupId = groupId
             )
         )
         
@@ -906,5 +910,81 @@ class LedgerRepository(private val db: AppDatabase) {
             )
         )
         recalculateSnapshots()
+    }
+
+    // Customer Group Operations
+    suspend fun createCustomerGroup(name: String, description: String = ""): Long = withContext(Dispatchers.IO) {
+        val id = customerDao.insertGroup(CustomerGroup(name = name, description = description))
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "CUSTOMERS",
+                action = "CUSTOMER_GROUP_CREATED",
+                details = "Created customer group '$name'."
+            )
+        )
+        id
+    }
+
+    suspend fun updateCustomerGroup(group: CustomerGroup) = withContext(Dispatchers.IO) {
+        customerDao.updateGroup(group)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "CUSTOMERS",
+                action = "CUSTOMER_GROUP_UPDATED",
+                details = "Updated customer group '${group.name}'."
+            )
+        )
+    }
+
+    suspend fun deleteCustomerGroup(group: CustomerGroup) = withContext(Dispatchers.IO) {
+        customerDao.deleteGroup(group)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "CUSTOMERS",
+                action = "CUSTOMER_GROUP_DELETED",
+                details = "Deleted customer group '${group.name}'."
+            )
+        )
+    }
+
+    // Supplier Group Operations
+    suspend fun createSupplierGroup(name: String, description: String = ""): Long = withContext(Dispatchers.IO) {
+        val id = supplierDao.insertGroup(SupplierGroup(name = name, description = description))
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "SUPPLIERS",
+                action = "SUPPLIER_GROUP_CREATED",
+                details = "Created supplier group '$name'."
+            )
+        )
+        id
+    }
+
+    suspend fun updateSupplierGroup(group: SupplierGroup) = withContext(Dispatchers.IO) {
+        supplierDao.updateGroup(group)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "SUPPLIERS",
+                action = "SUPPLIER_GROUP_UPDATED",
+                details = "Updated supplier group '${group.name}'."
+            )
+        )
+    }
+
+    suspend fun deleteSupplierGroup(group: SupplierGroup) = withContext(Dispatchers.IO) {
+        supplierDao.deleteGroup(group)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = 0,
+                voucherNo = "SUPPLIERS",
+                action = "SUPPLIER_GROUP_DELETED",
+                details = "Deleted supplier group '${group.name}'."
+            )
+        )
     }
 }

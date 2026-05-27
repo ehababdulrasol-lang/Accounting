@@ -178,7 +178,8 @@ data class Customer(
     val phone: String = "",
     val email: String = "",
     val accountId: Long,
-    val groupName: String = ""
+    val groupName: String = "",
+    val groupId: Long? = null
 )
 
 @Entity(
@@ -202,7 +203,8 @@ data class Supplier(
     val email: String = "",
     val accountId: Long,
     val creditLimit: Long = 0L, // credit limit in base currency
-    val groupName: String = ""
+    val groupName: String = "",
+    val groupId: Long? = null
 )
 
 @Entity(
@@ -283,6 +285,21 @@ data class BankAccount(
     val accountNumber: String,
     val iban: String = "",
     val accountId: Long
+)
+
+
+@Entity(tableName = "customer_groups")
+data class CustomerGroup(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val description: String = ""
+)
+
+@Entity(tableName = "supplier_groups")
+data class SupplierGroup(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val description: String = ""
 )
 
 

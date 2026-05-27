@@ -43,6 +43,7 @@ fun CustomersScreen(
 ) {
     val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
     val customers by viewModel.customers.collectAsStateWithLifecycle()
+    val customerGroups by viewModel.customerGroups.collectAsStateWithLifecycle()
     val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
     val leafAccounts by viewModel.leafAccounts.collectAsStateWithLifecycle()
     val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
@@ -53,9 +54,11 @@ fun CustomersScreen(
     var customerToDelete by remember { mutableStateOf<Customer?>(null) }
     var showSuccessMessage by remember { mutableStateOf<String?>(null) }
 
-    val existingGroups = remember(customers) {
-        customers.map { it.groupName }.filter { it.isNotBlank() }.distinct()
-    }
+    // Group Management state
+    var selectedGroup by remember { mutableStateOf<com.example.data.CustomerGroup?>(null) }
+    var showAddGroupDialog by remember { mutableStateOf(false) }
+    var editingGroup by remember { mutableStateOf<com.example.data.CustomerGroup?>(null) }
+    var groupToDelete by remember { mutableStateOf<com.example.data.CustomerGroup?>(null) }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -77,8 +80,196 @@ fun CustomersScreen(
                     text = if (lang == "ar") "تتبع ديون وأرصدة العملاء مع ربط تلقائي ومستندات تدقيق المعايير الدولية IFRS." else "Track customer outstanding balances with automated balance tracking & IFRS audit trail compliance.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 12.dp)
                 )
+
+                // Group Carousel section
+                Text(
+                    text = if (lang == "ar") "تصنيفات ومجموعات العملاء" else "Customer Categories & Groups",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 1. "All" Card
+                    Card(
+                        modifier = Modifier
+                            .width(130.dp)
+                            .height(85.dp)
+                            .clickable { selectedGroup = null },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selectedGroup == null) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            }
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (selectedGroup == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp).fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.People,
+                                    contentDescription = null,
+                                    tint = if (selectedGroup == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Badge(
+                                    containerColor = if (selectedGroup == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                    contentColor = if (selectedGroup == null) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                ) {
+                                    Text(text = "${customers.size}", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                            Text(
+                                text = if (lang == "ar") "كل العملاء" else "All Customers",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedGroup == null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // 2. Custom Groups Cards
+                    customerGroups.forEach { group ->
+                        val groupCount = remember(customers, group) {
+                            customers.count { it.groupId == group.id || it.groupName.trim().equals(group.name.trim(), ignoreCase = true) }
+                        }
+                        val isSelected = selectedGroup?.id == group.id
+
+                        Card(
+                            modifier = Modifier
+                                .width(160.dp)
+                                .height(85.dp)
+                                .clickable { selectedGroup = group },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                                }
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp).fillMaxSize(),
+                                verticalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.FolderOpen,
+                                        contentDescription = null,
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    
+                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        IconButton(
+                                            onClick = { editingGroup = group },
+                                            modifier = Modifier.size(20.dp)
+                                        ) {
+                                            Icon(Icons.Filled.Edit, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(11.dp))
+                                        }
+                                        IconButton(
+                                            onClick = { groupToDelete = group },
+                                            modifier = Modifier.size(20.dp)
+                                        ) {
+                                            Icon(Icons.Filled.Delete, null, tint = RoseRed, modifier = Modifier.size(11.dp))
+                                        }
+                                        Badge(
+                                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                        ) {
+                                            Text(text = "$groupCount", style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                }
+                                
+                                Text(
+                                    text = group.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    // 3. Add Group Card
+                    Card(
+                        modifier = Modifier
+                            .width(130.dp)
+                            .height(85.dp)
+                            .clickable { showAddGroupDialog = true },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp).fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = if (lang == "ar") "مجموعة جديدة" else "New Group",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
 
                 // Search Bar
                 OutlinedTextField(
@@ -101,9 +292,15 @@ fun CustomersScreen(
                 )
 
                 val filtered = customers.filter {
-                    it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.phone.contains(searchQuery) ||
-                    it.email.contains(searchQuery, ignoreCase = true)
+                    val matchesSearch = it.name.contains(searchQuery, ignoreCase = true) ||
+                                        it.phone.contains(searchQuery) ||
+                                        it.email.contains(searchQuery, ignoreCase = true)
+                    val matchesGroup = if (selectedGroup != null) {
+                        it.groupId == selectedGroup!!.id || it.groupName.trim().equals(selectedGroup!!.name.trim(), ignoreCase = true)
+                    } else {
+                        true
+                    }
+                    matchesSearch && matchesGroup
                 }
 
                 if (filtered.isEmpty()) {
@@ -230,13 +427,13 @@ fun CustomersScreen(
             if (showAddDialog) {
                 AddCustomerDialog(
                     onDismiss = { showAddDialog = false },
-                    onConfirm = { name, phone, email, linkAccId, groupName ->
-                        viewModel.addCustomer(name, phone, email, linkAccId, groupName)
+                    onConfirm = { name, phone, email, linkAccId, groupName, groupId ->
+                        viewModel.addCustomer(name, phone, email, linkAccId, groupName, groupId)
                         showAddDialog = false
                         showSuccessMessage = if (lang == "ar") "تم تسجيل ملف العميل بنجاح" else "Customer registered successfully!"
                     },
                     leafAccounts = leafAccounts,
-                    existingGroups = existingGroups,
+                    customerGroups = customerGroups,
                     lang = lang
                 )
             }
@@ -245,13 +442,58 @@ fun CustomersScreen(
                 EditCustomerDialog(
                     customer = editingCustomer!!,
                     onDismiss = { editingCustomer = null },
-                    onConfirm = { name, phone, email, groupName ->
-                        viewModel.updateCustomer(editingCustomer!!.copy(name = name, phone = phone, email = email, groupName = groupName))
+                    onConfirm = { name, phone, email, groupName, groupId ->
+                        viewModel.updateCustomer(editingCustomer!!.copy(name = name, phone = phone, email = email, groupName = groupName, groupId = groupId))
                         editingCustomer = null
                         showSuccessMessage = if (lang == "ar") "تم تعديل بيانات العميل بنجاح" else "Customer details updated successfully!"
                     },
-                    existingGroups = existingGroups,
+                    customerGroups = customerGroups,
                     lang = lang
+                )
+            }
+
+            // Customer Group Actions
+            if (showAddGroupDialog) {
+                AddCustomerGroupDialog(
+                    onDismiss = { showAddGroupDialog = false },
+                    onConfirm = { name, desc ->
+                        viewModel.addCustomerGroup(name, desc)
+                        showAddGroupDialog = false
+                        showSuccessMessage = if (lang == "ar") "تم إضافة مجموعة العملاء بنجاح" else "Customer group created successfully!"
+                    },
+                    lang = lang
+                )
+            }
+
+            if (editingGroup != null) {
+                EditCustomerGroupDialog(
+                    group = editingGroup!!,
+                    onDismiss = { editingGroup = null },
+                    onConfirm = { updated ->
+                        viewModel.updateCustomerGroup(updated)
+                        editingGroup = null
+                        showSuccessMessage = if (lang == "ar") "تم تعديل بيانات المجموعة بنجاح" else "Group updated successfully!"
+                    },
+                    lang = lang
+                )
+            }
+
+            if (groupToDelete != null) {
+                val gName = groupToDelete!!.name
+                AnimatedDeleteConfirmDialog(
+                    title = if (lang == "ar") "تأكيد حذف مجموعة عملاء" else "Confirm Group Deletion",
+                    message = if (lang == "ar") "هل أنت متأكد من رغبتك في حذف المجموعة: $gName؟ لن يتم حذف العملاء التابعين لها." else "Are you sure you want to delete group: $gName? Customers under it will not be deleted.",
+                    lang = lang,
+                    onConfirm = {
+                        val toDel = groupToDelete!!
+                        if (selectedGroup?.id == toDel.id) {
+                            selectedGroup = null
+                        }
+                        viewModel.deleteCustomerGroup(toDel)
+                        groupToDelete = null
+                        showSuccessMessage = if (lang == "ar") "تم حذف مجموعة العملاء بنجاح" else "Customer group deleted successfully!"
+                    },
+                    onDismiss = { groupToDelete = null }
                 )
             }
 
@@ -436,14 +678,18 @@ fun CustomerCard(
 fun EditCustomerDialog(
     customer: Customer,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, String) -> Unit,
-    existingGroups: List<String>,
+    onConfirm: (String, String, String, String, Long?) -> Unit,
+    customerGroups: List<com.example.data.CustomerGroup>,
     lang: String
 ) {
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     var name by remember { mutableStateOf(customer.name) }
     var phone by remember { mutableStateOf(customer.phone) }
     var email by remember { mutableStateOf(customer.email) }
     var groupName by remember { mutableStateOf(customer.groupName) }
+    var groupId by remember { mutableStateOf<Long?>(customer.groupId) }
+
+    var expandedGroupDropdown by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -529,34 +775,50 @@ fun EditCustomerDialog(
 
             Spacer(Modifier.height(14.dp))
 
-            OutlinedTextField(
-                value = groupName,
-                onValueChange = { groupName = it },
-                label = { Text(if (lang == "ar") "مجموعة العملاء (مثال: عملاء الجملة)" else "Customer Group (e.g. Wholesale)") },
-                leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("edit_cust_input_group"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
+            // Beautiful dropdown group selection
+            Box(modifier = Modifier.fillMaxWidth()) {
+                val selectedGroupText = remember(groupId, customerGroups, groupName) {
+                    customerGroups.find { it.id == groupId }?.name ?: groupName.ifBlank { if (lang == "ar") "عام / غير مصنف" else "General" }
+                }
 
-            if (existingGroups.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (lang == "ar") "أو اختر من المجموعات الحالية:" else "Or choose from existing groups:",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                OutlinedTextField(
+                    value = selectedGroupText,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(if (lang == "ar") "مجموعة العميل" else "Customer Group") },
+                    leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    trailingIcon = {
+                        IconButton(onClick = { expandedGroupDropdown = !expandedGroupDropdown }) {
+                            Icon(Icons.Filled.ArrowDropDown, null)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expandedGroupDropdown = true },
+                    shape = RoundedCornerShape(12.dp)
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+                DropdownMenu(
+                    expanded = expandedGroupDropdown,
+                    onDismissRequest = { expandedGroupDropdown = false },
+                    modifier = Modifier.fillMaxWidth(0.85f)
                 ) {
-                    existingGroups.forEach { group ->
-                        SuggestionChip(
-                            onClick = { groupName = group },
-                            label = { Text(group) }
+                    DropdownMenuItem(
+                        text = { Text(if (lang == "ar") "عام / غير مصنف" else "General / Uncategorized") },
+                        onClick = {
+                            groupId = null
+                            groupName = ""
+                            expandedGroupDropdown = false
+                        }
+                    )
+                    customerGroups.forEach { group ->
+                        DropdownMenuItem(
+                            text = { Text(group.name) },
+                            onClick = {
+                                groupId = group.id
+                                groupName = group.name
+                                expandedGroupDropdown = false
+                            }
                         )
                     }
                 }
@@ -570,7 +832,10 @@ fun EditCustomerDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        keyboardController?.hide()
+                        onDismiss()
+                    },
                     modifier = Modifier.testTag("edit_cust_btn_cancel").height(48.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -580,7 +845,8 @@ fun EditCustomerDialog(
                 Button(
                     onClick = {
                         if (name.isNotBlank()) {
-                            onConfirm(name, phone, email, groupName)
+                            keyboardController?.hide()
+                            onConfirm(name, phone, email, groupName, groupId)
                         }
                     },
                     enabled = name.isNotBlank(),
@@ -600,15 +866,19 @@ fun EditCustomerDialog(
 @Composable
 fun AddCustomerDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Long?, String) -> Unit,
+    onConfirm: (String, String, String, Long?, String, Long?) -> Unit,
     leafAccounts: List<Account>,
-    existingGroups: List<String>,
+    customerGroups: List<com.example.data.CustomerGroup>,
     lang: String
 ) {
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var groupName by remember { mutableStateOf("") }
+    var groupId by remember { mutableStateOf<Long?>(null) }
+
+    var expandedGroupDropdown by remember { mutableStateOf(false) }
 
     // Strategies: 0 = Auto-open new, 1 = Link to existing matching name, 2 = Choose exist manually
     var linkStrategy by remember { mutableStateOf(0) }
@@ -703,34 +973,50 @@ fun AddCustomerDialog(
 
             Spacer(Modifier.height(14.dp))
 
-            OutlinedTextField(
-                value = groupName,
-                onValueChange = { groupName = it },
-                label = { Text(if (lang == "ar") "مجموعة العملاء (مثال: عملاء الجملة)" else "Customer Group (e.g. Wholesale)") },
-                leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("cust_input_group"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
+            // Beautiful dropdown group selection
+            Box(modifier = Modifier.fillMaxWidth()) {
+                val selectedGroupText = remember(groupId, customerGroups, groupName) {
+                    customerGroups.find { it.id == groupId }?.name ?: groupName.ifBlank { if (lang == "ar") "عام / غير مصنف" else "General" }
+                }
 
-            if (existingGroups.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (lang == "ar") "أو اختر من المجموعات الحالية:" else "Or choose from existing groups:",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                OutlinedTextField(
+                    value = selectedGroupText,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(if (lang == "ar") "مجموعة العميل" else "Customer Group") },
+                    leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    trailingIcon = {
+                        IconButton(onClick = { expandedGroupDropdown = !expandedGroupDropdown }) {
+                            Icon(Icons.Filled.ArrowDropDown, null)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expandedGroupDropdown = true },
+                    shape = RoundedCornerShape(12.dp)
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+                DropdownMenu(
+                    expanded = expandedGroupDropdown,
+                    onDismissRequest = { expandedGroupDropdown = false },
+                    modifier = Modifier.fillMaxWidth(0.85f)
                 ) {
-                    existingGroups.forEach { group ->
-                        SuggestionChip(
-                            onClick = { groupName = group },
-                            label = { Text(group) }
+                    DropdownMenuItem(
+                        text = { Text(if (lang == "ar") "عام / غير مصنف" else "General / Uncategorized") },
+                        onClick = {
+                            groupId = null
+                            groupName = ""
+                            expandedGroupDropdown = false
+                        }
+                    )
+                    customerGroups.forEach { group ->
+                        DropdownMenuItem(
+                            text = { Text(group.name) },
+                            onClick = {
+                                groupId = group.id
+                                groupName = group.name
+                                expandedGroupDropdown = false
+                            }
                         )
                     }
                 }
@@ -901,7 +1187,10 @@ fun AddCustomerDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        keyboardController?.hide()
+                        onDismiss()
+                    },
                     modifier = Modifier.testTag("cust_btn_cancel").height(48.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -911,12 +1200,13 @@ fun AddCustomerDialog(
                 Button(
                     onClick = {
                         if (name.isNotBlank()) {
+                            keyboardController?.hide()
                             val linkId = when (linkStrategy) {
                                 1 -> matchExist?.id
                                 2 -> selectedExistAccountId
                                 else -> null // Auto open
                             }
-                            onConfirm(name, phone, email, linkId, groupName)
+                            onConfirm(name, phone, email, linkId, groupName, groupId)
                         }
                     },
                     enabled = name.isNotBlank() && (linkStrategy != 2 || selectedExistAccountId != null),
@@ -926,6 +1216,136 @@ fun AddCustomerDialog(
                     Icon(Icons.Filled.Check, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(Localization.translate(Localization.Key.SAVE_CUSTOMER, lang))
+                }
+            }
+        }
+    }
+}
+
+// Group Details dialogs
+@Composable
+fun AddCustomerGroupDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, description: String) -> Unit,
+    lang: String
+) {
+    var name by remember { mutableStateOf("") }
+    var desc by remember { mutableStateOf("") }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (lang == "ar") "إضافة مجموعة عملاء جديدة" else "Add Customer Group",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم المجموعة" else "Group Name") },
+                    modifier = Modifier.fillMaxWidth().testTag("add_group_name_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = desc,
+                    onValueChange = { desc = it },
+                    label = { Text(if (lang == "ar") "وصف المجموعة" else "Description") },
+                    modifier = Modifier.fillMaxWidth().testTag("add_group_desc_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(if (lang == "ar") "إلغاء الأمر" else "Cancel")
+                    }
+                    Button(
+                        onClick = { onConfirm(name, desc) },
+                        enabled = name.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (lang == "ar") "إنشاء المجموعة" else "Create Group")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EditCustomerGroupDialog(
+    group: com.example.data.CustomerGroup,
+    onDismiss: () -> Unit,
+    onConfirm: (com.example.data.CustomerGroup) -> Unit,
+    lang: String
+) {
+    var name by remember { mutableStateOf(group.name) }
+    var desc by remember { mutableStateOf(group.description) }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (lang == "ar") "تعديل مجموعة العملاء" else "Edit Customer Group",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم المجموعة" else "Group Name") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_group_name_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = desc,
+                    onValueChange = { desc = it },
+                    label = { Text(if (lang == "ar") "وصف المجموعة" else "Description") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_group_desc_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(if (lang == "ar") "إلغاء الأمر" else "Cancel")
+                    }
+                    Button(
+                        onClick = { onConfirm(group.copy(name = name, description = desc)) },
+                        enabled = name.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
+                    }
                 }
             }
         }

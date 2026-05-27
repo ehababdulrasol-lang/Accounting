@@ -44,6 +44,7 @@ fun SuppliersScreen(
 ) {
     val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
     val suppliers by viewModel.suppliers.collectAsStateWithLifecycle()
+    val supplierGroups by viewModel.supplierGroups.collectAsStateWithLifecycle()
     val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
     val leafAccounts by viewModel.leafAccounts.collectAsStateWithLifecycle()
     val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
@@ -54,9 +55,11 @@ fun SuppliersScreen(
     var supplierToDelete by remember { mutableStateOf<Supplier?>(null) }
     var showSuccessMessage by remember { mutableStateOf<String?>(null) }
 
-    val existingGroups = remember(suppliers) {
-        suppliers.map { it.groupName }.filter { it.isNotBlank() }.distinct()
-    }
+    // Group Management state
+    var selectedGroup by remember { mutableStateOf<com.example.data.SupplierGroup?>(null) }
+    var showAddGroupDialog by remember { mutableStateOf(false) }
+    var editingGroup by remember { mutableStateOf<com.example.data.SupplierGroup?>(null) }
+    var groupToDelete by remember { mutableStateOf<com.example.data.SupplierGroup?>(null) }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -78,8 +81,196 @@ fun SuppliersScreen(
                     text = if (lang == "ar") "تنظيم وجدولة حسابات الدائنين والربط المحاسبي الممنهج وفق معايير الإقفال الدولي والتزامات التوريد." else "Organize creditors accounts and systematic ledger linkages under international reporting standards (IFRS) and procurement cycles.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 12.dp)
                 )
+
+                // Group Carousel section
+                Text(
+                    text = if (lang == "ar") "تصنيفات ومجموعات الموردين" else "Supplier Categories & Groups",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 1. "All" Card
+                    Card(
+                        modifier = Modifier
+                            .width(130.dp)
+                            .height(85.dp)
+                            .clickable { selectedGroup = null },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selectedGroup == null) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            }
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (selectedGroup == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp).fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Storefront,
+                                    contentDescription = null,
+                                    tint = if (selectedGroup == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Badge(
+                                    containerColor = if (selectedGroup == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                    contentColor = if (selectedGroup == null) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                ) {
+                                    Text(text = "${suppliers.size}", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                            Text(
+                                text = if (lang == "ar") "كل الموردين" else "All Suppliers",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedGroup == null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // 2. Custom Groups Cards
+                    supplierGroups.forEach { group ->
+                        val groupCount = remember(suppliers, group) {
+                            suppliers.count { it.groupId == group.id || it.groupName.trim().equals(group.name.trim(), ignoreCase = true) }
+                        }
+                        val isSelected = selectedGroup?.id == group.id
+
+                        Card(
+                            modifier = Modifier
+                                .width(160.dp)
+                                .height(85.dp)
+                                .clickable { selectedGroup = group },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                                }
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp).fillMaxSize(),
+                                verticalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.FolderOpen,
+                                        contentDescription = null,
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    
+                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        IconButton(
+                                            onClick = { editingGroup = group },
+                                            modifier = Modifier.size(20.dp)
+                                        ) {
+                                            Icon(Icons.Filled.Edit, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(11.dp))
+                                        }
+                                        IconButton(
+                                            onClick = { groupToDelete = group },
+                                            modifier = Modifier.size(20.dp)
+                                        ) {
+                                            Icon(Icons.Filled.Delete, null, tint = RoseRed, modifier = Modifier.size(11.dp))
+                                        }
+                                        Badge(
+                                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                        ) {
+                                            Text(text = "$groupCount", style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                }
+                                
+                                Text(
+                                    text = group.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    // 3. Add Group Card
+                    Card(
+                        modifier = Modifier
+                            .width(130.dp)
+                            .height(85.dp)
+                            .clickable { showAddGroupDialog = true },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp).fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = if (lang == "ar") "مجموعة جديدة" else "New Group",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
 
                 // Search Bar
                 OutlinedTextField(
@@ -102,9 +293,15 @@ fun SuppliersScreen(
                 )
 
                 val filtered = suppliers.filter {
-                    it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.phone.contains(searchQuery) ||
-                    it.email.contains(searchQuery, ignoreCase = true)
+                    val matchesSearch = it.name.contains(searchQuery, ignoreCase = true) ||
+                                        it.phone.contains(searchQuery) ||
+                                        it.email.contains(searchQuery, ignoreCase = true)
+                    val matchesGroup = if (selectedGroup != null) {
+                        it.groupId == selectedGroup!!.id || it.groupName.trim().equals(selectedGroup!!.name.trim(), ignoreCase = true)
+                    } else {
+                        true
+                    }
+                    matchesSearch && matchesGroup
                 }
 
                 if (filtered.isEmpty()) {
@@ -232,13 +429,13 @@ fun SuppliersScreen(
                 val liabilitiesLeafs = leafAccounts.filter { it.accountType == com.example.data.AccountType.LIABILITY }
                 AddSupplierDialog(
                     onDismiss = { showAddDialog = false },
-                    onConfirm = { name, phone, email, linkAccId, groupName ->
-                        viewModel.addSupplier(name, phone, email, linkAccId, groupName)
+                    onConfirm = { name, phone, email, linkAccId, groupName, groupId ->
+                        viewModel.addSupplier(name, phone, email, linkAccId, groupName, groupId)
                         showAddDialog = false
                         showSuccessMessage = if (lang == "ar") "تم تسجيل ملف المورد بنجاح" else "Supplier registered successfully!"
                     },
                     leafAccounts = if (liabilitiesLeafs.isNotEmpty()) liabilitiesLeafs else leafAccounts,
-                    existingGroups = existingGroups,
+                    supplierGroups = supplierGroups,
                     lang = lang
                 )
             }
@@ -247,13 +444,58 @@ fun SuppliersScreen(
                 EditSupplierDialog(
                     supplier = editingSupplier!!,
                     onDismiss = { editingSupplier = null },
-                    onConfirm = { name, phone, email, creditLimit, groupName ->
-                        viewModel.updateSupplier(editingSupplier!!.copy(name = name, phone = phone, email = email, creditLimit = creditLimit, groupName = groupName))
+                    onConfirm = { name, phone, email, creditLimit, groupName, groupId ->
+                        viewModel.updateSupplier(editingSupplier!!.copy(name = name, phone = phone, email = email, creditLimit = creditLimit, groupName = groupName, groupId = groupId))
                         editingSupplier = null
                         showSuccessMessage = if (lang == "ar") "تم تعديل بيانات المورد بنجاح" else "Supplier details updated successfully!"
                     },
-                    existingGroups = existingGroups,
+                    supplierGroups = supplierGroups,
                     lang = lang
+                )
+            }
+
+            // Supplier Group Actions
+            if (showAddGroupDialog) {
+                AddSupplierGroupDialog(
+                    onDismiss = { showAddGroupDialog = false },
+                    onConfirm = { name, desc ->
+                        viewModel.addSupplierGroup(name, desc)
+                        showAddGroupDialog = false
+                        showSuccessMessage = if (lang == "ar") "تم إضافة مجموعة الموردين بنجاح" else "Supplier group created successfully!"
+                    },
+                    lang = lang
+                )
+            }
+
+            if (editingGroup != null) {
+                EditSupplierGroupDialog(
+                    group = editingGroup!!,
+                    onDismiss = { editingGroup = null },
+                    onConfirm = { updated ->
+                        viewModel.updateSupplierGroup(updated)
+                        editingGroup = null
+                        showSuccessMessage = if (lang == "ar") "تم تعديل بيانات المجموعة بنجاح" else "Group updated successfully!"
+                    },
+                    lang = lang
+                )
+            }
+
+            if (groupToDelete != null) {
+                val gName = groupToDelete!!.name
+                AnimatedDeleteConfirmDialog(
+                    title = if (lang == "ar") "تأكيد حذف مجموعة موردين" else "Confirm Group Deletion",
+                    message = if (lang == "ar") "هل أنت متأكد من رغبتك في حذف المجموعة: $gName؟ لن يتم حذف الموردين التابعين لها." else "Are you sure you want to delete group: $gName? Suppliers under it will not be deleted.",
+                    lang = lang,
+                    onConfirm = {
+                        val toDel = groupToDelete!!
+                        if (selectedGroup?.id == toDel.id) {
+                            selectedGroup = null
+                        }
+                        viewModel.deleteSupplierGroup(toDel)
+                        groupToDelete = null
+                        showSuccessMessage = if (lang == "ar") "تم حذف مجموعة الموردين بنجاح" else "Supplier group deleted successfully!"
+                    },
+                    onDismiss = { groupToDelete = null }
                 )
             }
 
@@ -540,15 +782,19 @@ fun SupplierCard(
 @Composable
 fun AddSupplierDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Long?, String) -> Unit,
+    onConfirm: (String, String, String, Long?, String, Long?) -> Unit,
     leafAccounts: List<Account>,
-    existingGroups: List<String>,
+    supplierGroups: List<com.example.data.SupplierGroup>,
     lang: String
 ) {
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var groupName by remember { mutableStateOf("") }
+    var groupId by remember { mutableStateOf<Long?>(null) }
+
+    var expandedGroupDropdown by remember { mutableStateOf(false) }
 
     // Strategies: 0 = Auto-open new under 2101, 1 = Link to existing matching name, 2 = Choose exist manually
     var linkStrategy by remember { mutableStateOf(0) }
@@ -643,34 +889,50 @@ fun AddSupplierDialog(
 
             Spacer(Modifier.height(14.dp))
 
-            OutlinedTextField(
-                value = groupName,
-                onValueChange = { groupName = it },
-                label = { Text(if (lang == "ar") "مجموعة الموردين (مثال: الشركات الاستيرادية)" else "Supplier Group (e.g. Importers)") },
-                leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("supp_input_group"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
+            // Elegant Group selection dropdown
+            Box(modifier = Modifier.fillMaxWidth()) {
+                val selectedGroupText = remember(groupId, supplierGroups, groupName) {
+                    supplierGroups.find { it.id == groupId }?.name ?: groupName.ifBlank { if (lang == "ar") "عام / غير مصنف" else "General" }
+                }
 
-            if (existingGroups.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (lang == "ar") "أو اختر من المجموعات الحالية:" else "Or choose from existing groups:",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                OutlinedTextField(
+                    value = selectedGroupText,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(if (lang == "ar") "مجموعة الموردين" else "Supplier Group") },
+                    leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    trailingIcon = {
+                        IconButton(onClick = { expandedGroupDropdown = !expandedGroupDropdown }) {
+                            Icon(Icons.Filled.ArrowDropDown, null)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expandedGroupDropdown = true },
+                    shape = RoundedCornerShape(12.dp)
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+                DropdownMenu(
+                    expanded = expandedGroupDropdown,
+                    onDismissRequest = { expandedGroupDropdown = false },
+                    modifier = Modifier.fillMaxWidth(0.85f)
                 ) {
-                    existingGroups.forEach { group ->
-                        SuggestionChip(
-                            onClick = { groupName = group },
-                            label = { Text(group) }
+                    DropdownMenuItem(
+                        text = { Text(if (lang == "ar") "عام / غير مصنف" else "General / Uncategorized") },
+                        onClick = {
+                            groupId = null
+                            groupName = ""
+                            expandedGroupDropdown = false
+                        }
+                    )
+                    supplierGroups.forEach { group ->
+                        DropdownMenuItem(
+                            text = { Text(group.name) },
+                            onClick = {
+                                groupId = group.id
+                                groupName = group.name
+                                expandedGroupDropdown = false
+                            }
                         )
                     }
                 }
@@ -839,7 +1101,10 @@ fun AddSupplierDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        keyboardController?.hide()
+                        onDismiss()
+                    },
                     modifier = Modifier.height(48.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -849,12 +1114,13 @@ fun AddSupplierDialog(
                 Button(
                     onClick = {
                         if (name.isNotBlank()) {
+                            keyboardController?.hide()
                             val linkId = when (linkStrategy) {
                                 1 -> matchExist?.id
                                 2 -> selectedExistAccountId
                                 else -> null
                             }
-                            onConfirm(name, phone, email, linkId, groupName)
+                            onConfirm(name, phone, email, linkId, groupName, groupId)
                         }
                     },
                     enabled = name.isNotBlank() && (linkStrategy != 2 || selectedExistAccountId != null),
@@ -875,15 +1141,19 @@ fun AddSupplierDialog(
 fun EditSupplierDialog(
     supplier: Supplier,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Long, String) -> Unit,
-    existingGroups: List<String>,
+    onConfirm: (String, String, String, Long, String, Long?) -> Unit,
+    supplierGroups: List<com.example.data.SupplierGroup>,
     lang: String
 ) {
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     var name by remember { mutableStateOf(supplier.name) }
     var phone by remember { mutableStateOf(supplier.phone) }
     var email by remember { mutableStateOf(supplier.email) }
     var groupName by remember { mutableStateOf(supplier.groupName) }
+    var groupId by remember { mutableStateOf<Long?>(supplier.groupId) }
     var limitInput by remember { mutableStateOf((supplier.creditLimit / 1000.0).toString()) }
+
+    var expandedGroupDropdown by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -969,34 +1239,50 @@ fun EditSupplierDialog(
 
             Spacer(Modifier.height(14.dp))
 
-            OutlinedTextField(
-                value = groupName,
-                onValueChange = { groupName = it },
-                label = { Text(if (lang == "ar") "مجموعة الموردين (مثال: الشركات الاستيرادية)" else "Supplier Group (e.g. Importers)") },
-                leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("edit_supp_input_group"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
+            // Elegant Group selection dropdown
+            Box(modifier = Modifier.fillMaxWidth()) {
+                val selectedGroupText = remember(groupId, supplierGroups, groupName) {
+                    supplierGroups.find { it.id == groupId }?.name ?: groupName.ifBlank { if (lang == "ar") "عام / غير مصنف" else "General" }
+                }
 
-            if (existingGroups.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (lang == "ar") "أو اختر من المجموعات الحالية:" else "Or choose from existing groups:",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                OutlinedTextField(
+                    value = selectedGroupText,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(if (lang == "ar") "مجموعة الموردين" else "Supplier Group") },
+                    leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    trailingIcon = {
+                        IconButton(onClick = { expandedGroupDropdown = !expandedGroupDropdown }) {
+                            Icon(Icons.Filled.ArrowDropDown, null)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expandedGroupDropdown = true },
+                    shape = RoundedCornerShape(12.dp)
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+                DropdownMenu(
+                    expanded = expandedGroupDropdown,
+                    onDismissRequest = { expandedGroupDropdown = false },
+                    modifier = Modifier.fillMaxWidth(0.85f)
                 ) {
-                    existingGroups.forEach { group ->
-                        SuggestionChip(
-                            onClick = { groupName = group },
-                            label = { Text(group) }
+                    DropdownMenuItem(
+                        text = { Text(if (lang == "ar") "عام / غير مصنف" else "General / Uncategorized") },
+                        onClick = {
+                            groupId = null
+                            groupName = ""
+                            expandedGroupDropdown = false
+                        }
+                    )
+                    supplierGroups.forEach { group ->
+                        DropdownMenuItem(
+                            text = { Text(group.name) },
+                            onClick = {
+                                groupId = group.id
+                                groupName = group.name
+                                expandedGroupDropdown = false
+                            }
                         )
                     }
                 }
@@ -1025,7 +1311,10 @@ fun EditSupplierDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        keyboardController?.hide()
+                        onDismiss()
+                    },
                     modifier = Modifier.testTag("edit_supp_btn_cancel").height(48.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -1035,8 +1324,9 @@ fun EditSupplierDialog(
                 Button(
                     onClick = {
                         if (name.isNotBlank()) {
+                            keyboardController?.hide()
                             val limitMilli = (limitInput.toDoubleOrNull() ?: 0.0) * 1000.0
-                            onConfirm(name, phone, email, limitMilli.toLong(), groupName)
+                            onConfirm(name, phone, email, limitMilli.toLong(), groupName, groupId)
                         }
                     },
                     enabled = name.isNotBlank(),
@@ -1046,6 +1336,136 @@ fun EditSupplierDialog(
                     Icon(Icons.Filled.Check, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
+                }
+            }
+        }
+    }
+}
+
+// Group Details Dialogs
+@Composable
+fun AddSupplierGroupDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, description: String) -> Unit,
+    lang: String
+) {
+    var name by remember { mutableStateOf("") }
+    var desc by remember { mutableStateOf("") }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (lang == "ar") "إضافة مجموعة موردين جديدة" else "Add Supplier Group",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم المجموعة" else "Group Name") },
+                    modifier = Modifier.fillMaxWidth().testTag("add_supp_group_name_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = desc,
+                    onValueChange = { desc = it },
+                    label = { Text(if (lang == "ar") "وصف المجموعة" else "Description") },
+                    modifier = Modifier.fillMaxWidth().testTag("add_supp_group_desc_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(if (lang == "ar") "إلغاء الأمر" else "Cancel")
+                    }
+                    Button(
+                        onClick = { onConfirm(name, desc) },
+                        enabled = name.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (lang == "ar") "إنشاء المجموعة" else "Create Group")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EditSupplierGroupDialog(
+    group: com.example.data.SupplierGroup,
+    onDismiss: () -> Unit,
+    onConfirm: (com.example.data.SupplierGroup) -> Unit,
+    lang: String
+) {
+    var name by remember { mutableStateOf(group.name) }
+    var desc by remember { mutableStateOf(group.description) }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (lang == "ar") "تعديل مجموعة الموردين" else "Edit Supplier Group",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم المجموعة" else "Group Name") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_supp_group_name_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = desc,
+                    onValueChange = { desc = it },
+                    label = { Text(if (lang == "ar") "وصف المجموعة" else "Description") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_supp_group_desc_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(if (lang == "ar") "إلغاء الأمر" else "Cancel")
+                    }
+                    Button(
+                        onClick = { onConfirm(group.copy(name = name, description = desc)) },
+                        enabled = name.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
+                    }
                 }
             }
         }

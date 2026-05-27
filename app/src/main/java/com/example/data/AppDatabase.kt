@@ -32,9 +32,11 @@ class Converters {
         CashBox::class,
         Bank::class,
         BankBranch::class,
-        BankAccount::class
+        BankAccount::class,
+        CustomerGroup::class,
+        SupplierGroup::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

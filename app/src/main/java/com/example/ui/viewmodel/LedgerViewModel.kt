@@ -64,6 +64,8 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val auditLogs = repository.auditLogs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val customers = repository.customers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val suppliers = repository.suppliers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val customerGroups = repository.customerGroups.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val supplierGroups = repository.supplierGroups.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val accountSnapshots = repository.allSnapshots.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val cashBoxes = repository.cashBoxes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val banks = repository.banks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -575,7 +577,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun addCustomer(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = "") {
+    fun addCustomer(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = "", groupId: Long? = null) {
         viewModelScope.launch {
             try {
                 if (name.isBlank()) {
@@ -587,7 +589,8 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                     phone = phone.trim(),
                     email = email.trim(),
                     existingAccountId = existingAccountId,
-                    groupName = groupName.trim()
+                    groupName = groupName.trim(),
+                    groupId = groupId
                 )
                 _uiMessage.value = "Customer '$name' fully registered in general ledger."
             } catch (e: Exception) {
@@ -622,7 +625,45 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun addSupplier(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = "") {
+    // Customer Groups VM actions
+    fun addCustomerGroup(name: String, description: String = "") {
+        viewModelScope.launch {
+            try {
+                if (name.isBlank()) {
+                    _uiMessage.value = "Group name is required."
+                    return@launch
+                }
+                repository.createCustomerGroup(name.trim(), description.trim())
+                _uiMessage.value = "Customer group '$name' created."
+            } catch (e: Exception) {
+                _uiMessage.value = "Failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateCustomerGroup(group: CustomerGroup) {
+        viewModelScope.launch {
+            try {
+                repository.updateCustomerGroup(group)
+                _uiMessage.value = "Customer group updated."
+            } catch (e: Exception) {
+                _uiMessage.value = "Failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteCustomerGroup(group: CustomerGroup) {
+        viewModelScope.launch {
+            try {
+                repository.deleteCustomerGroup(group)
+                _uiMessage.value = "Customer group deleted."
+            } catch (e: Exception) {
+                _uiMessage.value = "Failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun addSupplier(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = "", groupId: Long? = null) {
         viewModelScope.launch {
             try {
                 if (name.isBlank()) {
@@ -634,7 +675,8 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                     phone = phone.trim(),
                     email = email.trim(),
                     existingAccountId = existingAccountId,
-                    groupName = groupName.trim()
+                    groupName = groupName.trim(),
+                    groupId = groupId
                 )
                 _uiMessage.value = "Supplier '$name' fully registered in general ledger."
             } catch (e: Exception) {
@@ -665,6 +707,44 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                 _uiMessage.value = "Supplier profiling updated."
             } catch (e: Exception) {
                 _uiMessage.value = "Update failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    // Supplier Groups VM actions
+    fun addSupplierGroup(name: String, description: String = "") {
+        viewModelScope.launch {
+            try {
+                if (name.isBlank()) {
+                    _uiMessage.value = "Group name is required."
+                    return@launch
+                }
+                repository.createSupplierGroup(name.trim(), description.trim())
+                _uiMessage.value = "Supplier group '$name' created."
+            } catch (e: Exception) {
+                _uiMessage.value = "Failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateSupplierGroup(group: SupplierGroup) {
+        viewModelScope.launch {
+            try {
+                repository.updateSupplierGroup(group)
+                _uiMessage.value = "Supplier group updated."
+            } catch (e: Exception) {
+                _uiMessage.value = "Failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteSupplierGroup(group: SupplierGroup) {
+        viewModelScope.launch {
+            try {
+                repository.deleteSupplierGroup(group)
+                _uiMessage.value = "Supplier group deleted."
+            } catch (e: Exception) {
+                _uiMessage.value = "Failed: ${e.localizedMessage}"
             }
         }
     }
