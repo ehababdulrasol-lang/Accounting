@@ -74,6 +74,20 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val isLibyanMode = MutableStateFlow(true) // Set default to Libyan local style!
     val isDarkMode = MutableStateFlow(true) // Track Dark Theme, true by default
     val currentThemeStyle = MutableStateFlow(com.example.ui.theme.ThemeStyle.CLASSIC_SKY)
+
+    private val prefs = application.getSharedPreferences("ledger_settings", android.content.Context.MODE_PRIVATE)
+    val officialExchangeRate = MutableStateFlow(prefs.getFloat("official_rate", 4.82f).toDouble())
+    val parallelExchangeRate = MutableStateFlow(prefs.getFloat("parallel_rate", 7.15f).toDouble())
+
+    fun updateOfficialRate(rate: Double) {
+        officialExchangeRate.value = rate
+        prefs.edit().putFloat("official_rate", rate.toFloat()).apply()
+    }
+
+    fun updateParallelRate(rate: Double) {
+        parallelExchangeRate.value = rate
+        prefs.edit().putFloat("parallel_rate", rate.toFloat()).apply()
+    }
     val localBackups = MutableStateFlow<List<java.io.File>>(emptyList())
     val leafAccounts = accounts.map { list -> list.filter { !it.isGroup } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -561,7 +575,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun addCustomer(name: String, phone: String, email: String, existingAccountId: Long?) {
+    fun addCustomer(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = "") {
         viewModelScope.launch {
             try {
                 if (name.isBlank()) {
@@ -572,7 +586,8 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                     name = name.trim(),
                     phone = phone.trim(),
                     email = email.trim(),
-                    existingAccountId = existingAccountId
+                    existingAccountId = existingAccountId,
+                    groupName = groupName.trim()
                 )
                 _uiMessage.value = "Customer '$name' fully registered in general ledger."
             } catch (e: Exception) {
@@ -607,7 +622,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun addSupplier(name: String, phone: String, email: String, existingAccountId: Long?) {
+    fun addSupplier(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = "") {
         viewModelScope.launch {
             try {
                 if (name.isBlank()) {
@@ -618,7 +633,8 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                     name = name.trim(),
                     phone = phone.trim(),
                     email = email.trim(),
-                    existingAccountId = existingAccountId
+                    existingAccountId = existingAccountId,
+                    groupName = groupName.trim()
                 )
                 _uiMessage.value = "Supplier '$name' fully registered in general ledger."
             } catch (e: Exception) {

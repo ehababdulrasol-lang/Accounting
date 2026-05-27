@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,6 +52,10 @@ fun CustomersScreen(
     var searchQuery by remember { mutableStateOf("") }
     var customerToDelete by remember { mutableStateOf<Customer?>(null) }
     var showSuccessMessage by remember { mutableStateOf<String?>(null) }
+
+    val existingGroups = remember(customers) {
+        customers.map { it.groupName }.filter { it.isNotBlank() }.distinct()
+    }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -127,6 +133,10 @@ fun CustomersScreen(
                         }
                     }
                 } else {
+                    val grouped = remember(filtered, lang) {
+                        filtered.groupBy { it.groupName.trim() }
+                    }
+
                     LazyColumn(
                         modifier = Modifier
                             .weight(1f)
@@ -136,25 +146,68 @@ fun CustomersScreen(
                             .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
-                        itemsIndexed(filtered) { idx, customer ->
-                            com.example.ui.StaggeredItem(index = idx) {
-                                val linkedAccount = allAccounts.find { it.id == customer.accountId }
-                                val balance = remember(customer.accountId, snapshots) {
-                                    snapshots.find { it.accountId == customer.accountId }?.balance ?: 0L
+                        grouped.forEach { (groupName, customerList) ->
+                            item {
+                                val title = if (groupName.isBlank()) {
+                                    if (lang == "ar") "عملاء عامون (غير مصنفين)" else "General / Uncategorized"
+                                } else {
+                                    groupName
                                 }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Folder,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = title,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                        contentColor = MaterialTheme.colorScheme.primary
+                                    ) {
+                                        Text(
+                                            text = "${customerList.size}",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
 
-                                CustomerCard(
-                                    customer = customer,
-                                    account = linkedAccount,
-                                    balance = balance,
-                                    onDelete = { customerToDelete = customer },
-                                    onEdit = { editingCustomer = customer },
-                                    onViewStatement = {
-                                        viewModel.statementTargetAccountId.value = customer.accountId
-                                        viewModel.navigateToTabFlow.tryEmit(7)
-                                    },
-                                    lang = lang
-                                )
+                            itemsIndexed(customerList) { idx, customer ->
+                                com.example.ui.StaggeredItem(index = idx) {
+                                    val linkedAccount = allAccounts.find { it.id == customer.accountId }
+                                    val balance = remember(customer.accountId, snapshots) {
+                                        snapshots.find { it.accountId == customer.accountId }?.balance ?: 0L
+                                    }
+
+                                    CustomerCard(
+                                        customer = customer,
+                                        account = linkedAccount,
+                                        balance = balance,
+                                        onDelete = { customerToDelete = customer },
+                                        onEdit = { editingCustomer = customer },
+                                        onViewStatement = {
+                                            viewModel.statementTargetAccountId.value = customer.accountId
+                                            viewModel.navigateToTabFlow.tryEmit(7)
+                                        },
+                                        lang = lang
+                                    )
+                                }
                             }
                         }
                     }
@@ -177,12 +230,13 @@ fun CustomersScreen(
             if (showAddDialog) {
                 AddCustomerDialog(
                     onDismiss = { showAddDialog = false },
-                    onConfirm = { name, phone, email, linkAccId ->
-                        viewModel.addCustomer(name, phone, email, linkAccId)
+                    onConfirm = { name, phone, email, linkAccId, groupName ->
+                        viewModel.addCustomer(name, phone, email, linkAccId, groupName)
                         showAddDialog = false
                         showSuccessMessage = if (lang == "ar") "تم تسجيل ملف العميل بنجاح" else "Customer registered successfully!"
                     },
                     leafAccounts = leafAccounts,
+                    existingGroups = existingGroups,
                     lang = lang
                 )
             }
@@ -191,11 +245,12 @@ fun CustomersScreen(
                 EditCustomerDialog(
                     customer = editingCustomer!!,
                     onDismiss = { editingCustomer = null },
-                    onConfirm = { name, phone, email ->
-                        viewModel.updateCustomer(editingCustomer!!.copy(name = name, phone = phone, email = email))
+                    onConfirm = { name, phone, email, groupName ->
+                        viewModel.updateCustomer(editingCustomer!!.copy(name = name, phone = phone, email = email, groupName = groupName))
                         editingCustomer = null
                         showSuccessMessage = if (lang == "ar") "تم تعديل بيانات العميل بنجاح" else "Customer details updated successfully!"
                     },
+                    existingGroups = existingGroups,
                     lang = lang
                 )
             }
@@ -381,12 +436,14 @@ fun CustomerCard(
 fun EditCustomerDialog(
     customer: Customer,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String) -> Unit,
+    onConfirm: (String, String, String, String) -> Unit,
+    existingGroups: List<String>,
     lang: String
 ) {
     var name by remember { mutableStateOf(customer.name) }
     var phone by remember { mutableStateOf(customer.phone) }
     var email by remember { mutableStateOf(customer.email) }
+    var groupName by remember { mutableStateOf(customer.groupName) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -470,6 +527,41 @@ fun EditCustomerDialog(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
             )
 
+            Spacer(Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = groupName,
+                onValueChange = { groupName = it },
+                label = { Text(if (lang == "ar") "مجموعة العملاء (مثال: عملاء الجملة)" else "Customer Group (e.g. Wholesale)") },
+                leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("edit_cust_input_group"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+
+            if (existingGroups.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (lang == "ar") "أو اختر من المجموعات الحالية:" else "Or choose from existing groups:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    existingGroups.forEach { group ->
+                        SuggestionChip(
+                            onClick = { groupName = group },
+                            label = { Text(group) }
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.height(30.dp))
 
             Row(
@@ -488,7 +580,7 @@ fun EditCustomerDialog(
                 Button(
                     onClick = {
                         if (name.isNotBlank()) {
-                            onConfirm(name, phone, email)
+                            onConfirm(name, phone, email, groupName)
                         }
                     },
                     enabled = name.isNotBlank(),
@@ -508,13 +600,15 @@ fun EditCustomerDialog(
 @Composable
 fun AddCustomerDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Long?) -> Unit,
+    onConfirm: (String, String, String, Long?, String) -> Unit,
     leafAccounts: List<Account>,
+    existingGroups: List<String>,
     lang: String
 ) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var groupName by remember { mutableStateOf("") }
 
     // Strategies: 0 = Auto-open new, 1 = Link to existing matching name, 2 = Choose exist manually
     var linkStrategy by remember { mutableStateOf(0) }
@@ -606,6 +700,41 @@ fun AddCustomerDialog(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
             )
+
+            Spacer(Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = groupName,
+                onValueChange = { groupName = it },
+                label = { Text(if (lang == "ar") "مجموعة العملاء (مثال: عملاء الجملة)" else "Customer Group (e.g. Wholesale)") },
+                leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("cust_input_group"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+
+            if (existingGroups.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (lang == "ar") "أو اختر من المجموعات الحالية:" else "Or choose from existing groups:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    existingGroups.forEach { group ->
+                        SuggestionChip(
+                            onClick = { groupName = group },
+                            label = { Text(group) }
+                        )
+                    }
+                }
+            }
 
             Spacer(Modifier.height(20.dp))
 
@@ -787,7 +916,7 @@ fun AddCustomerDialog(
                                 2 -> selectedExistAccountId
                                 else -> null // Auto open
                             }
-                            onConfirm(name, phone, email, linkId)
+                            onConfirm(name, phone, email, linkId, groupName)
                         }
                     },
                     enabled = name.isNotBlank() && (linkStrategy != 2 || selectedExistAccountId != null),

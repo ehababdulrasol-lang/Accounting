@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -51,6 +53,10 @@ fun SuppliersScreen(
     var searchQuery by remember { mutableStateOf("") }
     var supplierToDelete by remember { mutableStateOf<Supplier?>(null) }
     var showSuccessMessage by remember { mutableStateOf<String?>(null) }
+
+    val existingGroups = remember(suppliers) {
+        suppliers.map { it.groupName }.filter { it.isNotBlank() }.distinct()
+    }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -128,6 +134,10 @@ fun SuppliersScreen(
                         }
                     }
                 } else {
+                    val grouped = remember(filtered, lang) {
+                        filtered.groupBy { it.groupName.trim() }
+                    }
+
                     LazyColumn(
                         modifier = Modifier
                             .weight(1f)
@@ -137,25 +147,68 @@ fun SuppliersScreen(
                             .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
-                        itemsIndexed(filtered) { idx, supplier ->
-                            com.example.ui.StaggeredItem(index = idx) {
-                                val linkedAccount = allAccounts.find { it.id == supplier.accountId }
-                                val balance = remember(supplier.accountId, snapshots) {
-                                    snapshots.find { it.accountId == supplier.accountId }?.balance ?: 0L
+                        grouped.forEach { (groupName, supplierList) ->
+                            item {
+                                val title = if (groupName.isBlank()) {
+                                    if (lang == "ar") "موردون عامون (غير مصنفين)" else "General / Uncategorized"
+                                } else {
+                                    groupName
                                 }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Folder,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = title,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                        contentColor = MaterialTheme.colorScheme.primary
+                                    ) {
+                                        Text(
+                                            text = "${supplierList.size}",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
 
-                                SupplierCard(
-                                    supplier = supplier,
-                                    account = linkedAccount,
-                                    balance = balance,
-                                    onDelete = { supplierToDelete = supplier },
-                                    onEdit = { editingSupplier = supplier },
-                                    onViewStatement = {
-                                        viewModel.statementTargetAccountId.value = supplier.accountId
-                                        viewModel.navigateToTabFlow.tryEmit(7)
-                                    },
-                                    lang = lang
-                                )
+                            itemsIndexed(supplierList) { idx, supplier ->
+                                com.example.ui.StaggeredItem(index = idx) {
+                                    val linkedAccount = allAccounts.find { it.id == supplier.accountId }
+                                    val balance = remember(supplier.accountId, snapshots) {
+                                        snapshots.find { it.accountId == supplier.accountId }?.balance ?: 0L
+                                    }
+
+                                    SupplierCard(
+                                        supplier = supplier,
+                                        account = linkedAccount,
+                                        balance = balance,
+                                        onDelete = { supplierToDelete = supplier },
+                                        onEdit = { editingSupplier = supplier },
+                                        onViewStatement = {
+                                            viewModel.statementTargetAccountId.value = supplier.accountId
+                                            viewModel.navigateToTabFlow.tryEmit(7)
+                                        },
+                                        lang = lang
+                                    )
+                                }
                             }
                         }
                     }
@@ -179,12 +232,13 @@ fun SuppliersScreen(
                 val liabilitiesLeafs = leafAccounts.filter { it.accountType == com.example.data.AccountType.LIABILITY }
                 AddSupplierDialog(
                     onDismiss = { showAddDialog = false },
-                    onConfirm = { name, phone, email, linkAccId ->
-                        viewModel.addSupplier(name, phone, email, linkAccId)
+                    onConfirm = { name, phone, email, linkAccId, groupName ->
+                        viewModel.addSupplier(name, phone, email, linkAccId, groupName)
                         showAddDialog = false
                         showSuccessMessage = if (lang == "ar") "تم تسجيل ملف المورد بنجاح" else "Supplier registered successfully!"
                     },
                     leafAccounts = if (liabilitiesLeafs.isNotEmpty()) liabilitiesLeafs else leafAccounts,
+                    existingGroups = existingGroups,
                     lang = lang
                 )
             }
@@ -193,11 +247,12 @@ fun SuppliersScreen(
                 EditSupplierDialog(
                     supplier = editingSupplier!!,
                     onDismiss = { editingSupplier = null },
-                    onConfirm = { name, phone, email, creditLimit ->
-                        viewModel.updateSupplier(editingSupplier!!.copy(name = name, phone = phone, email = email, creditLimit = creditLimit))
+                    onConfirm = { name, phone, email, creditLimit, groupName ->
+                        viewModel.updateSupplier(editingSupplier!!.copy(name = name, phone = phone, email = email, creditLimit = creditLimit, groupName = groupName))
                         editingSupplier = null
                         showSuccessMessage = if (lang == "ar") "تم تعديل بيانات المورد بنجاح" else "Supplier details updated successfully!"
                     },
+                    existingGroups = existingGroups,
                     lang = lang
                 )
             }
@@ -485,13 +540,15 @@ fun SupplierCard(
 @Composable
 fun AddSupplierDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Long?) -> Unit,
+    onConfirm: (String, String, String, Long?, String) -> Unit,
     leafAccounts: List<Account>,
+    existingGroups: List<String>,
     lang: String
 ) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var groupName by remember { mutableStateOf("") }
 
     // Strategies: 0 = Auto-open new under 2101, 1 = Link to existing matching name, 2 = Choose exist manually
     var linkStrategy by remember { mutableStateOf(0) }
@@ -583,6 +640,41 @@ fun AddSupplierDialog(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
             )
+
+            Spacer(Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = groupName,
+                onValueChange = { groupName = it },
+                label = { Text(if (lang == "ar") "مجموعة الموردين (مثال: الشركات الاستيرادية)" else "Supplier Group (e.g. Importers)") },
+                leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("supp_input_group"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+
+            if (existingGroups.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (lang == "ar") "أو اختر من المجموعات الحالية:" else "Or choose from existing groups:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    existingGroups.forEach { group ->
+                        SuggestionChip(
+                            onClick = { groupName = group },
+                            label = { Text(group) }
+                        )
+                    }
+                }
+            }
 
             Spacer(Modifier.height(20.dp))
 
@@ -762,7 +854,7 @@ fun AddSupplierDialog(
                                 2 -> selectedExistAccountId
                                 else -> null
                             }
-                            onConfirm(name, phone, email, linkId)
+                            onConfirm(name, phone, email, linkId, groupName)
                         }
                     },
                     enabled = name.isNotBlank() && (linkStrategy != 2 || selectedExistAccountId != null),
@@ -783,12 +875,14 @@ fun AddSupplierDialog(
 fun EditSupplierDialog(
     supplier: Supplier,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Long) -> Unit,
+    onConfirm: (String, String, String, Long, String) -> Unit,
+    existingGroups: List<String>,
     lang: String
 ) {
     var name by remember { mutableStateOf(supplier.name) }
     var phone by remember { mutableStateOf(supplier.phone) }
     var email by remember { mutableStateOf(supplier.email) }
+    var groupName by remember { mutableStateOf(supplier.groupName) }
     var limitInput by remember { mutableStateOf((supplier.creditLimit / 1000.0).toString()) }
 
     ModalBottomSheet(
@@ -876,6 +970,41 @@ fun EditSupplierDialog(
             Spacer(Modifier.height(14.dp))
 
             OutlinedTextField(
+                value = groupName,
+                onValueChange = { groupName = it },
+                label = { Text(if (lang == "ar") "مجموعة الموردين (مثال: الشركات الاستيرادية)" else "Supplier Group (e.g. Importers)") },
+                leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("edit_supp_input_group"),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+
+            if (existingGroups.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (lang == "ar") "أو اختر من المجموعات الحالية:" else "Or choose from existing groups:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    existingGroups.forEach { group ->
+                        SuggestionChip(
+                            onClick = { groupName = group },
+                            label = { Text(group) }
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            OutlinedTextField(
                 value = limitInput,
                 onValueChange = { limitInput = it },
                 label = { Text(if (lang == "ar") "الحد الائتماني" else "Credit Limit") },
@@ -907,7 +1036,7 @@ fun EditSupplierDialog(
                     onClick = {
                         if (name.isNotBlank()) {
                             val limitMilli = (limitInput.toDoubleOrNull() ?: 0.0) * 1000.0
-                            onConfirm(name, phone, email, limitMilli.toLong())
+                            onConfirm(name, phone, email, limitMilli.toLong(), groupName)
                         }
                     },
                     enabled = name.isNotBlank(),

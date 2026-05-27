@@ -34,7 +34,7 @@ class Converters {
         BankBranch::class,
         BankAccount::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

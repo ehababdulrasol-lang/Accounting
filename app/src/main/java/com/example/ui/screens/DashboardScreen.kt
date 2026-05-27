@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -472,6 +473,39 @@ fun DashboardScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
+                        }
+
+                        // Section: Live FX Conversions Board
+                        item {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    text = if (lang == "ar") "محرر ومؤشرات أسعار الصرف" else "ANALYTICS & ESCROW EXCHANGE BOARD",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                    letterSpacing = 1.sp
+                                )
+                                
+                                DashboardFXWidgetCard(
+                                    lang = lang,
+                                    viewModel = viewModel,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                            }
+                        }
+
+                        // Section: Dynamic Financial Diagnostics Card
+                        item {
+                            DashboardDiagnosticsCard(
+                                lang = lang,
+                                totalRevenue = totalRevenue,
+                                totalExpense = totalExpense,
+                                netProfit = netProfit,
+                                draftCount = headers.count { !it.isPosted },
+                                solvencyRatio = if (totalCustomersBalance + totalCashBoxesBalance > 0) {
+                                    (totalCustomersBalance + totalCashBoxesBalance).toDouble() / (if (totalSuppliersBalance > 0) totalSuppliersBalance.toDouble() else 1.0)
+                                } else 1.5
+                            )
                         }
 
                         // Section: Recent Vouchers
@@ -1014,4 +1048,412 @@ fun AuditLogRow(log: com.example.data.AuditLog) {
             )
         }
     }
+}
+
+@Composable
+fun DashboardFXWidgetCard(
+    lang: String,
+    viewModel: LedgerViewModel,
+    modifier: Modifier = Modifier
+) {
+    val isLibyanMode by viewModel.isLibyanMode.collectAsStateWithLifecycle()
+    var amountText by remember { mutableStateOf("100") }
+    var usdToLyd by remember { mutableStateOf(true) }
+    var useParallel by remember { mutableStateOf(true) }
+
+    val officialRate by viewModel.officialExchangeRate.collectAsStateWithLifecycle()
+    val parallelRate by viewModel.parallelExchangeRate.collectAsStateWithLifecycle()
+    val rate = if (useParallel) parallelRate else officialRate
+    val numericAmount = amountText.toDoubleOrNull() ?: 100.0
+    val result = if (usdToLyd) numericAmount * rate else numericAmount / rate
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(alpha = 0.15f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Payments,
+                        contentDescription = null,
+                        tint = GoldAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (lang == "ar") "آلة التحويل السريع للعملات" else "FX Quick Translator",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                
+                // Active Rate Badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(GoldAccent.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "1 USD = ${String.format(java.util.Locale.US, "%.3f", rate)} LYD",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = GoldAccent
+                    )
+                }
+            }
+
+            Text(
+                text = if (lang == "ar") "أسعار فورية لمحاكاة التدفقات النقدية وفق النطاق الرسمي والموازي في ليبيا." else "Real-time indicators to simulate cash reserves according to official & parallel market bounds.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Direction Toggle Button
+                Button(
+                    onClick = { usdToLyd = !usdToLyd },
+                    modifier = Modifier.weight(1.4f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(imageVector = Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = if (usdToLyd) "USD ➔ LYD" else "LYD ➔ USD",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Rate Source Segmented Selector (Official vs Parallel)
+                Row(
+                    modifier = Modifier
+                        .weight(1.6f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                        .padding(2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (!useParallel) GoldAccent.copy(alpha = 0.15f) else Color.Transparent)
+                            .clickable { useParallel = false }
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "رسمي" else "Official",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (!useParallel) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (useParallel) GoldAccent.copy(alpha = 0.15f) else Color.Transparent)
+                            .clickable { useParallel = true }
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "موازي" else "Parallel",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (useParallel) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+
+            // Converter Input & Live Readout Output Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it.toEnglishDigits() },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    ),
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .height(52.dp),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = GoldAccent,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    placeholder = { Text("100", style = MaterialTheme.typography.bodyMedium) }
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1.4f)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    val unit = if (usdToLyd) (if (isLibyanMode) "د.ل" else "LYD") else "$"
+                    val outputPrecision = if (usdToLyd) "%.3f" else "%.2f"
+                    Text(
+                        text = "${String.format(java.util.Locale.US, outputPrecision, result)} $unit",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DashboardDiagnosticsCard(
+    lang: String,
+    totalRevenue: Long,
+    totalExpense: Long,
+    netProfit: Long,
+    draftCount: Int,
+    solvencyRatio: Double
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))
+    ) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Assessment,
+                        contentDescription = null,
+                        tint = EmeraldGreen,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (lang == "ar") "توصيات التشخيص والرقابة المالية للمؤسسة" else "Operational Budget & Audit Runway Indicators",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(EmeraldGreen.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "IAS-1",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldGreen
+                    )
+                }
+            }
+
+            // Calculations for diagnostics
+            val revenueAmount = totalRevenue.toDouble() / 1_000_000.0
+            val profitMarginPercentage = if (revenueAmount > 0) {
+                ((netProfit.toDouble() / 1_000_000.0) / revenueAmount) * 100.0
+            } else 0.0
+
+            val healthColor = if (profitMarginPercentage >= 15.0 && solvencyRatio >= 1.0) {
+                EmeraldGreen
+            } else if (profitMarginPercentage >= 0.0 || solvencyRatio >= 1.0) {
+                CorporateSky
+            } else {
+                RoseRed
+            }
+
+            val healthStatusText = if (lang == "ar") {
+                if (profitMarginPercentage >= 15.0 && solvencyRatio >= 1.0) {
+                    "ملاءة ممتازة ونمو مستدام"
+                } else if (profitMarginPercentage >= 0.0) {
+                    "أداء تشغيلي مستقر مع هوامش مرنة"
+                } else {
+                    "عجز مالي يتطلب تموين تشغيلي"
+                }
+            } else {
+                if (profitMarginPercentage >= 15.0 && solvencyRatio >= 1.0) {
+                    "Excellent Solvency & Healthy Yields"
+                } else if (profitMarginPercentage >= 0.0) {
+                    "Stable Core Activities - Average Margin"
+                } else {
+                    "Capital Deficit / Strict Overhead Control Advised"
+                }
+            }
+
+            // Indicator Header Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(healthColor.copy(alpha = 0.08f))
+                    .padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                com.example.ui.BreathingBadge(color = healthColor)
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = if (lang == "ar") "تصنيف الصحة المالية للمؤسسة:" else "Entity Financial Health rating:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = healthStatusText,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = healthColor
+                    )
+                }
+            }
+
+            // Split Grid columns for Stats details
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Column 1: Margin Analysis
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = if (lang == "ar") "هامش الربح الصافي" else "Net Margin Yield",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = if (totalRevenue > 0) "${String.format(Locale.getDefault(), "%.1f", profitMarginPercentage)}%" else "0.0% (N/A)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (profitMarginPercentage >= 15.0) EmeraldGreen else if (profitMarginPercentage >= 0.0) MaterialTheme.colorScheme.onSurface else RoseRed
+                    )
+                }
+
+                // Column 2: Audit Checklist Status
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = if (lang == "ar") "مسودات غير معتمدة" else "Escrow Draft Records",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = if (draftCount > 0) {
+                            if (lang == "ar") "$draftCount مستند ينتظر الترحيل" else "$draftCount Vouchers pending"
+                        } else {
+                            if (lang == "ar") "مكتمل التدقيق" else "Zero pending"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (draftCount > 0) CorporateSky else EmeraldGreen
+                    )
+                }
+            }
+
+            // Advisory checklist texts based on current statistics
+            val dynamicAdvisory = remember(revenueAmount, profitMarginPercentage, draftCount, solvencyRatio) {
+                if (draftCount > 0) {
+                    if (lang == "ar") {
+                        "⚠️ يوجد مستندات مسودة غير مرحلة؛ القيود تؤثر على شجرة الحسابات فور اعتماد البيانات."
+                    } else {
+                        "⚠️ Draft entries are in active validation. Ledger is temporarily desynchronized until they are posted."
+                    }
+                } else if (profitMarginPercentage < 0.0 && totalRevenue > 0) {
+                    if (lang == "ar") {
+                        "🚨 النفقات تفوق عوائد التشغل. يوصى بضبط النفقات الإدارية وإقرار كشف التكاليف الإجمالية."
+                    } else {
+                        "🚨 Deficit Alert: Operating expenses exceed compiled revenue stream. Audit unnecessary secondary expenditures."
+                    }
+                } else if (solvencyRatio < 1.0) {
+                    if (lang == "ar") {
+                        "⚠️ التزامات التوريد تفوق الموجود نقدياً. راجع شروط الائتمان وحقوق الدفع مع الموردين."
+                    } else {
+                        "⚠️ Leveraged warnings: accounts payable exceed active fluid cash boxes. Negotiate credit intervals."
+                    }
+                } else {
+                    if (lang == "ar") {
+                        "✔ جميع القيود اليومية متوازنة ومرحّلا بالكامل، الملاءة المالية والسيولة للمؤسسة ممتازة."
+                    } else {
+                        "✔ All recorded journal vouchers are fully compiled. Outstanding liquid solvency checks are clear."
+                    }
+                }
+            }
+
+            Text(
+                text = dynamicAdvisory,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+private fun String.toEnglishDigits(): String {
+    val builder = StringBuilder()
+    for (ch in this) {
+        if (ch in '٠'..'٩') {
+            builder.append((ch - '٠' + '0'.code).toChar())
+        } else if (ch in '۰'..'۹') {
+            builder.append((ch - '۰' + '0'.code).toChar())
+        } else {
+            builder.append(ch)
+        }
+    }
+    return builder.toString()
 }

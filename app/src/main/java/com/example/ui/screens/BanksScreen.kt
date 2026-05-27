@@ -53,6 +53,7 @@ fun BanksScreen(
     var showAddBankDialog by remember { mutableStateOf(false) }
     var showAddBranchDialog by remember { mutableStateOf(false) }
     var showAddAccountDialog by remember { mutableStateOf<BankBranch?>(null) } // holds active branch to add account
+    var editingBank by remember { mutableStateOf<Bank?>(null) }
     var editingBranch by remember { mutableStateOf<BankBranch?>(null) }
     var editingBankAccount by remember { mutableStateOf<BankAccount?>(null) }
     var searchQuery by remember { mutableStateOf("") }
@@ -165,6 +166,7 @@ fun BanksScreen(
                                     accountCount = accountCount,
                                     lang = lang,
                                     onClick = { selectedBank = bank },
+                                    onEdit = { editingBank = bank },
                                     onDelete = { bankToDelete = bank }
                                 )
                             }
@@ -308,6 +310,19 @@ fun BanksScreen(
             }
 
             // Dialogs
+            if (editingBank != null) {
+                EditBankDialog(
+                    bank = editingBank!!,
+                    onDismiss = { editingBank = null },
+                    onConfirm = { updated ->
+                        viewModel.updateBank(updated)
+                        editingBank = null
+                        showSuccessMessage = if (lang == "ar") "تم تعديل اسم البنك بنجاح" else "Bank name updated successfully!"
+                    },
+                    lang = lang
+                )
+            }
+
             if (showAddBankDialog) {
                 AddBankDialog(
                     onDismiss = { showAddBankDialog = false },
@@ -442,6 +457,7 @@ fun BankRowCard(
     accountCount: Int,
     lang: String,
     onClick: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -495,6 +511,9 @@ fun BankRowCard(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+                }
                 IconButton(onClick = onDelete) {
                     Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed)
                 }
@@ -769,6 +788,59 @@ fun AddBankDialog(
                         modifier = Modifier.testTag("confirm_add_bank")
                     ) {
                         Text(if (lang == "ar") "حفظ البنك" else "Save Bank")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EditBankDialog(
+    bank: Bank,
+    onDismiss: () -> Unit,
+    onConfirm: (bank: Bank) -> Unit,
+    lang: String
+) {
+    var name by remember { mutableStateOf(bank.name) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (lang == "ar") "تعديل بيانات البنك" else "Edit Bank Details",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم البنك الأساسي" else "Institution Name") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_bank_name_input"),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(if (lang == "ar") "إلغاء الأمر" else "Cancel")
+                    }
+                    Button(
+                        onClick = { onConfirm(bank.copy(name = name)) },
+                        enabled = name.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.testTag("confirm_edit_bank")
+                    ) {
+                        Text(if (lang == "ar") "حفظ التعديلات" else "Save Changes")
                     }
                 }
             }

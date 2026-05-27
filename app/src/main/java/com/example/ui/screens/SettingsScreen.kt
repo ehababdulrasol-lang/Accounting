@@ -97,203 +97,201 @@ fun SettingsScreen(
     val direction = Localization.getLayoutDirection(lang)
 
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
-        Column(
+        LazyColumn(
             modifier = modifier
-                .fillMaxSize()
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp)
         ) {
             // Screen Header Content
-            Text(
-                text = Localization.translate(Localization.Key.COMPLIANCE_SETTINGS, lang),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = if (lang == "ar") "قم بضبط لغة واجهة المستخدم، وإضافة العملات الأجنبية، وقفل الفترات الحسابية." else "Configure system locales, add foreign currencies, and control locked fiscal periods.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+            item {
+                Column {
+                    Text(
+                        text = Localization.translate(Localization.Key.COMPLIANCE_SETTINGS, lang),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = if (lang == "ar") "قم بضبط لغة واجهة المستخدم، وإضافة العملات الأجنبية، وقفل الفترات الحسابية." else "Configure system locales, add foreign currencies, and control locked fiscal periods.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
+            }
 
             // Dynamic User Role Selector Board
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.VerifiedUser,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = if (lang == "ar") "محاكاة صلاحيات المستخدم (Role-based UI)" else "User Authorization Simulation (Role-based UI)",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (simulatedUserIsAdmin) EmeraldGreen.copy(alpha = 0.15f)
-                                    else Color(0xFFFFB300).copy(alpha = 0.15f)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = if (simulatedUserIsAdmin) {
-                                    if (lang == "ar") "مدير النظام" else "Senior Admin"
-                                } else {
-                                    if (lang == "ar") "محاسب مبتدئ" else "Junior Accountant"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (simulatedUserIsAdmin) EmeraldGreen else Color(0xFFD84315)
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = if (lang == "ar") {
-                            "اختر دورًا تاليًا لرؤية آلية إخفاء وتأمين الإعدادات الحساسة (مثل تكوين العملة، قفل الدورة الحسابية، وحذف/استرجاع قواعد البيانات) بنسق يحمل طابع حذر آمن."
-                        } else {
-                            "Select a role to see how sensitive operations are dynamically secured. Selecting 'Junior Accountant' locks database controls and currency setup, rendering them into custom compliance alert states."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            item {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                     )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(
-                            onClick = { simulatedUserIsAdmin = true },
-                            modifier = Modifier.weight(1f).height(38.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (simulatedUserIsAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                if (lang == "ar") "مدير النظام" else "Senior Admin",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.VerifiedUser,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = if (lang == "ar") "محاكاة صلاحيات المستخدم (Role-based UI)" else "User Authorization Simulation (Role-based UI)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (simulatedUserIsAdmin) EmeraldGreen.copy(alpha = 0.15f)
+                                        else Color(0xFFFFB300).copy(alpha = 0.15f)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (simulatedUserIsAdmin) {
+                                        if (lang == "ar") "مدير النظام" else "Senior Admin"
+                                    } else {
+                                        if (lang == "ar") "محاسب مبتدئ" else "Junior Accountant"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (simulatedUserIsAdmin) EmeraldGreen else Color(0xFFD84315)
+                                )
+                            }
                         }
 
-                        Button(
-                            onClick = { simulatedUserIsAdmin = false },
-                            modifier = Modifier.weight(1f).height(38.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (!simulatedUserIsAdmin) Color(0xFFF4511E) else MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = if (!simulatedUserIsAdmin) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Text(
+                            text = if (lang == "ar") {
+                                "اختر دورًا تاليًا لرؤية آلية إخفاء وتأمين الإعدادات الحساسة (مثل تكوين العملة، قفل الدورة الحسابية، وحذف/استرجاع قواعد البيانات) بنسق يحمل طابع حذر آمن."
+                            } else {
+                                "Select a role to see how sensitive operations are dynamically secured. Selecting 'Junior Accountant' locks database controls and currency setup, rendering them into custom compliance alert states."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(
-                                if (lang == "ar") "محاسب مبتدئ" else "Junior Acc",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Button(
+                                onClick = { simulatedUserIsAdmin = true },
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (simulatedUserIsAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Text(
+                                    if (lang == "ar") "مدير النظام" else "Senior Admin",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Button(
+                                onClick = { simulatedUserIsAdmin = false },
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (!simulatedUserIsAdmin) Color(0xFFF4511E) else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (!simulatedUserIsAdmin) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) {
+                                Text(
+                                    if (lang == "ar") "محاسب مبتدئ" else "Junior Acc",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
             }
 
             // Category Navigation Pills for perfect organization
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val tabs = listOf(
-                    Triple(0, if (lang == "ar") "المظهر" else "Theme", Icons.Filled.Palette),
-                    Triple(1, if (lang == "ar") "العملات والصرف" else "FX & Rates", Icons.Filled.MonetizationOn),
-                    Triple(2, if (lang == "ar") "الدورات والنسخ" else "Data & Periods", Icons.Filled.Backup),
-                    Triple(3, if (lang == "ar") "التدقيق" else "Audit Log", Icons.Filled.FactCheck)
-                )
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val tabs = listOf(
+                        Triple(0, if (lang == "ar") "المظهر" else "Theme", Icons.Filled.Palette),
+                        Triple(1, if (lang == "ar") "العملات والصرف" else "FX & Rates", Icons.Filled.MonetizationOn),
+                        Triple(2, if (lang == "ar") "الدورات والنسخ" else "Data & Periods", Icons.Filled.Backup),
+                        Triple(3, if (lang == "ar") "التدقيق" else "Audit Log", Icons.Filled.FactCheck)
+                    )
 
-                tabs.forEach { (index, title, icon) ->
-                    val isSelected = activeTab == index
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .clickable { activeTab = index }
-                            .padding(vertical = 12.dp, horizontal = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                maxLines = 1,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
+                    tabs.forEach { (index, title, icon) ->
+                        val isSelected = activeTab == index
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable { activeTab = index }
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    maxLines = 1,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Crossfade transitions for smooth tab switching
-            Crossfade(
-                targetState = activeTab,
-                modifier = Modifier.weight(1f),
-                label = "settings_tabs_fade"
-            ) { currentTab ->
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    when (currentTab) {
+            // Display active tab contents inside the master LazyColumn
+            when (activeTab) {
                         0 -> {
                             // TAB 0: INTERFACE & APPEARANCE
                             // Language Card
@@ -770,6 +768,101 @@ fun SettingsScreen(
                                 }
                             }
 
+                            // Manual Exchange Rates Management
+                            item {
+                                Card(
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth().testTag("manual_rates_card"),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                ) {
+                                    val officialRate by viewModel.officialExchangeRate.collectAsStateWithLifecycle()
+                                    val parallelRate by viewModel.parallelExchangeRate.collectAsStateWithLifecycle()
+
+                                    var officialText by remember { mutableStateOf(String.format(java.util.Locale.US, "%.3f", officialRate)) }
+                                    var parallelText by remember { mutableStateOf(String.format(java.util.Locale.US, "%.3f", parallelRate)) }
+
+                                    androidx.compose.runtime.LaunchedEffect(officialRate) {
+                                        val doubleVal = officialText.toDoubleOrNull()
+                                        if (doubleVal == null || Math.abs(doubleVal - officialRate) > 0.0001) {
+                                            officialText = String.format(java.util.Locale.US, "%.3f", officialRate)
+                                        }
+                                    }
+
+                                    androidx.compose.runtime.LaunchedEffect(parallelRate) {
+                                        val doubleVal = parallelText.toDoubleOrNull()
+                                        if (doubleVal == null || Math.abs(doubleVal - parallelRate) > 0.0001) {
+                                            parallelText = String.format(java.util.Locale.US, "%.3f", parallelRate)
+                                        }
+                                    }
+
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Filled.Edit, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                text = if (lang == "ar") "إدارة أسعار الصرف اليدوية (دينار ليبي مقابل دولار)" else "Manual FX Rates Management (LYD to USD)",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+
+                                        Text(
+                                            text = if (lang == "ar") "أدخل قيم أسعار الصرف الرسمية والموازية مباشرةً. سيتم مزامنة القيم المدخلة تلقائياً عبر لوحة المتابعة والمحاكي."
+                                                   else "Manually input official and parallel exchange rates. Changes will reflect immediately across the dashboard and simulator modules.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                        )
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            OutlinedTextField(
+                                                value = officialText,
+                                                onValueChange = { 
+                                                    val english = it.toEnglishDigits()
+                                                    officialText = english
+                                                    english.toDoubleOrNull()?.let { d -> viewModel.updateOfficialRate(d) }
+                                                },
+                                                label = { Text(if (lang == "ar") "سعر الصرف الرسمي" else "Official FX Rate") },
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                modifier = Modifier.weight(1f).testTag("input_official_rate"),
+                                                singleLine = true,
+                                                enabled = simulatedUserIsAdmin
+                                            )
+
+                                            OutlinedTextField(
+                                                value = parallelText,
+                                                onValueChange = { 
+                                                    val english = it.toEnglishDigits()
+                                                    parallelText = english
+                                                    english.toDoubleOrNull()?.let { d -> viewModel.updateParallelRate(d) }
+                                                },
+                                                label = { Text(if (lang == "ar") "سعر الصرف الموازي" else "Parallel FX Rate") },
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                modifier = Modifier.weight(1f).testTag("input_parallel_rate"),
+                                                singleLine = true,
+                                                enabled = simulatedUserIsAdmin
+                                            )
+                                        }
+
+                                        if (!simulatedUserIsAdmin) {
+                                            Text(
+                                                text = if (lang == "ar") "⚠️ التعديل مغلق لأن رتبة الحساب الحالية هي 'محاسب مبتدئ'." else "⚠️ Rate adaptation locked due to current Junior Accountant profile restrictions.",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = RoseRed,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             // FX Exchange & Parallel market simulator
                             item {
                                 Card(
@@ -782,7 +875,9 @@ fun SettingsScreen(
                                     var fromLYD by remember { mutableStateOf(false) }
                                     var useParallelRate by remember { mutableStateOf(false) }
 
-                                    val rate = if (useParallelRate) 7.15 else 4.82
+                                    val officialRate by viewModel.officialExchangeRate.collectAsStateWithLifecycle()
+                                    val parallelRate by viewModel.parallelExchangeRate.collectAsStateWithLifecycle()
+                                    val rate = if (useParallelRate) parallelRate else officialRate
                                     val amountVal = conversionAmount.toDoubleOrNull() ?: 0.0
                                     val result = if (fromLYD) {
                                         amountVal / rate
@@ -814,7 +909,7 @@ fun SettingsScreen(
 
                                         OutlinedTextField(
                                             value = conversionAmount,
-                                            onValueChange = { conversionAmount = it },
+                                            onValueChange = { conversionAmount = it.toEnglishDigits() },
                                             label = { Text(if (lang == "ar") "المقدار / المبلغ المراد تحويله" else "Transaction Amount to Convert") },
                                             leadingIcon = { Icon(Icons.Filled.Money, null, tint = MaterialTheme.colorScheme.primary) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -886,7 +981,7 @@ fun SettingsScreen(
                                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                                     )
                                                     Text(
-                                                        text = "1 USD = ${java.text.DecimalFormat("#.##").format(rate)} LYD",
+                                                        text = "1 USD = ${String.format(java.util.Locale.US, "%.3f", rate)} LYD",
                                                         fontWeight = FontWeight.Bold,
                                                         style = MaterialTheme.typography.bodySmall,
                                                         color = MaterialTheme.colorScheme.primary
@@ -1181,8 +1276,6 @@ fun SettingsScreen(
                         }
                     }
                 }
-            }
-        }
 
         // Add Fiscal period dialogue
         if (showCreateFyDialog) {
@@ -1418,4 +1511,18 @@ fun CreateFiscalYearDialog(
             }
         }
     }
+}
+
+private fun String.toEnglishDigits(): String {
+    val builder = StringBuilder()
+    for (ch in this) {
+        if (ch in '٠'..'٩') {
+            builder.append((ch - '٠' + '0'.code).toChar())
+        } else if (ch in '۰'..'٩') {
+            builder.append((ch - '۰' + '0'.code).toChar())
+        } else {
+            builder.append(ch)
+        }
+    }
+    return builder.toString()
 }

@@ -359,7 +359,7 @@ class LedgerRepository(private val db: AppDatabase) {
     }
 
     // Customer setup with automatic dynamic account creation under accounts receivable (1103)
-    suspend fun createCustomer(name: String, phone: String, email: String, existingAccountId: Long?): Long = withContext(Dispatchers.IO) {
+    suspend fun createCustomer(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = ""): Long = withContext(Dispatchers.IO) {
         var activeAccountLinkId: Long = 0L
         
         if (existingAccountId != null && existingAccountId > 0L) {
@@ -431,7 +431,8 @@ class LedgerRepository(private val db: AppDatabase) {
                 name = name,
                 phone = phone,
                 email = email,
-                accountId = activeAccountLinkId
+                accountId = activeAccountLinkId,
+                groupName = groupName
             )
         )
         
@@ -464,7 +465,7 @@ class LedgerRepository(private val db: AppDatabase) {
     }
 
     // Supplier functions
-    suspend fun createSupplier(name: String, phone: String, email: String, existingAccountId: Long?): Long = withContext(Dispatchers.IO) {
+    suspend fun createSupplier(name: String, phone: String, email: String, existingAccountId: Long?, groupName: String = ""): Long = withContext(Dispatchers.IO) {
         var activeAccountLinkId: Long = 0L
         
         if (existingAccountId != null && existingAccountId > 0L) {
@@ -552,7 +553,8 @@ class LedgerRepository(private val db: AppDatabase) {
                 name = name,
                 phone = phone,
                 email = email,
-                accountId = activeAccountLinkId
+                accountId = activeAccountLinkId,
+                groupName = groupName
             )
         )
         

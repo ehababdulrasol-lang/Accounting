@@ -177,7 +177,8 @@ data class Customer(
     val name: String,
     val phone: String = "",
     val email: String = "",
-    val accountId: Long
+    val accountId: Long,
+    val groupName: String = ""
 )
 
 @Entity(
@@ -200,7 +201,8 @@ data class Supplier(
     val phone: String = "",
     val email: String = "",
     val accountId: Long,
-    val creditLimit: Long = 0L // credit limit in base currency
+    val creditLimit: Long = 0L, // credit limit in base currency
+    val groupName: String = ""
 )
 
 @Entity(
