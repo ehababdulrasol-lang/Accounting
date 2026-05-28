@@ -34,9 +34,11 @@ class Converters {
         BankBranch::class,
         BankAccount::class,
         CustomerGroup::class,
-        SupplierGroup::class
+        SupplierGroup::class,
+        MeasurementHeader::class,
+        MeasurementLine::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -53,6 +55,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun supplierDao(): SupplierDao
     abstract fun cashBoxDao(): CashBoxDao
     abstract fun bankDao(): BankDao
+    abstract fun measurementDao(): MeasurementDao
 
     companion object {
         @Volatile

@@ -37,6 +37,7 @@ class LedgerRepository(private val db: AppDatabase) {
     private val supplierDao = db.supplierDao()
     private val cashBoxDao = db.cashBoxDao()
     private val bankDao = db.bankDao()
+    private val measurementDao = db.measurementDao()
 
     // Flow listings
     val rootAccounts: Flow<List<Account>> = accountDao.getRootAccounts()
@@ -56,6 +57,7 @@ class LedgerRepository(private val db: AppDatabase) {
     val banks: Flow<List<Bank>> = bankDao.getAllBanksFlow()
     val allBranches: Flow<List<BankBranch>> = bankDao.getAllBranchesFlow()
     val allBankAccounts: Flow<List<BankAccount>> = bankDao.getAllBankAccountsFlow()
+    val measurementHeaders: Flow<List<MeasurementHeader>> = measurementDao.getAllMeasurementHeadersFlow()
 
     suspend fun getActiveFiscalYearsSuspend(): List<FiscalYear> = withContext(Dispatchers.IO) {
         fiscalYearDao.getActiveFiscalYearsSuspend()
@@ -986,5 +988,43 @@ class LedgerRepository(private val db: AppDatabase) {
                 details = "Deleted supplier group '${group.name}'."
             )
         )
+    }
+
+    // Measurement operations
+    fun getMeasurementLinesForHeaderFlow(headerId: Long): Flow<List<MeasurementLine>> {
+        return measurementDao.getMeasurementLinesForHeaderFlow(headerId)
+    }
+
+    suspend fun getMeasurementLinesForHeader(headerId: Long): List<MeasurementLine> = withContext(Dispatchers.IO) {
+        measurementDao.getMeasurementLinesForHeader(headerId)
+    }
+
+    suspend fun saveMeasurement(header: MeasurementHeader, lines: List<MeasurementLine>): Long = withContext(Dispatchers.IO) {
+        val id = measurementDao.saveMeasurement(header, lines)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = id,
+                voucherNo = "MEASUREMENT",
+                action = if (header.id == 0L) "MEASUREMENT_CREATED" else "MEASUREMENT_UPDATED",
+                details = "Saved measurement invoice for '${header.customerName}' with total sum of ${FinancialUtils.formatBase(header.totalAmount)}."
+            )
+        )
+        id
+    }
+
+    suspend fun deleteMeasurement(header: MeasurementHeader) = withContext(Dispatchers.IO) {
+        measurementDao.deleteHeader(header)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = header.id,
+                voucherNo = "MEASUREMENT",
+                action = "MEASUREMENT_DELETED",
+                details = "Deleted measurement invoice #${header.id} for '${header.customerName}'."
+            )
+        )
+    }
+
+    suspend fun updateMeasurementHeader(header: MeasurementHeader) = withContext(Dispatchers.IO) {
+        measurementDao.updateHeader(header)
     }
 }

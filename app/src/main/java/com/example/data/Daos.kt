@@ -349,3 +349,47 @@ interface BankDao {
     @Delete
     suspend fun deleteBankAccount(account: BankAccount)
 }
+
+@Dao
+interface MeasurementDao {
+    @Query("SELECT * FROM measurement_headers ORDER BY date DESC, id DESC")
+    fun getAllMeasurementHeadersFlow(): Flow<List<MeasurementHeader>>
+
+    @Query("SELECT * FROM measurement_headers WHERE id = :headerId")
+    suspend fun getMeasurementHeaderById(headerId: Long): MeasurementHeader?
+
+    @Query("SELECT * FROM measurement_lines WHERE headerId = :headerId")
+    fun getMeasurementLinesForHeaderFlow(headerId: Long): Flow<List<MeasurementLine>>
+
+    @Query("SELECT * FROM measurement_lines WHERE headerId = :headerId")
+    suspend fun getMeasurementLinesForHeader(headerId: Long): List<MeasurementLine>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHeader(header: MeasurementHeader): Long
+
+    @Update
+    suspend fun updateHeader(header: MeasurementHeader)
+
+    @Delete
+    suspend fun deleteHeader(header: MeasurementHeader)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLines(lines: List<MeasurementLine>)
+
+    @Query("DELETE FROM measurement_lines WHERE headerId = :headerId")
+    suspend fun deleteLinesForHeader(headerId: Long)
+
+    @Transaction
+    suspend fun saveMeasurement(header: MeasurementHeader, lines: List<MeasurementLine>): Long {
+        val id = if (header.id == 0L) {
+            insertHeader(header)
+        } else {
+            updateHeader(header)
+            deleteLinesForHeader(header.id)
+            header.id
+        }
+        val linesWithHeaderId = lines.map { it.copy(headerId = id) }
+        insertLines(linesWithHeaderId)
+        return id
+    }
+}

@@ -302,4 +302,50 @@ data class SupplierGroup(
     val description: String = ""
 )
 
+@Entity(
+    tableName = "measurement_headers",
+    foreignKeys = [
+        ForeignKey(
+            entity = Account::class,
+            parentColumns = ["id"],
+            childColumns = ["accountId"],
+            onDelete = ForeignKey.RESTRICT
+        )
+    ]
+)
+data class MeasurementHeader(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val customerName: String,
+    val accountId: Long,
+    val date: Long = System.currentTimeMillis(),
+    val notes: String = "",
+    val totalMeters: Double = 0.0,
+    val totalAmount: Long = 0L,
+    val isPosted: Boolean = false,
+    val voucherHeaderId: Long? = null
+)
+
+@Entity(
+    tableName = "measurement_lines",
+    foreignKeys = [
+        ForeignKey(
+            entity = MeasurementHeader::class,
+            parentColumns = ["id"],
+            childColumns = ["headerId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class MeasurementLine(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val headerId: Long,
+    val itemDescription: String,
+    val width: Double,
+    val height: Double,
+    val quantity: Int,
+    val pricePerMeter: Double,
+    val totalArea: Double,
+    val totalAmount: Long
+)
+
 

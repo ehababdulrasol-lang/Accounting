@@ -31,6 +31,7 @@ import com.example.ui.viewmodel.LedgerViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -226,6 +227,7 @@ fun MainLayout(viewModel: LedgerViewModel) {
                             val topLevelItems = listOf(
                                 Triple(0, Icons.Filled.SpaceDashboard, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_DASHBOARD, lang)),
                                 Triple(1, Icons.Filled.AccountTree, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_ACCOUNTS, lang)),
+                                Triple(20, Icons.Filled.SquareFoot, if (lang == "ar") "التمتير والمقاسات" else "Sizing & Measurements"),
                                 Triple(2, Icons.Filled.People, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_CUSTOMERS, lang)),
                                 Triple(3, Icons.Filled.Storefront, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SUPPLIERS, lang)),
                                 Triple(4, Icons.Filled.AccountBalanceWallet, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_CASH_BOXES, lang)),
@@ -380,8 +382,11 @@ fun MainLayout(viewModel: LedgerViewModel) {
                         }
                     }
                 ) {
+                    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
                     Scaffold(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .nestedScroll(scrollBehavior.nestedScrollConnection),
                         topBar = {
                             CenterAlignedTopAppBar(
                                 title = {
@@ -436,7 +441,8 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                 },
                                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
-                                )
+                                ),
+                                scrollBehavior = scrollBehavior
                             )
                         },
                         contentWindowInsets = WindowInsets.statusBars
@@ -500,6 +506,7 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                     16 -> ReportsScreen(viewModel = viewModel, forcedTab = 1)
                                     17 -> ReportsScreen(viewModel = viewModel, forcedTab = 2)
                                     18 -> ReportsScreen(viewModel = viewModel, forcedTab = 3)
+                                    20 -> MeasurementsScreen(viewModel = viewModel)
                                 }
                             }
                         }

@@ -29,3 +29,4 @@ Refer to these markdown resource outlines under `/references/` before modifying 
 - **`theming-and-color.md`**: Deep dive into Material 3's 29 color roles and dynamic contrast ratios.
 - **`accessibility.md`**: Focus management, touch targets, and semantic TalkBack properties.
 - **`testing.md`**: Fast JVM tests (Robolectric) and screenshot visual verification guides (Roborazzi).
+- **`measurements-system.md`**: Deep dive into database design, VM posting workflow & Material 3 UI for the sizing module.

@@ -1100,4 +1100,113 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
+
+    // Measurement & Sizing Feature Integration
+    val measurementHeaders = repository.measurementHeaders.stateIn(
+        viewModelScope, 
+        SharingStarted.WhileSubscribed(5000), 
+        emptyList()
+    )
+
+    fun getMeasurementLines(headerId: Long): Flow<List<MeasurementLine>> {
+        return repository.getMeasurementLinesForHeaderFlow(headerId)
+    }
+
+    suspend fun getMeasurementLinesSuspend(headerId: Long): List<MeasurementLine> {
+        return repository.getMeasurementLinesForHeader(headerId)
+    }
+
+    fun saveMeasurement(header: MeasurementHeader, lines: List<MeasurementLine>, onFinish: () -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                repository.saveMeasurement(header, lines)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم حفظ الفاتورة والمقاسات بنجاح" else "Measurements saved successfully!"
+                onFinish()
+            } catch (e: Exception) {
+                _uiMessage.value = if (currentLanguage.value == "ar") "فشل حفظ الفاتورة: ${e.localizedMessage}" else "Error saving sizing: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteMeasurement(header: MeasurementHeader) {
+        viewModelScope.launch {
+            try {
+                repository.deleteMeasurement(header)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم حذف الفاتورة بنجاح" else "Invoice deleted successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = e.localizedMessage
+            }
+        }
+    }
+
+    fun postMeasurementToLedger(header: MeasurementHeader) {
+        viewModelScope.launch {
+            try {
+                _uiMessage.value = if (currentLanguage.value == "ar") "جاري ترحيل مستند التمتير كقيد يومية..." else "Posting measurements to ledger..."
+                
+                val baseCurrency = repository.getBaseCurrency()
+                val activeFy = repository.getActiveFiscalYearsSuspend().firstOrNull() ?: throw IllegalStateException("No active fiscal year.")
+                
+                val revenueAccount = accounts.value.find { it.accountCode == "4101" } 
+                    ?: throw IllegalStateException("Revenue account Sales Income (4101) not found.")
+                
+                val voucherLinesList = listOf(
+                    VoucherLine(
+                        headerId = 0,
+                        accountId = header.accountId,
+                        debit = header.totalAmount,
+                        credit = 0L,
+                        currencyId = baseCurrency?.id ?: 1L,
+                        exchangeRate = 1.0,
+                        amountBase = header.totalAmount,
+                        memo = if (currentLanguage.value == "ar") "مستند تمتير ومقاسات #${header.id} للعميل: ${header.customerName}" else "Measurement Billing #${header.id} for: ${header.customerName}"
+                    ),
+                    VoucherLine(
+                        headerId = 0,
+                        accountId = revenueAccount.id,
+                        debit = 0L,
+                        credit = header.totalAmount,
+                        currencyId = baseCurrency?.id ?: 1L,
+                        exchangeRate = 1.0,
+                        amountBase = header.totalAmount,
+                        memo = if (currentLanguage.value == "ar") "إيرادات تمتير ومسافات رخام وزجاج للعميل ${header.customerName}" else "Booked sizing revenue for customer ${header.customerName}"
+                    )
+                )
+
+                val voucherNoCalculated = "M-" + System.currentTimeMillis().toString().takeLast(6)
+                val voucherHeader = VoucherHeader(
+                    voucherNo = voucherNoCalculated,
+                    date = header.date,
+                    type = VoucherType.JOURNAL,
+                    description = if (currentLanguage.value == "ar") "ترحيل الفاتورة التلقائية لمقاسات العميل: ${header.customerName}" else "Posted measurements billing for: ${header.customerName}",
+                    totalAmountBase = header.totalAmount,
+                    isPosted = true,
+                    fiscalYearId = activeFy.id
+                )
+
+                // Save balanced Voucher Draft first
+                val savedVoucherId = repository.saveDraftVoucher(voucherHeader, voucherLinesList)
+                
+                // Post the Voucher Draft
+                val result = repository.postVoucher(savedVoucherId)
+                if (result is com.example.util.VoucherValidationEngine.ValidationResult.Error) {
+                    throw IllegalStateException(result.message)
+                }
+                
+                // Update header as posted
+                val updatedHeader = header.copy(
+                    isPosted = true,
+                    voucherHeaderId = savedVoucherId
+                )
+                repository.updateMeasurementHeader(updatedHeader)
+                
+                // Recalculate balances Snapshot
+                repository.recalculateSnapshots()
+                
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم ترحيل الفاتورة بنجاح كقيد يومية رقم $voucherNoCalculated" else "Invoice posted successfully as Voucher $voucherNoCalculated!"
+            } catch (e: Exception) {
+                _uiMessage.value = if (currentLanguage.value == "ar") "فشل الترحيل للحسابات: ${e.localizedMessage}" else "Posting failed: ${e.localizedMessage}"
+            }
+        }
+    }
 }
