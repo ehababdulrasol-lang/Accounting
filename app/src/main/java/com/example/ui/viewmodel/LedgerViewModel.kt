@@ -72,12 +72,20 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val allBranches = repository.allBranches.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allBankAccounts = repository.allBankAccounts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val currentLanguage = MutableStateFlow("ar") // Set default to Arabic! Or Toggleable
-    val isLibyanMode = MutableStateFlow(true) // Set default to Libyan local style!
-    val isDarkMode = MutableStateFlow(true) // Track Dark Theme, true by default
-    val currentThemeStyle = MutableStateFlow(com.example.ui.theme.ThemeStyle.CLASSIC_SKY)
-
     private val prefs = application.getSharedPreferences("ledger_settings", android.content.Context.MODE_PRIVATE)
+
+    val currentLanguage = MutableStateFlow(prefs.getString("current_language", "ar") ?: "ar") // Set default to Arabic! Or Toggleable
+    val isLibyanMode = MutableStateFlow(prefs.getBoolean("is_libyan_mode", true)) // Set default to Libyan local style!
+    val isDarkMode = MutableStateFlow(prefs.getBoolean("is_dark_mode", true)) // Track Dark Theme, true by default
+    val currentThemeStyle = MutableStateFlow(
+        try {
+            com.example.ui.theme.ThemeStyle.valueOf(prefs.getString("theme_style", com.example.ui.theme.ThemeStyle.CLASSIC_SKY.name) ?: com.example.ui.theme.ThemeStyle.CLASSIC_SKY.name)
+        } catch (e: Exception) {
+            com.example.ui.theme.ThemeStyle.CLASSIC_SKY
+        }
+    )
+    val darkThemeConfig = MutableStateFlow(prefs.getString("dark_theme_config", "system") ?: "system")
+
     val officialExchangeRate = MutableStateFlow(prefs.getFloat("official_rate", 4.82f).toDouble())
     val parallelExchangeRate = MutableStateFlow(prefs.getFloat("parallel_rate", 7.15f).toDouble())
 
@@ -594,6 +602,55 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setThemeStyle(style: com.example.ui.theme.ThemeStyle) {
         currentThemeStyle.value = style
+    }
+
+    fun saveAppearanceSettings(lang: String, isLibyan: Boolean, style: com.example.ui.theme.ThemeStyle, themeConfig: String) {
+        currentLanguage.value = lang
+        isLibyanMode.value = isLibyan
+        currentThemeStyle.value = style
+        darkThemeConfig.value = themeConfig
+        
+        prefs.edit().apply {
+            putString("current_language", lang)
+            putBoolean("is_libyan_mode", isLibyan)
+            putString("theme_style", style.name)
+            putString("dark_theme_config", themeConfig)
+            putBoolean("is_dark_mode", when (themeConfig) {
+                "light" -> false
+                "dark" -> true
+                else -> true
+            })
+            apply()
+        }
+    }
+
+    fun saveBrandSettings(
+        orgAr: String,
+        orgEn: String,
+        descAr: String,
+        descEn: String,
+        logoText: String,
+        prAr: String,
+        prEn: String
+    ) {
+        orgNameAr.value = orgAr
+        orgNameEn.value = orgEn
+        userDescAr.value = descAr
+        userDescEn.value = descEn
+        logoConfig.value = logoText
+        printDetailsAr.value = prAr
+        printDetailsEn.value = prEn
+
+        prefs.edit().apply {
+            putString("org_name_ar", orgAr)
+            putString("org_name_en", orgEn)
+            putString("user_desc_ar", descAr)
+            putString("user_desc_en", descEn)
+            putString("logo_config", logoText)
+            putString("print_details_ar", prAr)
+            putString("print_details_en", prEn)
+            apply()
+        }
     }
 
     private fun getRecursiveSubAccountIds(accountId: Long, allAccounts: List<Account>): Set<Long> {

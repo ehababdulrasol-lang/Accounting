@@ -44,11 +44,17 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
-            val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+            val darkThemeConfig by viewModel.darkThemeConfig.collectAsStateWithLifecycle()
             val themeStyle by viewModel.currentThemeStyle.collectAsStateWithLifecycle()
+            val systemInDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val resolvedDark = when (darkThemeConfig) {
+                "light" -> false
+                "dark" -> true
+                else -> systemInDark
+            }
             val direction = com.example.ui.Localization.getLayoutDirection(lang)
             androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides direction) {
-                MyApplicationTheme(darkTheme = isDarkMode, style = themeStyle) {
+                MyApplicationTheme(darkTheme = resolvedDark, style = themeStyle) {
                     MainLayout(viewModel)
                 }
             }

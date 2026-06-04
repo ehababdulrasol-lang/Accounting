@@ -54,6 +54,33 @@ fun SettingsScreen(
     val fullLogs by viewModel.auditLogs.collectAsStateWithLifecycle()
     val currencies by viewModel.currencies.collectAsStateWithLifecycle()
 
+    val currentLang = lang
+    val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
+    val currentThemeStyle by viewModel.currentThemeStyle.collectAsStateWithLifecycle()
+    val darkThemeConfig by viewModel.darkThemeConfig.collectAsStateWithLifecycle()
+
+    val currentOrgAr by viewModel.orgNameAr.collectAsStateWithLifecycle()
+    val currentOrgEn by viewModel.orgNameEn.collectAsStateWithLifecycle()
+    val currentDescAr by viewModel.userDescAr.collectAsStateWithLifecycle()
+    val currentDescEn by viewModel.userDescEn.collectAsStateWithLifecycle()
+    val logoText by viewModel.logoConfig.collectAsStateWithLifecycle()
+    val logoImageUri by viewModel.logoImageUri.collectAsStateWithLifecycle()
+    val prAr by viewModel.printDetailsAr.collectAsStateWithLifecycle()
+    val prEn by viewModel.printDetailsEn.collectAsStateWithLifecycle()
+
+    var tempLanguage by remember(currentLang) { mutableStateOf(currentLang) }
+    var tempIsLibyan by remember(isLibyan) { mutableStateOf(isLibyan) }
+    var tempThemeStyle by remember(currentThemeStyle) { mutableStateOf(currentThemeStyle) }
+    var tempThemeConfig by remember(darkThemeConfig) { mutableStateOf(darkThemeConfig) }
+
+    var tempOrgAr by remember(currentOrgAr) { mutableStateOf(currentOrgAr) }
+    var tempOrgEn by remember(currentOrgEn) { mutableStateOf(currentOrgEn) }
+    var tempDescAr by remember(currentDescAr) { mutableStateOf(currentDescAr) }
+    var tempDescEn by remember(currentDescEn) { mutableStateOf(currentDescEn) }
+    var tempLogoText by remember(logoText) { mutableStateOf(logoText) }
+    var tempPrAr by remember(prAr) { mutableStateOf(prAr) }
+    var tempPrEn by remember(prEn) { mutableStateOf(prEn) }
+
     val context = LocalContext.current
     val localBackups by viewModel.localBackups.collectAsStateWithLifecycle()
 
@@ -342,15 +369,6 @@ fun SettingsScreen(
                 4 -> {
                     // TAB 4: APP IDENTITY & PRINT CUSTOMIZATION
                     item {
-                        val orgAr by viewModel.orgNameAr.collectAsStateWithLifecycle()
-                        val orgEn by viewModel.orgNameEn.collectAsStateWithLifecycle()
-                        val descAr by viewModel.userDescAr.collectAsStateWithLifecycle()
-                        val descEn by viewModel.userDescEn.collectAsStateWithLifecycle()
-                        val logoText by viewModel.logoConfig.collectAsStateWithLifecycle()
-                        val logoImageUri by viewModel.logoImageUri.collectAsStateWithLifecycle()
-                        val prAr by viewModel.printDetailsAr.collectAsStateWithLifecycle()
-                        val prEn by viewModel.printDetailsEn.collectAsStateWithLifecycle()
-
                         val imagePickerLauncher = rememberLauncherForActivityResult(
                             contract = ActivityResultContracts.GetContent()
                         ) { uri ->
@@ -431,7 +449,7 @@ fun SettingsScreen(
                                                 )
                                             } else {
                                                 Text(
-                                                    text = logoText,
+                                                    text = tempLogoText,
                                                     style = MaterialTheme.typography.headlineMedium
                                                 )
                                             }
@@ -494,8 +512,8 @@ fun SettingsScreen(
 
                                     // Fast emoji/text fallback input
                                     OutlinedTextField(
-                                        value = logoText,
-                                        onValueChange = { viewModel.updateLogoConfig(it) },
+                                        value = tempLogoText,
+                                        onValueChange = { tempLogoText = it },
                                         label = { Text(text = if (lang == "ar") "رمز الرمز التعبيري الاحتياطي (إيموجي)" else "Backup Emoji/Initials Logo") },
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -517,8 +535,8 @@ fun SettingsScreen(
                                     )
 
                                     OutlinedTextField(
-                                        value = orgAr,
-                                        onValueChange = { viewModel.updateOrgNameAr(it) },
+                                        value = tempOrgAr,
+                                        onValueChange = { tempOrgAr = it },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .testTag("org_name_ar_input"),
@@ -528,8 +546,8 @@ fun SettingsScreen(
                                     )
 
                                     OutlinedTextField(
-                                        value = orgEn,
-                                        onValueChange = { viewModel.updateOrgNameEn(it) },
+                                        value = tempOrgEn,
+                                        onValueChange = { tempOrgEn = it },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .testTag("org_name_en_input"),
@@ -549,8 +567,8 @@ fun SettingsScreen(
                                     )
 
                                     OutlinedTextField(
-                                        value = descAr,
-                                        onValueChange = { viewModel.updateUserDescAr(it) },
+                                        value = tempDescAr,
+                                        onValueChange = { tempDescAr = it },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .testTag("user_desc_ar_input"),
@@ -560,8 +578,8 @@ fun SettingsScreen(
                                     )
 
                                     OutlinedTextField(
-                                        value = descEn,
-                                        onValueChange = { viewModel.updateUserDescEn(it) },
+                                        value = tempDescEn,
+                                        onValueChange = { tempDescEn = it },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .testTag("user_desc_en_input"),
@@ -581,8 +599,8 @@ fun SettingsScreen(
                                     )
 
                                     OutlinedTextField(
-                                        value = prAr,
-                                        onValueChange = { viewModel.updatePrintDetailsAr(it) },
+                                        value = tempPrAr,
+                                        onValueChange = { tempPrAr = it },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .testTag("print_details_ar_input"),
@@ -592,8 +610,8 @@ fun SettingsScreen(
                                     )
 
                                     OutlinedTextField(
-                                        value = prEn,
-                                        onValueChange = { viewModel.updatePrintDetailsEn(it) },
+                                        value = tempPrEn,
+                                        onValueChange = { tempPrEn = it },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .testTag("print_details_en_input"),
@@ -602,11 +620,50 @@ fun SettingsScreen(
                                         shape = RoundedCornerShape(8.dp)
                                     )
                                 }
-                            }
-                        }
-                    }
-                }
-                0 -> {
+
+                                Spacer(Modifier.height(10.dp))
+
+                                // THE SAVE BUTTON
+                                Button(
+                                    onClick = {
+                                        viewModel.saveBrandSettings(
+                                            orgAr = tempOrgAr,
+                                            orgEn = tempOrgEn,
+                                            descAr = tempDescAr,
+                                            descEn = tempDescEn,
+                                            logoText = tempLogoText,
+                                            prAr = tempPrAr,
+                                            prEn = tempPrEn
+                                        )
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (lang == "ar") "تم حفظ الهوية والتفاصيل بنجاح!" else "Identity and headers saved successfully!",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                     modifier = Modifier
+                                         .fillMaxWidth()
+                                         .height(52.dp)
+                                         .testTag("save_brand_settings_button"),
+                                     shape = RoundedCornerShape(12.dp),
+                                     colors = ButtonDefaults.buttonColors(
+                                         containerColor = MaterialTheme.colorScheme.primary,
+                                         contentColor = MaterialTheme.colorScheme.onPrimary
+                                     )
+                                 ) {
+                                     Icon(Icons.Filled.Save, contentDescription = null)
+                                     Spacer(Modifier.width(8.dp))
+                                     Text(
+                                         text = if (lang == "ar") "حفظ هوية التطبيق والمستندات" else "Save Brand Settings & Headers",
+                                         fontWeight = FontWeight.Bold,
+                                         style = MaterialTheme.typography.titleMedium
+                                     )
+                                 }
+                             }
+                         }
+                     }
+                 }
+                 0 -> {
                     // TAB 0: INTERFACE & APPEARANCE
                             // Language Card
                             item {
@@ -640,15 +697,15 @@ fun SettingsScreen(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(if (lang == "ar") MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                                    .border(1.dp, if (lang == "ar") MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                    .clickable { viewModel.setLanguage("ar") }
+                                                    .background(if (tempLanguage == "ar") MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                                    .border(1.dp, if (tempLanguage == "ar") MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .clickable { tempLanguage = "ar" }
                                                     .padding(12.dp)
                                                     .testTag("lang_toggle_ar"),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.Center
                                             ) {
-                                                RadioButton(selected = lang == "ar", onClick = { viewModel.setLanguage("ar") })
+                                                RadioButton(selected = tempLanguage == "ar", onClick = { tempLanguage = "ar" })
                                                 Spacer(Modifier.width(8.dp))
                                                 Text("العربية (RTL)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                                             }
@@ -658,15 +715,15 @@ fun SettingsScreen(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(if (lang == "en") MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                                    .border(1.dp, if (lang == "en") MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                    .clickable { viewModel.setLanguage("en") }
+                                                    .background(if (tempLanguage == "en") MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                                    .border(1.dp, if (tempLanguage == "en") MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .clickable { tempLanguage = "en" }
                                                     .padding(12.dp)
                                                     .testTag("lang_toggle_en"),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.Center
                                             ) {
-                                                RadioButton(selected = lang == "en", onClick = { viewModel.setLanguage("en") })
+                                                RadioButton(selected = tempLanguage == "en", onClick = { tempLanguage = "en" })
                                                 Spacer(Modifier.width(8.dp))
                                                 Text("English (LTR)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                                             }
@@ -677,7 +734,6 @@ fun SettingsScreen(
 
                             // Accounting Mode Toggle Card
                             item {
-                                val isLibyan by viewModel.isLibyanMode.collectAsStateWithLifecycle()
                                 Card(
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth().testTag("accounting_mode_card"),
@@ -714,15 +770,15 @@ fun SettingsScreen(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(if (isLibyan) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                                    .border(1.dp, if (isLibyan) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                    .clickable { viewModel.setLibyanMode(true) }
+                                                    .background(if (tempIsLibyan) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                                    .border(1.dp, if (tempIsLibyan) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .clickable { tempIsLibyan = true }
                                                     .padding(12.dp)
                                                     .testTag("mode_toggle_libyan"),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.Center
                                             ) {
-                                                RadioButton(selected = isLibyan, onClick = { viewModel.setLibyanMode(true) })
+                                                RadioButton(selected = tempIsLibyan, onClick = { tempIsLibyan = true })
                                                 Spacer(Modifier.width(8.dp))
                                                 Text(
                                                     text = if (lang == "ar") "د.ل (الليبي)" else "LYD Style",
@@ -736,15 +792,15 @@ fun SettingsScreen(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(if (!isLibyan) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                                    .border(1.dp, if (!isLibyan) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                    .clickable { viewModel.setLibyanMode(false) }
+                                                    .background(if (!tempIsLibyan) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                                    .border(1.dp, if (!tempIsLibyan) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .clickable { tempIsLibyan = false }
                                                     .padding(12.dp)
                                                     .testTag("mode_toggle_normal"),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.Center
                                             ) {
-                                                RadioButton(selected = !isLibyan, onClick = { viewModel.setLibyanMode(false) })
+                                                RadioButton(selected = !tempIsLibyan, onClick = { tempIsLibyan = false })
                                                 Spacer(Modifier.width(8.dp))
                                                 Text(
                                                     text = if (lang == "ar") "العالمي (العادي)" else "Normal Style",
@@ -759,7 +815,6 @@ fun SettingsScreen(
 
                             // Theme Mode Card
                             item {
-                                val isDark by viewModel.isDarkMode.collectAsStateWithLifecycle()
                                 Card(
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth().testTag("theme_mode_card"),
@@ -782,56 +837,81 @@ fun SettingsScreen(
                                         }
 
                                         Text(
-                                            text = Localization.translate(Localization.Key.THEME_DESC, lang),
+                                            text = if (lang == "ar") "التبديل الفوري بين المظهر الليلي الداكن المريح للأعين أو النمط النهاري المضيء المريح أو اتباع نظام الجهاز التلقائي." else "Toggle between dedicated low-light dark workspace, high-contrast light desktop, or system defaults.",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                         )
 
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            // Dark Mode Option
+                                            // Dark Option
+                                            val isDarkSelected = tempThemeConfig == "dark"
                                             Row(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(if (isDark) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                                    .border(1.dp, if (isDark) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                    .clickable { viewModel.setDarkMode(true) }
-                                                    .padding(12.dp)
+                                                    .background(if (isDarkSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                                    .border(1.dp, if (isDarkSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .clickable { tempThemeConfig = "dark" }
+                                                    .padding(8.dp)
                                                     .testTag("theme_toggle_dark"),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.Center
                                             ) {
-                                                RadioButton(selected = isDark, onClick = { viewModel.setDarkMode(true) })
-                                                Spacer(Modifier.width(8.dp))
+                                                RadioButton(selected = isDarkSelected, onClick = { tempThemeConfig = "dark" })
+                                                Spacer(Modifier.width(4.dp))
                                                 Text(
-                                                    text = Localization.translate(Localization.Key.DARK_MODE, lang),
+                                                    text = if (lang == "ar") "داكن" else "Dark",
                                                     fontWeight = FontWeight.Bold,
-                                                    style = MaterialTheme.typography.bodyMedium
+                                                    style = MaterialTheme.typography.bodySmall
                                                 )
                                             }
 
-                                            // Light Mode Option
+                                            // Light Option
+                                            val isLightSelected = tempThemeConfig == "light"
                                             Row(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(if (!isDark) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                                    .border(1.dp, if (!isDark) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                    .clickable { viewModel.setDarkMode(false) }
-                                                    .padding(12.dp)
+                                                    .background(if (isLightSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                                    .border(1.dp, if (isLightSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .clickable { tempThemeConfig = "light" }
+                                                    .padding(8.dp)
                                                     .testTag("theme_toggle_light"),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.Center
                                             ) {
-                                                RadioButton(selected = !isDark, onClick = { viewModel.setDarkMode(false) })
-                                                Spacer(Modifier.width(8.dp))
+                                                RadioButton(selected = isLightSelected, onClick = { tempThemeConfig = "light" })
+                                                Spacer(Modifier.width(4.dp))
                                                 Text(
-                                                    text = Localization.translate(Localization.Key.LIGHT_MODE, lang),
+                                                    text = if (lang == "ar") "فاتح" else "Light",
                                                     fontWeight = FontWeight.Bold,
-                                                    style = MaterialTheme.typography.bodyMedium
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+
+                                            // System Option
+                                            val isSystemSelected = tempThemeConfig == "system"
+                                            Row(
+                                                modifier = Modifier
+                                                    .weight(1.4f)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(if (isSystemSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                                    .border(1.dp, if (isSystemSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .clickable { tempThemeConfig = "system" }
+                                                    .padding(8.dp)
+                                                    .testTag("theme_toggle_system"),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                RadioButton(selected = isSystemSelected, onClick = { tempThemeConfig = "system" })
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    text = if (lang == "ar") "تلقائي" else "System",
+                                                    fontWeight = FontWeight.Bold,
+                                                    style = MaterialTheme.typography.bodySmall
                                                 )
                                             }
                                         }
@@ -841,7 +921,6 @@ fun SettingsScreen(
 
                             // Accent Palette Card
                             item {
-                                val currentStyle by viewModel.currentThemeStyle.collectAsStateWithLifecycle()
                                 Card(
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth().testTag("theme_style_card"),
@@ -886,14 +965,14 @@ fun SettingsScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                                             ) {
                                                 styles.take(3).forEach { (style, name, accentColor) ->
-                                                    val isSelected = currentStyle == style
+                                                    val isSelected = tempThemeStyle == style
                                                     Column(
                                                         modifier = Modifier
                                                             .weight(1f)
                                                             .clip(RoundedCornerShape(8.dp))
                                                             .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                                             .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                            .clickable { viewModel.setThemeStyle(style) }
+                                                            .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                            .clickable { tempThemeStyle = style }
                                                             .padding(8.dp),
                                                         horizontalAlignment = Alignment.CenterHorizontally,
                                                         verticalArrangement = Arrangement.Center
@@ -919,29 +998,29 @@ fun SettingsScreen(
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                             ) {
+                                            ) {
                                                 styles.drop(3).forEach { (style, name, accentColor) ->
-                                                    val isSelected = currentStyle == style
+                                                    val isSelected = tempThemeStyle == style
                                                     Column(
                                                         modifier = Modifier
                                                             .weight(1f)
-                                                             .clip(RoundedCornerShape(8.dp))
+                                                            .clip(RoundedCornerShape(8.dp))
                                                             .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
                                                             .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                             .clickable { viewModel.setThemeStyle(style) }
+                                                            .clickable { tempThemeStyle = style }
                                                             .padding(8.dp),
-                                                         horizontalAlignment = Alignment.CenterHorizontally,
+                                                        horizontalAlignment = Alignment.CenterHorizontally,
                                                         verticalArrangement = Arrangement.Center
                                                     ) {
                                                         Box(
-                                                             modifier = Modifier
+                                                            modifier = Modifier
                                                                 .size(24.dp)
                                                                 .clip(RoundedCornerShape(12.dp))
                                                                 .background(accentColor)
                                                         )
                                                         Spacer(Modifier.height(4.dp))
                                                         Text(
-                                                             text = name,
+                                                            text = name,
                                                             style = MaterialTheme.typography.labelSmall,
                                                             fontWeight = FontWeight.Bold,
                                                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
@@ -955,6 +1034,42 @@ fun SettingsScreen(
                                     }
                                 }
                             }
+
+                            // THE SAVE BUTTON
+                            item {
+                                Spacer(Modifier.height(10.dp))
+                                Button(
+                                    onClick = {
+                                        viewModel.saveAppearanceSettings(
+                                            lang = tempLanguage,
+                                            isLibyan = tempIsLibyan,
+                                            style = tempThemeStyle,
+                                            themeConfig = tempThemeConfig
+                                        )
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (tempLanguage == "ar") "تم حفظ إعدادات المظهر واللغة بنجاح!" else "Appearance and language saved successfully!",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(52.dp)
+                                        .testTag("save_appearance_settings_button"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                ) {
+                                    Icon(Icons.Filled.Save, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = if (tempLanguage == "ar") "حفظ إعدادات المظهر واللغة" else "Save Appearance & Theme",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
                         }
 
                         1 -> {
