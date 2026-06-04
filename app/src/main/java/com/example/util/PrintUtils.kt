@@ -1009,4 +1009,263 @@ object PrintUtils {
 
         printHtml(context, getHtmlTemplate(body, isAr), "cash_flow_print")
     }
+
+    fun printCustomersReport(
+        context: Context,
+        customers: List<Customer>,
+        allAccounts: List<Account>,
+        snapshots: List<AccountBalanceSnapshot>,
+        lang: String
+    ) {
+        val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        val title = if (isAr) "تقرير كشف أرصدة العملاء التفصيلي" else "Detailed Customers Balance Report"
+
+        val rowsHtml = StringBuilder()
+        var totalOutstanding = 0L
+        customers.forEach { customer ->
+            val linkedAcc = allAccounts.find { it.id == customer.accountId }
+            val balance = snapshots.find { it.accountId == customer.accountId }?.balance ?: 0L
+            totalOutstanding += balance
+            
+            rowsHtml.append("""
+                <tr>
+                    <td>${customer.name}</td>
+                    <td>${customer.phone.ifEmpty { "-" }}</td>
+                    <td>${customer.groupName.ifEmpty { if (isAr) "عام" else "General" }}</td>
+                    <td>${linkedAcc?.accountCode ?: "-"} / ${Localization.getAccountName(linkedAcc?.accountCode ?: "", linkedAcc?.name ?: "", lang)}</td>
+                    <td class="text-right" style="font-weight:bold;">${FinancialUtils.formatBase(balance)}</td>
+                </tr>
+            """.trimIndent())
+        }
+
+        val body = """
+            <div class="header-container">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
+                    </div>
+                </div>
+                <div class="header-meta">
+                    <strong>$brandOrg</strong><br>
+                    ${if (isAr) "تاريخ التصفية:" else "Issued Date:"} ${formatDate(System.currentTimeMillis())}
+                </div>
+            </div>
+
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>${if (isAr) "الاسم" else "Name"}</th>
+                        <th>${if (isAr) "الهاتف" else "Phone"}</th>
+                        <th>${if (isAr) "التصنيف" else "Category Group"}</th>
+                        <th>${if (isAr) "الحساب الدفتري" else "General Ledger Account"}</th>
+                        <th class="text-right">${if (isAr) "الرصيد د.ل" else "Oustanding LYD"}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    $rowsHtml
+                    <tr style="background-color: #f1f0f5; font-weight: bold; font-size:13px;">
+                        <td colspan="4">${if (isAr) "إجمالي الذمم المدينة المستحقة" else "Total Outstanding Receivables"}</td>
+                        <td class="text-right" style="color:#0d8343;">${FinancialUtils.formatBase(totalOutstanding)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="footer-signatures" style="margin-top:50px;">
+                <div class="sig-block">
+                    <strong>${if (isAr) "إعداد وتدقيق الشؤون المالية" else "Finance Auditor Verification"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+                <div class="sig-block">
+                    <strong>&nbsp;</strong>
+                </div>
+                <div class="sig-block">
+                    <strong>${if (isAr) "الاعتماد والختم الرسمي" else "Official Seal of Approval"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+        """.trimIndent()
+
+        printHtml(context, getHtmlTemplate(body, isAr), "customers_report_print")
+    }
+
+    fun printSuppliersReport(
+        context: Context,
+        suppliers: List<Supplier>,
+        allAccounts: List<Account>,
+        snapshots: List<AccountBalanceSnapshot>,
+        lang: String
+    ) {
+        val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        val title = if (isAr) "تقرير كشف أرصدة الموردين وحسابات الدائنين" else "Detailed Suppliers Accounts Payable Report"
+
+        val rowsHtml = StringBuilder()
+        var totalPayable = 0L
+        suppliers.forEach { supplier ->
+            val linkedAcc = allAccounts.find { it.id == supplier.accountId }
+            val balance = snapshots.find { it.accountId == supplier.accountId }?.balance ?: 0L
+            val revBalance = if (balance != 0L) -balance else 0L
+            totalPayable += revBalance
+            
+            rowsHtml.append("""
+                <tr>
+                    <td>${supplier.name}</td>
+                    <td>${supplier.phone.ifEmpty { "-" }}</td>
+                    <td>${supplier.groupName.ifEmpty { if (isAr) "مورد عام" else "General Supplier" }}</td>
+                    <td>${linkedAcc?.accountCode ?: "-"} / ${Localization.getAccountName(linkedAcc?.accountCode ?: "", linkedAcc?.name ?: "", lang)}</td>
+                    <td class="text-right" style="font-weight:bold; color: #b71c1c;">${FinancialUtils.formatBase(revBalance)}</td>
+                </tr>
+            """.trimIndent())
+        }
+
+        val body = """
+            <div class="header-container">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
+                    </div>
+                </div>
+                <div class="header-meta">
+                    <strong>$brandOrg</strong><br>
+                    ${if (isAr) "تاريخ الإصدار:" else "Issued Date:"} ${formatDate(System.currentTimeMillis())}
+                </div>
+            </div>
+
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>${if (isAr) "الاسم" else "Supplier Name"}</th>
+                        <th>${if (isAr) "الهاتف" else "Phone"}</th>
+                        <th>${if (isAr) "التصنيف" else "Category Group"}</th>
+                        <th>${if (isAr) "الحساب الدفتري" else "General Ledger Account"}</th>
+                        <th class="text-right">${if (isAr) "الرصيد المستحق د.ل" else "Payable LYD"}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    $rowsHtml
+                    <tr style="background-color: #f1f0f5; font-weight: bold; font-size:13px;">
+                        <td colspan="4">${if (isAr) "إجمالي مستحقات الدفع للموردين" else "Total Accounts Payable"}</td>
+                        <td class="text-right" style="color:#c5221f;">${FinancialUtils.formatBase(totalPayable)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="footer-signatures" style="margin-top:50px;">
+                <div class="sig-block">
+                    <strong>${if (isAr) "إعداد وتدقيق الشؤون المالية" else "Finance Auditor Verification"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+                <div class="sig-block">
+                    <strong>&nbsp;</strong>
+                </div>
+                <div class="sig-block">
+                    <strong>${if (isAr) "الاعتماد والختم الرسمي" else "Official Seal of Approval"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+        """.trimIndent()
+
+        printHtml(context, getHtmlTemplate(body, isAr), "suppliers_report_print")
+    }
+
+    fun printBanksReport(
+        context: Context,
+        banks: List<Bank>,
+        allBranches: List<BankBranch>,
+        allBankAccounts: List<BankAccount>,
+        allAccounts: List<Account>,
+        snapshots: List<AccountBalanceSnapshot>,
+        lang: String
+    ) {
+        val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        val title = if (isAr) "كشف الحسابات المصرفية والأرصدة للبنوك" else "Detailed Bank Accounts Balances Report"
+
+        val rowsHtml = StringBuilder()
+        var totalAssets = 0L
+
+        banks.forEach { bank ->
+            val branches = allBranches.filter { it.bankId == bank.id }
+            branches.forEach { branch ->
+                val bankAccounts = allBankAccounts.filter { it.branchId == branch.id }
+                bankAccounts.forEach { bAcc ->
+                    val linkedAcc = allAccounts.find { it.id == bAcc.accountId }
+                    val balance = snapshots.find { it.accountId == bAcc.accountId }?.balance ?: 0L
+                    totalAssets += balance
+
+                    rowsHtml.append("""
+                        <tr>
+                            <td><strong>${bank.name}</strong></td>
+                            <td>${branch.name}</td>
+                            <td>${bAcc.accountName} <br><small style="color:#666;">${bAcc.accountNumber}</small></td>
+                            <td>${linkedAcc?.accountCode ?: "-"} / ${Localization.getAccountName(linkedAcc?.accountCode ?: "", linkedAcc?.name ?: "", lang)}</td>
+                            <td class="text-right" style="font-weight:bold; color: #0d8343;">${FinancialUtils.formatBase(balance)}</td>
+                        </tr>
+                    """.trimIndent())
+                }
+            }
+        }
+
+        val body = """
+            <div class="header-container">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
+                    </div>
+                </div>
+                <div class="header-meta">
+                    <strong>$brandOrg</strong><br>
+                    ${if (isAr) "تاريخ الجرد:" else "Prepared On:"} ${formatDate(System.currentTimeMillis())}
+                </div>
+            </div>
+
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>${if (isAr) "البنك" else "Bank"}</th>
+                        <th>${if (isAr) "الفرع" else "Branch"}</th>
+                        <th>${if (isAr) "تفاصيل الحساب" else "Bank Account details"}</th>
+                        <th>${if (isAr) "الحساب المالي الدفتري" else "General Ledger Link"}</th>
+                        <th class="text-right">${if (isAr) "الرصيد الفعلي د.ل" else "Balance LYD"}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${if (rowsHtml.isNotEmpty()) rowsHtml else "<tr><td colspan='5' class='text-center'>${if (isAr) "لا توجد حسابات مصرفية مسجلة" else "No bank accounts registered"}</td></tr>"}
+                    <tr style="background-color: #f1f0f5; font-weight: bold; font-size:13px;">
+                        <td colspan="4">${if (isAr) "إجمالي الأرصدة والسيولة بالبنوك" else "Total Cash at Bank Balance"}</td>
+                        <td class="text-right" style="color:#0d8343;">${FinancialUtils.formatBase(totalAssets)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="footer-signatures" style="margin-top:50px;">
+                <div class="sig-block">
+                    <strong>${if (isAr) "إعداد وتطابق إدارة الخزينة" else "Treasury Department Representative"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+                <div class="sig-block">
+                    <strong>&nbsp;</strong>
+                </div>
+                <div class="sig-block">
+                    <strong>${if (isAr) "التوقيع والاعتماد المفوض" else "Official Seal of Approval"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+        """.trimIndent()
+
+        printHtml(context, getHtmlTemplate(body, isAr), "banks_report_print")
+    }
 }

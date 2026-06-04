@@ -20,6 +20,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.data.Account
 import com.example.data.AccountType
+import com.example.data.Customer
+import com.example.data.Supplier
+import com.example.data.BankAccount
+import androidx.compose.foundation.clickable
 import com.example.ui.Localization
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.CorporateAmethyst
@@ -35,8 +39,12 @@ fun ReportsScreen(
     modifier: Modifier = Modifier,
     forcedTab: Int? = null
 ) {
-    var activeTab by remember { mutableStateOf(forcedTab ?: 0) } // 0 = Trial Balance, 1 = Balance Sheet, 2 = Income Statement, 3 = Cash Flow
+    var activeTab by remember { mutableStateOf(forcedTab ?: 0) } // Tabs: 0 = Trial Balance, 1 = Balance Sheet, 2 = Income Statement, 3 = Cash Flow, 4 = Customers, 5 = Suppliers, 6 = Banks
     val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+
+    var activeDetailCustomer by remember { mutableStateOf<com.example.data.Customer?>(null) }
+    var activeDetailSupplier by remember { mutableStateOf<com.example.data.Supplier?>(null) }
+    var activeDetailBank by remember { mutableStateOf<com.example.data.BankAccount?>(null) }
 
     LaunchedEffect(forcedTab) {
         if (forcedTab != null) {
@@ -49,79 +57,126 @@ fun ReportsScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        val customTitle = when (activeTab) {
-            0 -> Localization.translate(Localization.Key.TRIAL_BALANCE, lang)
-            1 -> Localization.translate(Localization.Key.BALANCE_SHEET, lang)
-            2 -> Localization.translate(Localization.Key.INCOME_STATEMENT, lang)
-            3 -> if (lang == "ar") "كشف الأنشطة والتدفقات النقدية" else "Statement of Cash Flows (IAS 7)"
-            else -> Localization.translate(Localization.Key.FINANCIAL_STATEMENTS, lang)
-        }
-        val customSubtitle = when (activeTab) {
-            0 -> if (lang == "ar") "ميزان المراجعة غير المعدل بالأرصدة وحركات الفترة تتبعاً لقييد اليومية" else "Verify balanced summary of debits and credits from active transactions"
-            1 -> if (lang == "ar") "معاينة هيكل المركز المالي السنوي متضمناً الأصول والمسؤوليات وحقوق الملكية" else "Review company assets, liabilities, and owner's equity balances"
-            2 -> if (lang == "ar") "تقرير الأرباح والخسائر والأنشطة التشغيلية والإيرادات وصافي الدخول" else "Measure financial performance, sales, expenses, and net profit/loss"
-            3 -> if (lang == "ar") "تقرير مباشر يوضح النقد ومعادلاته عبر الأنشطة التشغيلية والاستثمارية والتمويلية" else "Direct-method statements showcasing Operating, Investing, and Financing flows"
-            else -> if (lang == "ar") "تنفيذ حسابات الأرصدة في الوقت الفعلي المتوافقة مع المعايير الدولية (IFRS) مباشرة من قيود اليومية المزدوجة المتوازنة." else "IFRS-compliant, real-time balance calculations derived directly from balanced double-entries."
-        }
-
-        Text(
-            text = customTitle,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Text(
-            text = customSubtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        if (forcedTab == null) {
-            ScrollableTabRow(
-                selectedTabIndex = activeTab,
-                edgePadding = 0.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-            ) {
-                Tab(
-                    selected = activeTab == 0,
-                    onClick = { activeTab = 0 },
-                    text = { Text(Localization.translate(Localization.Key.TRIAL_BALANCE, lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
-                    icon = { Icon(Icons.Filled.AccountBalance, null) }
-                )
-                Tab(
-                    selected = activeTab == 1,
-                    onClick = { activeTab = 1 },
-                    text = { Text(Localization.translate(Localization.Key.BALANCE_SHEET, lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
-                    icon = { Icon(Icons.Filled.Assessment, null) }
-                )
-                Tab(
-                    selected = activeTab == 2,
-                    onClick = { activeTab = 2 },
-                    text = { Text(Localization.translate(Localization.Key.INCOME_STATEMENT, lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
-                    icon = { Icon(Icons.Filled.TrendingUp, null) }
-                )
-                Tab(
-                    selected = activeTab == 3,
-                    onClick = { activeTab = 3 },
-                    text = { Text(if (lang == "ar") "التدفقات النقدية" else "Cash Flows", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
-                    icon = { Icon(Icons.Filled.SwapHoriz, null) }
-                )
+        if (activeDetailCustomer != null) {
+            CustomerStatementView(
+                customer = activeDetailCustomer!!,
+                viewModel = viewModel,
+                onBack = { activeDetailCustomer = null }
+            )
+        } else if (activeDetailSupplier != null) {
+            SupplierStatementView(
+                supplier = activeDetailSupplier!!,
+                viewModel = viewModel,
+                onBack = { activeDetailSupplier = null }
+            )
+        } else if (activeDetailBank != null) {
+            BankStatementView(
+                bankAccount = activeDetailBank!!,
+                viewModel = viewModel,
+                onBack = { activeDetailBank = null }
+            )
+        } else {
+            val customTitle = when (activeTab) {
+                0 -> Localization.translate(Localization.Key.TRIAL_BALANCE, lang)
+                1 -> Localization.translate(Localization.Key.BALANCE_SHEET, lang)
+                2 -> Localization.translate(Localization.Key.INCOME_STATEMENT, lang)
+                3 -> if (lang == "ar") "كشف الأنشطة والتدفقات النقدية" else "Statement of Cash Flows (IAS 7)"
+                4 -> if (lang == "ar") "كشف أرصدة العملاء والذمم المدينة" else "Customer Balances & Receivables Trail"
+                5 -> if (lang == "ar") "كشف أرصدة الموردين والالتزامات" else "Supplier Outstanding Balances"
+                6 -> if (lang == "ar") "كشف الحسابات البنكية والسيولة النقدية" else "Bank Accounts & Liquidity Balances"
+                else -> Localization.translate(Localization.Key.FINANCIAL_STATEMENTS, lang)
+            }
+            val customSubtitle = when (activeTab) {
+                0 -> if (lang == "ar") "ميزان المراجعة غير المعدل بالأرصدة وحركات الفترة تتبعاً لقييد اليومية" else "Verify balanced summary of debits and credits from active transactions"
+                1 -> if (lang == "ar") "معاينة هيكل المركز المالي السنوي متضمناً الأصول والمسؤوليات وحقوق الملكية" else "Review company assets, liabilities, and owner's equity balances"
+                2 -> if (lang == "ar") "تقرير الأرباح والخسائر والأنشطة التشغيلية والإيرادات وصافي الدخول" else "Measure financial performance, sales, expenses, and net profit/loss"
+                3 -> if (lang == "ar") "تقرير مباشر يوضح النقد ومعادلاته عبر الأنشطة التشغيلية والاستثمارية والتمويلية" else "Direct-method statements showcasing Operating, Investing, and Financing flows"
+                4 -> if (lang == "ar") "فحص جرد تفصيلي لمجموعات وديون العملاء وتدقيق أرصدتهم المستحقة للتسوية المباشرة." else "Detailed summary of outstanding balances across customer segment folders."
+                5 -> if (lang == "ar") "متابعة ديون ومطالبات الموردين وحسابات الدائنون لسهولة سداد الالتزامات والجدولة." else "Track upcoming payables for supplier accounts, optimizing settlement and vendor relations."
+                6 -> if (lang == "ar") "سيولة الشركة وتوزيعها الفعلي في البنوك الاستثمارية والتجارية مع موازنة الحسابات الجارية." else "Real-time summary of bank accounts, IBANs, and ledger reconciliation balances per branch."
+                else -> if (lang == "ar") "تنفيذ حسابات الأرصدة في الوقت الفعلي المتوافقة مع المعايير الدولية (IFRS) مباشرة من قيود اليومية المزدوجة المتوازنة." else "IFRS-compliant, real-time balance calculations derived directly from balanced double-entries."
             }
 
-            Spacer(Modifier.height(16.dp))
-        } else {
-            Spacer(Modifier.height(8.dp))
-        }
+            Text(
+                text = customTitle,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = customSubtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
 
-        when (activeTab) {
-            0 -> TrialBalanceView(viewModel)
-            1 -> BalanceSheetView(viewModel)
-            2 -> IncomeStatementView(viewModel)
-            3 -> CashFlowStatementView(viewModel)
+            if (forcedTab == null) {
+                ScrollableTabRow(
+                    selectedTabIndex = activeTab,
+                    edgePadding = 0.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                ) {
+                    Tab(
+                        selected = activeTab == 0,
+                        onClick = { activeTab = 0 },
+                        text = { Text(Localization.translate(Localization.Key.TRIAL_BALANCE, lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                        icon = { Icon(Icons.Filled.AccountBalance, null) }
+                    )
+                    Tab(
+                        selected = activeTab == 1,
+                        onClick = { activeTab = 1 },
+                        text = { Text(Localization.translate(Localization.Key.BALANCE_SHEET, lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                        icon = { Icon(Icons.Filled.Assessment, null) }
+                    )
+                    Tab(
+                        selected = activeTab == 2,
+                        onClick = { activeTab = 2 },
+                        text = { Text(Localization.translate(Localization.Key.INCOME_STATEMENT, lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                        icon = { Icon(Icons.Filled.TrendingUp, null) }
+                    )
+                    Tab(
+                        selected = activeTab == 3,
+                        onClick = { activeTab = 3 },
+                        text = { Text(if (lang == "ar") "التدفقات النقدية" else "Cash Flows", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                        icon = { Icon(Icons.Filled.SwapHoriz, null) }
+                    )
+                    Tab(
+                        selected = activeTab == 4,
+                        onClick = { activeTab = 4 },
+                        text = { Text(if (lang == "ar") "أرصدة العملاء" else "Customer Balances", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                        icon = { Icon(Icons.Filled.People, null) }
+                    )
+                    Tab(
+                        selected = activeTab == 5,
+                        onClick = { activeTab = 5 },
+                        text = { Text(if (lang == "ar") "أرصدة الموردين" else "Supplier Balances", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                        icon = { Icon(Icons.Filled.Storefront, null) }
+                    )
+                    Tab(
+                        selected = activeTab == 6,
+                        onClick = { activeTab = 6 },
+                        text = { Text(if (lang == "ar") "حسابات البنوك" else "Bank Accounts", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                        icon = { Icon(Icons.Filled.AccountBalanceWallet, null) }
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+            } else {
+                Spacer(Modifier.height(8.dp))
+            }
+
+            when (activeTab) {
+                0 -> TrialBalanceView(viewModel)
+                1 -> BalanceSheetView(viewModel)
+                2 -> IncomeStatementView(viewModel)
+                3 -> CashFlowStatementView(viewModel)
+                4 -> CustomersReportView(viewModel, onSelectCustomer = { activeDetailCustomer = it })
+                5 -> SuppliersReportView(viewModel, onSelectSupplier = { activeDetailSupplier = it })
+                6 -> BanksReportView(viewModel, onSelectBank = { activeDetailBank = it })
+            }
         }
     }
 }
@@ -1067,6 +1122,1203 @@ fun CashFlowStatementView(viewModel: LedgerViewModel) {
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CustomersReportView(
+    viewModel: LedgerViewModel,
+    onSelectCustomer: (Customer) -> Unit
+) {
+    val customers by viewModel.customers.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val totalOutstanding = remember(customers, snapshots) {
+        customers.sumOf { snapshots.find { s -> s.accountId == it.accountId }?.balance ?: 0L }
+    }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = if (lang == "ar") "الذمم المدينة الفعالة • إجمالي المدينين" else "Receivables Accounts • Active Balances",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(
+                onClick = {
+                    com.example.util.PrintUtils.printCustomersReport(context, customers, allAccounts, snapshots, lang)
+                }
+            ) {
+                Icon(Icons.Filled.Print, contentDescription = "Print Customers Report")
+            }
+        }
+
+        // Summary Card
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = if (lang == "ar") "إجمالي أرصدة العملاء والديون المستحقة" else "Total Customer Receivables",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = FinancialUtils.formatBase(totalOutstanding) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Box(
+                    modifier = Modifier.size(50.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.People, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                }
+            }
+        }
+
+        if (customers.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(if (lang == "ar") "لا يوجد عملاء مسجلين حالياً" else "No registered customers found.")
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (lang == "ar") "العميل" else "Customer/Group", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "رقم الهاتف" else "Phone No", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "الحساب المقترن" else "Linked Account", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "الرصيد د.ل" else "Outstanding Balance", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                }
+
+                items(customers) { customer ->
+                    val balance = snapshots.find { s -> s.accountId == customer.accountId }?.balance ?: 0L
+                    val linkedAcc = allAccounts.find { it.id == customer.accountId }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectCustomer(customer) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1.5f)) {
+                            Text(customer.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text(customer.groupName.ifEmpty { if (lang == "ar") "عام" else "General" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Text(customer.phone.ifEmpty { "-" }, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Column(modifier = Modifier.weight(1.5f)) {
+                            if (linkedAcc != null) {
+                                Text(linkedAcc.accountCode, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                                Text(Localization.getAccountName(linkedAcc.accountCode, linkedAcc.name, lang), style = MaterialTheme.typography.bodySmall)
+                            } else {
+                                Text("-", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                        Text(FinancialUtils.formatBase(balance), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SuppliersReportView(
+    viewModel: LedgerViewModel,
+    onSelectSupplier: (Supplier) -> Unit
+) {
+    val suppliers by viewModel.suppliers.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val totalPayable = remember(suppliers, snapshots) {
+        suppliers.sumOf {
+            val balance = snapshots.find { s -> s.accountId == it.accountId }?.balance ?: 0L
+            if (balance != 0L) -balance else 0L
+        }
+    }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = if (lang == "ar") "حسابات ذمم الدائنين والمطالبات" else "Payables Accounts • Outstanding Status",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(
+                onClick = {
+                    com.example.util.PrintUtils.printSuppliersReport(context, suppliers, allAccounts, snapshots, lang)
+                }
+            ) {
+                Icon(Icons.Filled.Print, contentDescription = "Print Suppliers Report")
+            }
+        }
+
+        // Summary Card
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f))
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = if (lang == "ar") "إجمالي أرصدة الموردين وحسابات القيد الدائن" else "Total Outstanding Payables",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = FinancialUtils.formatBase(totalPayable) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                Box(
+                    modifier = Modifier.size(50.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Storefront, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(28.dp))
+                }
+            }
+        }
+
+        if (suppliers.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(if (lang == "ar") "لا يوجد موردين مسجلين حالياً" else "No registered suppliers found.")
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (lang == "ar") "المورد" else "Supplier/Group", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "رقم الهاتف" else "Phone No", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "الحساب المقترن" else "Linked Account", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "الرصيد المستحق" else "Outstanding Payable", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                }
+
+                items(suppliers) { supplier ->
+                    val balance = snapshots.find { s -> s.accountId == supplier.accountId }?.balance ?: 0L
+                    val revBalance = if (balance != 0L) -balance else 0L
+                    val linkedAcc = allAccounts.find { it.id == supplier.accountId }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectSupplier(supplier) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1.5f)) {
+                            Text(supplier.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text(supplier.groupName.ifEmpty { if (lang == "ar") "عام" else "General" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Text(supplier.phone.ifEmpty { "-" }, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Column(modifier = Modifier.weight(1.5f)) {
+                            if (linkedAcc != null) {
+                                Text(linkedAcc.accountCode, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                                Text(Localization.getAccountName(linkedAcc.accountCode, linkedAcc.name, lang), style = MaterialTheme.typography.bodySmall)
+                            } else {
+                                Text("-", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                        Text(FinancialUtils.formatBase(revBalance), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, color = MaterialTheme.colorScheme.error)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BanksReportView(
+    viewModel: LedgerViewModel,
+    onSelectBank: (BankAccount) -> Unit
+) {
+    val banks by viewModel.banks.collectAsStateWithLifecycle()
+    val allBranches by viewModel.allBranches.collectAsStateWithLifecycle()
+    val allBankAccounts by viewModel.allBankAccounts.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val totalCashAtBank = remember(allBankAccounts, snapshots) {
+        allBankAccounts.sumOf { snapshots.find { s -> s.accountId == it.accountId }?.balance ?: 0L }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = if (lang == "ar") "تفاصيل أرصدة الحسابات الجارية بالبنوك" else "Bank Accounts Liquidity Summary",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(
+                onClick = {
+                    com.example.util.PrintUtils.printBanksReport(context, banks, allBranches, allBankAccounts, allAccounts, snapshots, lang)
+                }
+            ) {
+                Icon(Icons.Filled.Print, contentDescription = "Print Banks Report")
+            }
+        }
+
+        // Summary Card
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = EmeraldGreen.copy(alpha = 0.15f))
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = if (lang == "ar") "إجمالي الأرصدة والسيولة المصرفية" else "Total Cash at Bank Assets",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = EmeraldGreen
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = FinancialUtils.formatBase(totalCashAtBank) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = EmeraldGreen
+                    )
+                }
+                Box(
+                    modifier = Modifier.size(50.dp).clip(RoundedCornerShape(10.dp)).background(EmeraldGreen.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.AccountBalance, null, tint = EmeraldGreen, modifier = Modifier.size(28.dp))
+                }
+            }
+        }
+
+        // List bank accounts balances
+        if (allBankAccounts.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(if (lang == "ar") "لا يوجد حسابات مصرفية مسجلة حالياً" else "No banking accounts found.")
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (lang == "ar") "البنك / الفرع" else "Bank / Branch", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "بيانات الحساب" else "Bank Account details", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "رابط الأستاذ" else "General Ledger", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "الرصيد د.ل" else "Balance (LYD)", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                }
+
+                items(allBankAccounts) { bAcc ->
+                    val balance = snapshots.find { s -> s.accountId == bAcc.accountId }?.balance ?: 0L
+                    val linkedAcc = allAccounts.find { it.id == bAcc.accountId }
+                    val branchObj = allBranches.find { it.id == bAcc.branchId }
+                    val bankObj = branchObj?.let { br -> banks.find { b -> b.id == br.bankId } }
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectBank(bAcc) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1.5f)) {
+                            Text(bankObj?.name ?: "-", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text(branchObj?.name ?: "-", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Column(modifier = Modifier.weight(1.5f)) {
+                            Text(bAcc.accountName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text(bAcc.accountNumber, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            if (linkedAcc != null) {
+                                Text(linkedAcc.accountCode, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                            } else {
+                                Text("-", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Text(FinancialUtils.formatBase(balance), modifier = Modifier.weight(1.2f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, color = EmeraldGreen)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CustomerStatementView(
+    customer: Customer,
+    viewModel: LedgerViewModel,
+    onBack: () -> Unit
+) {
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()) }
+
+    var statementRows by remember { mutableStateOf<List<com.example.ui.viewmodel.AccountStatementRow>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(customer.accountId) {
+        isLoading = true
+        statementRows = viewModel.getAccountStatement(customer.accountId)
+        isLoading = false
+    }
+
+    val filteredRows = remember(statementRows, searchQuery) {
+        if (searchQuery.isBlank()) {
+            statementRows
+        } else {
+            statementRows.filter {
+                it.memo.contains(searchQuery, ignoreCase = true) ||
+                it.voucherNo.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    val balance = snapshots.find { s -> s.accountId == customer.accountId }?.balance ?: 0L
+    val totalDebit = remember(statementRows) { statementRows.sumOf { it.debit } }
+    val totalCredit = remember(statementRows) { statementRows.sumOf { it.credit } }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 8.dp)
+    ) {
+        // Top section
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = customer.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = if (lang == "ar") "كشف الحساب المالي التفصيلي للعميل" else "Detailed Customer Ledger Statement",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
+            IconButton(
+                onClick = {
+                    val linkedAcc = allAccounts.find { it.id == customer.accountId } ?: Account(
+                        id = customer.accountId,
+                        accountCode = "1201001",
+                        name = customer.name,
+                        accountType = com.example.data.AccountType.ASSET,
+                        currencyId = 1L
+                    )
+                    com.example.util.PrintUtils.printAccountStatement(context, linkedAcc, statementRows, lang)
+                }
+            ) {
+                Icon(Icons.Filled.Print, contentDescription = "Print Statement")
+            }
+        }
+
+        // Customer Info Panel
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "المجموعة" else "Customer Segment",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = customer.groupName.ifEmpty { if (lang == "ar") "عام" else "General" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (lang == "ar") "الهاتف" else "Phone Number",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = customer.phone.ifEmpty { "-" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Total Debit
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "إجمالي مدين (مبيعات)" else "Total debited (Sales)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(totalDebit) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    // Total Credit
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "إجمالي دائن (سدادات)" else "Total credited (Receipts)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = EmeraldGreen
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(totalCredit) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldGreen
+                        )
+                    }
+                    // Running Balance
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (lang == "ar") "الرصيد النهائي الحالي" else "Current Outstanding Balance",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (balance >= 0) EmeraldGreen else RoseRed
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(balance) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (balance >= 0) EmeraldGreen else RoseRed
+                        )
+                    }
+                }
+            }
+        }
+
+        // Search in entries
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text(if (lang == "ar") "البحث في تفاصيل القيود والبيان..." else "Search transactions memo/no...") },
+            leadingIcon = { Icon(Icons.Filled.Search, null) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+        )
+
+        if (isLoading) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (filteredRows.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(if (lang == "ar") "لا يوجد قيود مطابقة معايير البحث" else "No matching historical statements found.")
+            }
+        } else {
+            // LazyColumn Table
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (lang == "ar") "التاريخ" else "Date", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "رقم السند" else "Doc No", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "البيان / القيد" else "Transaction/Memo", modifier = Modifier.weight(2.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "مدين" else "Debit", modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                        Text(if (lang == "ar") "دائن" else "Credit", modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                        Text(if (lang == "ar") "الرصيد" else "Balance", modifier = Modifier.weight(1.3f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                }
+
+                items(filteredRows) { row ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(sdf.format(java.util.Date(row.date)), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        Text("#${row.voucherNo}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                        Text(row.memo, modifier = Modifier.weight(2.2f), style = MaterialTheme.typography.bodyMedium)
+                        
+                        Text(
+                            text = if (row.debit > 0) FinancialUtils.formatBase(row.debit) else "-",
+                            modifier = Modifier.weight(1.1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.End,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        Text(
+                            text = if (row.credit > 0) FinancialUtils.formatBase(row.credit) else "-",
+                            modifier = Modifier.weight(1.1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.End,
+                            color = EmeraldGreen
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(row.runningBalance),
+                            modifier = Modifier.weight(1.3f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.End,
+                            color = if (row.runningBalance >= 0) EmeraldGreen else RoseRed
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SupplierStatementView(
+    supplier: Supplier,
+    viewModel: LedgerViewModel,
+    onBack: () -> Unit
+) {
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()) }
+
+    var statementRows by remember { mutableStateOf<List<com.example.ui.viewmodel.AccountStatementRow>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(supplier.accountId) {
+        isLoading = true
+        statementRows = viewModel.getAccountStatement(supplier.accountId)
+        isLoading = false
+    }
+
+    val filteredRows = remember(statementRows, searchQuery) {
+        if (searchQuery.isBlank()) {
+            statementRows
+        } else {
+            statementRows.filter {
+                it.memo.contains(searchQuery, ignoreCase = true) ||
+                it.voucherNo.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    val balance = snapshots.find { s -> s.accountId == supplier.accountId }?.balance ?: 0L
+    val payablesBalance = if (balance != 0L) -balance else 0L
+    val totalDebit = remember(statementRows) { statementRows.sumOf { it.debit } }
+    val totalCredit = remember(statementRows) { statementRows.sumOf { it.credit } }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 8.dp)
+    ) {
+        // Top section
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = supplier.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = if (lang == "ar") "كشف الحساب المالي التفصيلي للمورد" else "Detailed Supplier Ledger Statement",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
+            IconButton(
+                onClick = {
+                    val linkedAcc = allAccounts.find { it.id == supplier.accountId } ?: Account(
+                        id = supplier.accountId,
+                        accountCode = "2101001",
+                        name = supplier.name,
+                        accountType = com.example.data.AccountType.LIABILITY,
+                        currencyId = 1L
+                    )
+                    com.example.util.PrintUtils.printAccountStatement(context, linkedAcc, statementRows, lang)
+                }
+            ) {
+                Icon(Icons.Filled.Print, contentDescription = "Print Statement")
+            }
+        }
+
+        // Supplier Info Panel
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "المجموعة" else "Supplier Classification",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = supplier.groupName.ifEmpty { if (lang == "ar") "عام" else "General" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (lang == "ar") "الهاتف" else "Phone Number",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = supplier.phone.ifEmpty { "-" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Total Debit (Paid)
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "سدادات مدين" else "Paid Amount (Debit)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = EmeraldGreen
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(totalDebit) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldGreen
+                        )
+                    }
+                    // Total Credit (Purchases)
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "مشتريات دائن" else "Total Purchased (Credit)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = RoseRed
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(totalCredit) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = RoseRed
+                        )
+                    }
+                    // Final Outstanding Payable
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (lang == "ar") "إجمالي ديون مستحقة للمورد" else "Outstanding Supplier Balance",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (payablesBalance >= 0) RoseRed else EmeraldGreen
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(payablesBalance) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (payablesBalance >= 0) RoseRed else EmeraldGreen
+                        )
+                    }
+                }
+            }
+        }
+
+        // Search text field
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text(if (lang == "ar") "البحث في تفاصيل القيود والمشتريات..." else "Search supplier memo/no...") },
+            leadingIcon = { Icon(Icons.Filled.Search, null) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+        )
+
+        if (isLoading) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (filteredRows.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(if (lang == "ar") "لا يوجد فواتير أو قيود مطابقة معايير البحث" else "No matching historical statements found.")
+            }
+        } else {
+            // LazyColumn Table
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (lang == "ar") "التاريخ" else "Date", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "السند" else "Doc No", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "تفاصيل و بيان الحركة المالية" else "Voucher Details / Memo", modifier = Modifier.weight(2.5f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "مدين" else "Debit", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                        Text(if (lang == "ar") "دائن" else "Credit", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                        Text(if (lang == "ar") "الرصيد" else "Balance", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                }
+
+                items(filteredRows) { row ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(sdf.format(java.util.Date(row.date)), modifier = Modifier.weight(1.5f), style = MaterialTheme.typography.bodySmall)
+                        Text("#${row.voucherNo}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                        Text(row.memo, modifier = Modifier.weight(2.5f), style = MaterialTheme.typography.bodyMedium)
+                        
+                        Text(
+                            text = if (row.debit > 0) FinancialUtils.formatBase(row.debit) else "-",
+                            modifier = Modifier.weight(1.2f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.End,
+                            color = EmeraldGreen
+                        )
+                        Text(
+                            text = if (row.credit > 0) FinancialUtils.formatBase(row.credit) else "-",
+                            modifier = Modifier.weight(1.2f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.End,
+                            color = RoseRed
+                        )
+                        // Supplier Account Balance: credit account
+                        val revRunBalance = if (row.runningBalance != 0L) -row.runningBalance else 0L
+                        Text(
+                            text = FinancialUtils.formatBase(revRunBalance),
+                            modifier = Modifier.weight(1.5f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.End,
+                            color = if (revRunBalance >= 0) RoseRed else EmeraldGreen
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BankStatementView(
+    bankAccount: BankAccount,
+    viewModel: LedgerViewModel,
+    onBack: () -> Unit
+) {
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val allBranches by viewModel.allBranches.collectAsStateWithLifecycle()
+    val banks by viewModel.banks.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()) }
+
+    var statementRows by remember { mutableStateOf<List<com.example.ui.viewmodel.AccountStatementRow>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(bankAccount.accountId) {
+        isLoading = true
+        statementRows = viewModel.getAccountStatement(bankAccount.accountId)
+        isLoading = false
+    }
+
+    val filteredRows = remember(statementRows, searchQuery) {
+        if (searchQuery.isBlank()) {
+            statementRows
+        } else {
+            statementRows.filter {
+                it.memo.contains(searchQuery, ignoreCase = true) ||
+                it.voucherNo.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    val balance = snapshots.find { s -> s.accountId == bankAccount.accountId }?.balance ?: 0L
+    val totalDebit = remember(statementRows) { statementRows.sumOf { it.debit } }
+    val totalCredit = remember(statementRows) { statementRows.sumOf { it.credit } }
+
+    val branchObj = allBranches.find { it.id == bankAccount.branchId }
+    val bankObj = branchObj?.let { br -> banks.find { b -> b.id == br.bankId } }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 8.dp)
+    ) {
+        // Top section
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = bankObj?.name ?: bankAccount.accountName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "${branchObj?.name ?: "-"} • ${bankAccount.accountNumber}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
+            IconButton(
+                onClick = {
+                    val linkedAcc = allAccounts.find { it.id == bankAccount.accountId } ?: Account(
+                        id = bankAccount.accountId,
+                        accountCode = "1102001",
+                        name = bankAccount.accountName,
+                        accountType = com.example.data.AccountType.ASSET,
+                        currencyId = 1L
+                    )
+                    com.example.util.PrintUtils.printAccountStatement(context, linkedAcc, statementRows, lang)
+                }
+            ) {
+                Icon(Icons.Filled.Print, contentDescription = "Print Statement")
+            }
+        }
+
+        // Bank Account Info Panel
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = EmeraldGreen.copy(alpha = 0.15f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreen.copy(alpha = 0.2f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "اسم الحساب المصرفي" else "Bank Account Title",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = EmeraldGreen
+                        )
+                        Text(
+                            text = bankAccount.accountName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (lang == "ar") "الآيبان IBAN" else "IBAN String",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = EmeraldGreen
+                        )
+                        Text(
+                            text = bankAccount.iban.ifEmpty { "-" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Total Debit
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "مقبوضات / مدين" else "Total Inflows (Debits)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = EmeraldGreen
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(totalDebit) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldGreen
+                        )
+                    }
+                    // Total Credit
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "مدفوعات / دائن" else "Total Outflows (Credits)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = RoseRed
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(totalCredit) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = RoseRed
+                        )
+                    }
+                    // Ending Balance
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (lang == "ar") "الرصيد الدفتري الحالي" else "Current Reconciled Balance",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (balance >= 0) EmeraldGreen else RoseRed
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(balance) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (balance >= 0) EmeraldGreen else RoseRed
+                        )
+                    }
+                }
+            }
+        }
+
+        // Search text field
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text(if (lang == "ar") "البحث في تفاصيل حركات وبنود التغذية والسحب..." else "Search transactions memo/no...") },
+            leadingIcon = { Icon(Icons.Filled.Search, null) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+        )
+
+        if (isLoading) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (filteredRows.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(if (lang == "ar") "لا يوجد حركات مصرفية مطابقة معايير البحث" else "No matching historical statements found.")
+            }
+        } else {
+            // LazyColumn Table
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (lang == "ar") "التاريخ" else "Date", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "السند" else "Doc No", modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "تفاصيل بيان حركة المصرف" else "Bank Invalidation / Memo", modifier = Modifier.weight(2.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Text(if (lang == "ar") "مدين / إيداع" else "Dr / Inflow", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                        Text(if (lang == "ar") "دائن / سحب" else "Cr / Outflow", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                        Text(if (lang == "ar") "السيولة" else "Liquid Bal", modifier = Modifier.weight(1.4f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                }
+
+                items(filteredRows) { row ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(sdf.format(java.util.Date(row.date)), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        Text("#${row.voucherNo}", modifier = Modifier.weight(1.1f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                        Text(row.memo, modifier = Modifier.weight(2.2f), style = MaterialTheme.typography.bodyMedium)
+                        
+                        Text(
+                            text = if (row.debit > 0) FinancialUtils.formatBase(row.debit) else "-",
+                            modifier = Modifier.weight(1.2f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.End,
+                            color = EmeraldGreen
+                        )
+                        Text(
+                            text = if (row.credit > 0) FinancialUtils.formatBase(row.credit) else "-",
+                            modifier = Modifier.weight(1.2f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.End,
+                            color = RoseRed
+                        )
+                        Text(
+                            text = FinancialUtils.formatBase(row.runningBalance),
+                            modifier = Modifier.weight(1.4f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.End,
+                            color = if (row.runningBalance >= 0) EmeraldGreen else RoseRed
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                 }
             }
         }

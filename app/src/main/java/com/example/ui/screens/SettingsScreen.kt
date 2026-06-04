@@ -94,6 +94,7 @@ fun SettingsScreen(
     var currencyName by remember { mutableStateOf("") }
     var currencyDecimals by remember { mutableStateOf("2") }
     var activeTab by remember { mutableStateOf(0) }
+    var activeSubPage by remember { mutableStateOf<Int?>(null) }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -232,68 +233,112 @@ fun SettingsScreen(
                 }
             }
 
-            // Category Navigation Pills for perfect organization
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val tabs = listOf(
-                        Triple(0, if (lang == "ar") "المظهر" else "Theme", Icons.Filled.Palette),
-                        Triple(4, if (lang == "ar") "الهوية" else "Brand", Icons.Filled.Business),
-                        Triple(1, if (lang == "ar") "العملات" else "Rates", Icons.Filled.MonetizationOn),
-                        Triple(2, if (lang == "ar") "النسخ" else "Backup", Icons.Filled.Backup),
-                        Triple(3, if (lang == "ar") "التدقيق" else "Audit", Icons.Filled.FactCheck)
+            if (activeSubPage == null) {
+                // Main Settings Index/Directory Screen
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = if (lang == "ar") "أقسام الإعدادات وتخصيصات النظم" else "Settings Directories & Layout Customizations",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
+                }
 
-                    tabs.forEach { (index, title, icon) ->
-                        val isSelected = activeTab == index
-                        Box(
+                val directories = listOf(
+                    Triple(0, if (lang == "ar") "المظهر ولغة واجهة المستخدم" else "Appearance & Display Languages", Triple(if (lang == "ar") "ضبط لغة الواجهة، شكل وسمة التطبيق الداكنة أو الفاتحة والألوان." else "Configure system locales, look-and-feel modes, and dynamic dynamic palettes.", Icons.Filled.Palette, "primary")),
+                    Triple(4, if (lang == "ar") "هوية التطبيق وتخصيص ترويسة الطباعة" else "Brand Identity & PDF Reports Info", Triple(if (lang == "ar") "تعديل اسم المؤسسة (مثل المؤسسة الليبية)، تخصيص الشعار، وتفاصيل الكشوفات المصدرة." else "Update corporate labels, brand icons, and department titles embedded in PDFs.", Icons.Filled.Business, "secondary")),
+                    Triple(1, if (lang == "ar") "إدارة العملات وأسعار الصرف" else "Foreign Currencies & Rates", Triple(if (lang == "ar") "إدخال عملات دولية جديدة وتعريف أسعار الصرف الحية والقديمة." else "Maintain multiple currencies, exchange ratios, and standard ledger baselines.", Icons.Filled.MonetizationOn, "emerald")),
+                    Triple(2, if (lang == "ar") "النسخ الاحتياطي واستعادة قواعد البيانات" else "Database Backup & Restorations", Triple(if (lang == "ar") "حفظ نسخ احتياطية محلياً، تصدير ملفات، واستيراد قواعد البيانات بنقرة واحدة." else "Secure financial histories, export secure ledger assets, or restore archives.", Icons.Filled.Backup, "gold")),
+                    Triple(3, if (lang == "ar") "سجل التدقيق والمراجعة الكامل للعمليات" else "Audit trail & Process Control Logs", Triple(if (lang == "ar") "تتبع وتفقد العمليات، مراجعة تواريخ الإضافات والتعديلات الأمنية المفصلة." else "Access system tracking metrics, detailed security traces, and journal logins.", Icons.Filled.FactCheck, "rose"))
+                )
+
+                directories.forEach { (index, title, dData) ->
+                    val (subtitle, icon, colorName) = dData
+                    item {
+                        val colorScheme = MaterialTheme.colorScheme
+                        val color = when (colorName) {
+                            "primary" -> colorScheme.primary
+                            "secondary" -> colorScheme.secondary
+                            "emerald" -> com.example.ui.theme.EmeraldGreen
+                            "gold" -> com.example.ui.theme.GoldAccent
+                            "rose" -> com.example.ui.theme.RoseRed
+                            else -> colorScheme.primary
+                        }
+                        Card(
                             modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .clickable { activeTab = index }
-                                .padding(vertical = 8.dp, horizontal = 2.dp),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clickable { activeSubPage = index }
+                                .testTag("settings_dir_card_$index"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(46.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(color.copy(alpha = 0.12f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
+                                    }
+                                    Spacer(Modifier.width(16.dp))
+                                    Column {
+                                        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f))
+                                    }
+                                }
                                 Icon(
-                                    imageVector = icon,
+                                    imageVector = if (lang == "ar") Icons.Filled.ArrowBack else Icons.Filled.ArrowForward,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = if (isSelected) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    maxLines = 1,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(18.dp).padding(horizontal = 4.dp)
                                 )
                             }
                         }
                     }
                 }
-            }
+            } else {
+                // Separated Subpage Top Navigation Link
+                item {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { activeSubPage = null }
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                            .border(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (lang == "ar") Icons.Filled.ArrowForward else Icons.Filled.ArrowBack,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = if (lang == "ar") "← عودة لقائمة الإعدادات الرئيسية" else "← Back to Main Settings",
+                            fontWeight = FontWeight.ExtraBold,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
 
-            // Display active tab contents inside the master LazyColumn
-            when (activeTab) {
+                when (activeSubPage) {
                 4 -> {
                     // TAB 4: APP IDENTITY & PRINT CUSTOMIZATION
                     item {
@@ -1470,6 +1515,7 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
 
         // Add Fiscal period dialogue
         if (showCreateFyDialog) {

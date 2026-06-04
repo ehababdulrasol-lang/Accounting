@@ -81,6 +81,52 @@ fun MainLayout(viewModel: LedgerViewModel) {
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    androidx.activity.compose.BackHandler(enabled = true) {
+        showExitDialog = true
+    }
+
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            icon = { Icon(Icons.Filled.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = {
+                Text(
+                    text = if (lang == "ar") "تأكيد الخروج" else "Confirm Exit",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = if (lang == "ar") "هل تريد الخروج من التطبيق فعلاً؟" else "Are you sure you want to exit the application?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExitDialog = false
+                        val activity = (context as? android.app.Activity)
+                        activity?.finish()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(if (lang == "ar") "خروج" else "Exit")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showExitDialog = false }
+                ) {
+                    Text(if (lang == "ar") "إلغاء" else "Cancel")
+                }
+            }
+        )
+    }
 
     LaunchedEffect(Unit) {
         viewModel.navigateToTabFlow.collect { tab ->
