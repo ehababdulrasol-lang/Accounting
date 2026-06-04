@@ -1510,14 +1510,14 @@ fun SettingsScreen(
                                                         if (parts.size >= 2) {
                                                             val d = SimpleDateFormat("yyyyMMdd", Locale.US).parse(parts[0]) ?: throw Exception("Invalid date")
                                                             val t = SimpleDateFormat("HHmmss", Locale.US).parse(parts[1]) ?: throw Exception("Invalid time")
-                                                            val formattedD = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(d)
-                                                            val formattedT = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(t)
+                                                            val formattedD = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(d)
+                                                            val formattedT = SimpleDateFormat("HH:mm:ss", Locale.US).format(t)
                                                             "$formattedD @ $formattedT"
                                                         } else {
-                                                            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(file.lastModified()))
+                                                            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(file.lastModified()))
                                                         }
                                                     } catch (e: Exception) {
-                                                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(file.lastModified()))
+                                                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(file.lastModified()))
                                                     }
 
                                                     Row(
@@ -1686,7 +1686,7 @@ fun FiscalYearPeriodRow(
     lang: String,
     enabled: Boolean = true
 ) {
-    val formatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val formatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
     val startStr = remember(fy.startDate) { formatter.format(Date(fy.startDate)) }
     val endStr = remember(fy.endDate) { formatter.format(Date(fy.endDate)) }
 
@@ -1755,7 +1755,7 @@ fun CreateFiscalYearDialog(
     var startDay by remember { mutableStateOf("2026-01-01") }
     var endDay by remember { mutableStateOf("2026-12-31") }
 
-    val formatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val formatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(

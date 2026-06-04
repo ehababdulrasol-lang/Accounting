@@ -397,7 +397,7 @@ fun AccountStatementScreen(
                         .border(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f), RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp))
                 ) {
                     items(statementRows) { row ->
-                        val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+                        val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.US)
                         val rowDateText = sdf.format(Date(row.date))
 
                         Row(

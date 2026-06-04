@@ -979,7 +979,7 @@ fun AccountStatementDialog(
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
 
-                    val sdf = remember { java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale.getDefault()) }
+                    val sdf = remember { java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale.US) }
 
                     LazyColumn(
                         modifier = Modifier

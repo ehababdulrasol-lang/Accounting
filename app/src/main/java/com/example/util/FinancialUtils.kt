@@ -3,6 +3,8 @@ package com.example.util
 import com.example.data.VoucherHeader
 import com.example.data.VoucherLine
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 import kotlin.math.pow
 import kotlin.math.roundToLong
 
@@ -51,7 +53,8 @@ object FinancialUtils {
             3 -> "#,##0.000"
             else -> "#,##0.0000"
         }
-        return DecimalFormat(pattern).format(doubleVal)
+        val symbols = DecimalFormatSymbols(Locale.US)
+        return DecimalFormat(pattern, symbols).format(doubleVal)
     }
 
     /**
@@ -60,7 +63,8 @@ object FinancialUtils {
     fun formatBase(amountBase: Long): String {
         val doubleVal = amountBase.toDouble() / BASE_SCALE_FACTOR
         // Default base is LYD with 3 decimal places
-        return DecimalFormat("#,##0.000").format(doubleVal)
+        val symbols = DecimalFormatSymbols(Locale.US)
+        return DecimalFormat("#,##0.000", symbols).format(doubleVal)
     }
 }
 

@@ -4,6 +4,8 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -65,7 +67,7 @@ fun VoucherEditorScreen(
     val editingVoucherId by viewModel.editingVoucherId.collectAsStateWithLifecycle()
     val formDate by viewModel.formDate.collectAsStateWithLifecycle()
 
-    val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
     val formattedFormDate = remember(formDate) { dateFormatter.format(Date(formDate)) }
 
     // Live Double Entry check vectors
@@ -276,546 +278,233 @@ fun VoucherEditorScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        // Document Form Header details with high-end expand/collapse transitions
-        AnimatedContent(
-            targetState = isHeaderCollapsed,
-            transitionSpec = {
-                fadeIn() togetherWith fadeOut()
-            },
-            label = "HeaderDetailsTrans"
-        ) { collapsed ->
-            if (collapsed) {
+        Spacer(Modifier.height(8.dp))
+
+        if (formVoucherType == VoucherType.RECEIPT || formVoucherType == VoucherType.PAYMENT) {
+            // REDESIGNED SIMPLIFIED WORLD-CLASS COMPACT ENTRY SHEET FOR RECEIPT & PAYMENT VOUCHERS
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // 1. Ultra Compact Metadata Tag Bar
                 Card(
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isHeaderCollapsed = false }
-                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                     ),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                            .padding(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                        // Voucher Number Input Textfield
+                        OutlinedTextField(
+                            value = formVoucherNo,
+                            onValueChange = { viewModel.formVoucherNo.value = it },
+                            label = { Text(if (lang == "ar") "رقم السند" else "Voucher No", fontSize = 11.sp) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(8.dp),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .testTag("voucher_number_input"),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                            )
+                        )
+
+                        // Fiscal Cycle Selection Dropdown
+                        var fyDropdownCompactExpanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = fyDropdownCompactExpanded,
+                            onExpandedChange = { fyDropdownCompactExpanded = !fyDropdownCompactExpanded },
+                            modifier = Modifier.weight(1.1f)
+                        ) {
+                            val activeFyName = if (activeFiscalYear != null) {
+                                if (lang == "ar") activeFiscalYear.name.replace("FY", "سنة") else activeFiscalYear.name
+                            } else {
+                                if (lang == "ar") "اختر الفترة" else "Select Period"
+                            }
+                            OutlinedTextField(
+                                value = activeFyName,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(if (lang == "ar") "السنة المالية" else "Fiscal Year", fontSize = 11.sp) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fyDropdownCompactExpanded) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                                    .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                            )
+                            ExposedDropdownMenu(
+                                expanded = fyDropdownCompactExpanded,
+                                onDismissRequest = { fyDropdownCompactExpanded = false }
+                            ) {
+                                fiscalYears.forEach { fy ->
+                                    val fyName = if (lang == "ar") fy.name.replace("FY", "سنة") else fy.name
+                                    DropdownMenuItem(
+                                        text = { Text(fyName, style = MaterialTheme.typography.bodyMedium) },
+                                        onClick = {
+                                            viewModel.formFiscalYearId.value = fy.id
+                                            fyDropdownCompactExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Date Selector
+                        Box(
                             modifier = Modifier.weight(1f)
                         ) {
+                            OutlinedTextField(
+                                value = formattedFormDate,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(if (lang == "ar") "التاريخ" else "Date", fontSize = 11.sp) },
+                                trailingIcon = { Icon(Icons.Filled.DateRange, null, modifier = Modifier.size(14.dp)) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                ),
+                                modifier = Modifier.fillMaxWidth().height(50.dp)
+                            )
                             Box(
                                 modifier = Modifier
-                                    .size(28.dp)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                            Spacer(Modifier.width(10.dp))
-                            val summary = if (lang == "ar") {
-                                "السند: ${formVoucherNo.ifBlank { "بلا رقم" }} • ${formDescription.ifBlank { "بلا شرح" }} • $formattedFormDate"
-                            } else {
-                                "Voucher: ${formVoucherNo.ifBlank { "N/A" }} • ${formDescription.ifBlank { "No Narration" }} • $formattedFormDate"
-                            }
-                            Text(
-                                text = summary,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    .matchParentSize()
+                                    .clickable {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                        showDatePicker = true
+                                    }
                             )
                         }
-                        
-                        Text(
-                            text = if (lang == "ar") "تعديل البيانات الأساسية ✎" else "Define Primary ✎",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Black
-                        )
                     }
                 }
-            } else {
+
+                val isReceipt = formVoucherType == VoucherType.RECEIPT
+                val accentColorTheme = if (isReceipt) EmeraldGreen else MaterialTheme.colorScheme.primary
+
+                // 2. High-Contrast Unified Ticket Editor Card
                 Card(
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                        .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     ),
                     border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
-                    )
+                        1.5.dp,
+                        accentColorTheme.copy(alpha = 0.25f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(6.dp, RoundedCornerShape(18.dp), spotColor = accentColorTheme.copy(alpha = 0.12f))
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        // Title / Action Badge Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Filled.FactCheck,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .background(accentColorTheme.copy(alpha = 0.12f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isReceipt) Icons.Filled.ArrowCircleDown else Icons.Filled.ArrowCircleUp,
+                                        contentDescription = null,
+                                        tint = accentColorTheme,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(10.dp))
                                 Text(
-                                    text = if (lang == "ar") "بيانات السند الأساسية" else "Primary Ledger Meta",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    text = if (isReceipt) {
+                                        if (lang == "ar") "بيانات سند القبض المالي" else "Inward Receipt Details"
+                                    } else {
+                                        if (lang == "ar") "بيانات سند الصرف والدفع" else "Payment & Disbursement Details"
+                                    },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Black,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                            
-                            TextButton(
-                                onClick = { isHeaderCollapsed = true },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = if (lang == "ar") "تصغير اللوحة" else "Collapse",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
 
-                        Spacer(Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // 1. Voucher Type Selection Dropdown Box
-                            var typeDropdownExpanded by remember { mutableStateOf(false) }
-                            ExposedDropdownMenuBox(
-                                expanded = typeDropdownExpanded,
-                                onExpandedChange = { typeDropdownExpanded = !typeDropdownExpanded },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                val classificationText = when (formVoucherType) {
-                                    VoucherType.JOURNAL -> if (lang == "ar") "تسوية" else "Journal"
-                                    VoucherType.RECEIPT -> if (lang == "ar") "قبض" else "Receipt"
-                                    VoucherType.PAYMENT -> if (lang == "ar") "صرف" else "Payment"
-                                }
-                                OutlinedTextField(
-                                    value = classificationText,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text(if (lang == "ar") "نوع السند" else "Type") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeDropdownExpanded) },
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color.Transparent,
-                                        unfocusedContainerColor = Color.Transparent
-                                    ),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = typeDropdownExpanded,
-                                    onDismissRequest = { typeDropdownExpanded = false }
-                                ) {
-                                    VoucherType.values().forEach { type ->
-                                        val labelText = when (type) {
-                                            VoucherType.JOURNAL -> if (lang == "ar") "قيد تسوية يومية (Daily Journal)" else "Journal Entry"
-                                            VoucherType.RECEIPT -> if (lang == "ar") "سند قبض مالي (Inward Receipt)" else "Receipt Voucher"
-                                            VoucherType.PAYMENT -> if (lang == "ar") "سند صرف نقدي (Cash Outflow)" else "Payment Voucher"
-                                        }
-                                        DropdownMenuItem(
-                                            text = { Text(labelText, style = MaterialTheme.typography.bodyMedium) },
-                                            onClick = {
-                                                viewModel.formVoucherType.value = type
-                                                typeDropdownExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            // 2. Voucher Number Input TextField
-                            OutlinedTextField(
-                                value = formVoucherNo,
-                                onValueChange = { viewModel.formVoucherNo.value = it },
-                                label = { Text(if (lang == "ar") "رقم السند" else "Voucher No") },
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("voucher_number_input")
-                            )
-
-                            // 3. Fiscal Cycle Selection Dropdown Box
-                            ExposedDropdownMenuBox(
-                                expanded = fyDropdownExpanded,
-                                onExpandedChange = { fyDropdownExpanded = !fyDropdownExpanded },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                val activeFyName = if (activeFiscalYear != null) {
-                                    if (lang == "ar") activeFiscalYear.name.replace("FY", "سنة") else activeFiscalYear.name
-                                } else {
-                                    if (lang == "ar") "اختر الفترة" else "Select Period"
-                                }
-                                OutlinedTextField(
-                                    value = activeFyName,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text(if (lang == "ar") "السنة المالية" else "Fiscal Year") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fyDropdownExpanded) },
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = fyDropdownExpanded,
-                                    onDismissRequest = { fyDropdownExpanded = false }
-                                ) {
-                                    fiscalYears.forEach { fy ->
-                                        val fyName = if (lang == "ar") fy.name.replace("FY", "سنة") else fy.name
-                                        DropdownMenuItem(
-                                            text = {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Text(fyName, style = MaterialTheme.typography.bodyMedium)
-                                                    if (fy.isLocked || fy.isClosed) {
-                                                        Spacer(Modifier.width(8.dp))
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .clip(RoundedCornerShape(4.dp))
-                                                                .background(RoseRed.copy(alpha = 0.15f))
-                                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                        ) {
-                                                            Text(
-                                                                text = if (lang == "ar") "مقفل" else "CLOSED",
-                                                                color = RoseRed,
-                                                                style = MaterialTheme.typography.labelSmall,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            onClick = {
-                                                viewModel.formFiscalYearId.value = fy.id
-                                                fyDropdownExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Column 1: Configurable Date Picker TextField with click recognition
+                            // Dynamic balanced badge status (Always balanced in dual mode)
                             Box(
                                 modifier = Modifier
-                                    .weight(1.1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(EmeraldGreen.copy(alpha = 0.12f))
+                                    .padding(horizontal = 10.dp, vertical = 3.dp)
                             ) {
-                                OutlinedTextField(
-                                    value = formattedFormDate,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text(if (lang == "ar") "تاريخ المعاملة" else "Posting Date") },
-                                    trailingIcon = { Icon(Icons.Filled.DateRange, null, modifier = Modifier.size(16.dp)) },
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color.Transparent,
-                                        unfocusedContainerColor = Color.Transparent
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                // Overlaid touch interceptor
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .clickable {
-                                            keyboardController?.hide()
-                                            focusManager.clearFocus()
-                                            showDatePicker = true
-                                        }
+                                Text(
+                                    text = if (lang == "ar") "متوازن وآمن ✓" else "Balanced ✓",
+                                    color = EmeraldGreen,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
                                 )
                             }
-
-                            // Column 2: Compact Description / Voucher Narration Memo Input Field
-                            OutlinedTextField(
-                                value = formDescription,
-                                onValueChange = { viewModel.formDescription.value = it },
-                                label = { Text(if (lang == "ar") "بيان الشرح العام للسند" else "General Narration") },
-                                placeholder = { Text(if (lang == "ar") "اكتب شرحاً للموازنة والمستندات..." else "Provide internal memo...") },
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                                modifier = Modifier
-                                    .weight(1.9f)
-                                    .testTag("voucher_narration_input")
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Ledger Summary Balancing Console Redesign
-        val diffBase = Math.abs(debitTotalBase - creditTotalBase)
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(8.dp, RoundedCornerShape(16.dp), spotColor = if (isBalanced) EmeraldGreen.copy(alpha = 0.3f) else RoseRed.copy(alpha = 0.3f)),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isBalanced) EmeraldGreen.copy(alpha = 0.04f) else RoseRed.copy(alpha = 0.04f)
-            ),
-            border = androidx.compose.foundation.BorderStroke(
-                1.3.dp,
-                if (isBalanced) EmeraldGreen.copy(alpha = 0.3f) else RoseRed.copy(alpha = 0.3f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp)
-            ) {
-                // Header of status dashboard
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .background(
-                                color = if (isBalanced) EmeraldGreen.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isBalanced) Icons.Filled.CheckCircle else Icons.Filled.Dangerous,
-                            contentDescription = null,
-                            tint = if (isBalanced) EmeraldGreen else RoseRed,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (isBalanced) {
-                                if (lang == "ar") "توازن القيد متطابق ومثالي (آمن)" else "Ledger Entries Balanced (ACID Verified)"
-                            } else {
-                                if (lang == "ar") "غير متطابق! يوجد فرق بالمدين/الدائن" else "Double-Entry Out of Balance!"
-                            },
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isBalanced) EmeraldGreen else RoseRed
-                        )
-                        Text(
-                            text = if (lang == "ar") {
-                                "إجمالي المدين: ${FinancialUtils.formatBase(debitTotalBase)} د.ل • الدائن: ${FinancialUtils.formatBase(creditTotalBase)} د.ل"
-                            } else {
-                                "Dr Total: ${FinancialUtils.formatBase(debitTotalBase)} LYD  |  Cr Total: ${FinancialUtils.formatBase(creditTotalBase)} LYD"
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-
-                // Interactive progress comparison gauge bar
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-                ) {
-                    if (isBalanced) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(EmeraldGreen)
-                        )
-                    } else {
-                        val totalBase = (debitTotalBase + creditTotalBase).coerceAtLeast(1L)
-                        val debitWeight = (debitTotalBase.toFloat() / totalBase).coerceIn(0.05f, 0.95f)
-                        val creditWeight = 1f - debitWeight
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .weight(debitWeight)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .weight(creditWeight)
-                                .background(RoseRed)
-                        )
-                    }
-                }
-
-                // Smart Auto Balance gaps fixer
-                if (!isBalanced && diffBase > 0 && formLines.isNotEmpty()) {
-                    Spacer(Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        ElevatedButton(
-                            onClick = {
-                                val isDrMore = debitTotalBase > creditTotalBase
-                                val amountStr = String.format("%.2f", diffBase / 100.0)
-                                val lastIndex = formLines.lastIndex
-                                if (lastIndex >= 0) {
-                                    val lastLine = formLines[lastIndex]
-                                    if (isDrMore) {
-                                        viewModel.updateVoucherLineRow(
-                                            lastIndex,
-                                            lastLine.copy(creditStr = amountStr, debitStr = "")
-                                        )
-                                    } else {
-                                        viewModel.updateVoucherLineRow(
-                                            lastIndex,
-                                            lastLine.copy(debitStr = amountStr, creditStr = "")
-                                        )
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.elevatedButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            ),
-                            elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 2.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Build,
-                                contentDescription = null,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            val dynamicAmountStr = FinancialUtils.formatBase(diffBase)
-                            Text(
-                                text = if (lang == "ar") "موازنة تلقائية بالفرق (+$dynamicAmountStr)" else "Auto-Balance Offset (+$dynamicAmountStr)",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Black
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-
-        if (formVoucherType == VoucherType.RECEIPT || formVoucherType == VoucherType.PAYMENT) {
-            // Simplified dual-account form section for receipt and payment vouchers
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Header info
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (formVoucherType == VoucherType.RECEIPT) Icons.Filled.ArrowCircleDown else Icons.Filled.ArrowCircleUp,
-                                contentDescription = null,
-                                tint = if (formVoucherType == VoucherType.RECEIPT) EmeraldGreen else MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = if (formVoucherType == VoucherType.RECEIPT) {
-                                    if (lang == "ar") "تفاصيل المعاملة (سند القبض المزدوج المالي)" else "Inward Receipt Voucher (Dual Account)"
-                                } else {
-                                    if (lang == "ar") "تفاصيل المعاملة (سند صرف مالي مبسط)" else "Simplified Payment Voucher (Dual Account)"
-                                },
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
                         }
 
-                        // SECTION 1: Amount, Currency, and Exchange Rate Row
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+
+                        // Amount & Currency Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             OutlinedTextField(
                                 value = dualAmountStr,
                                 onValueChange = {
                                     dualAmountStr = it
-                                    updateDualVoucherState(it, dualCurrencyId, dualExchangeRateStr, payerAccountId, payeeAccountId, payerMemo, payeeMemo)
+                                    updateDualVoucherState(it, dualCurrencyId, dualExchangeRateStr, payerAccountId, payeeAccountId, formDescription, formDescription)
                                 },
-                                label = { Text(if (lang == "ar") "المبلغ المالي" else "Amount") },
+                                label = { Text(if (lang == "ar") "المبلغ المالي" else "Voucher Amount", fontWeight = FontWeight.Bold) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                leadingIcon = { Icon(Icons.Filled.Money, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                                modifier = Modifier.weight(1.2f).testTag("dual_amount_input"),
-                                singleLine = true
+                                leadingIcon = { Icon(Icons.Filled.Money, contentDescription = null, modifier = Modifier.size(18.dp), tint = accentColorTheme) },
+                                textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = accentColorTheme),
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .testTag("dual_amount_input"),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = accentColorTheme,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                                    focusedLabelColor = accentColorTheme
+                                )
                             )
 
-                            // Currency Dropdown Selector box
-                            var dualCurrExpanded by remember { mutableStateOf(false) }
+                            // Currency Drodown Compact Selector
+                            var dualCurrExpandedCompact by remember { mutableStateOf(false) }
                             val activeCurrency = currencies.find { it.id == dualCurrencyId } ?: currencies.firstOrNull()
                             ExposedDropdownMenuBox(
-                                expanded = dualCurrExpanded,
-                                onExpandedChange = { dualCurrExpanded = !dualCurrExpanded },
+                                expanded = dualCurrExpandedCompact,
+                                onExpandedChange = { dualCurrExpandedCompact = !dualCurrExpandedCompact },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 OutlinedTextField(
@@ -823,23 +512,26 @@ fun VoucherEditorScreen(
                                     onValueChange = {},
                                     readOnly = true,
                                     label = { Text(if (lang == "ar") "العملة" else "Currency") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dualCurrExpanded) },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dualCurrExpandedCompact) },
                                     singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                                    ),
                                     modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
                                 )
                                 ExposedDropdownMenu(
-                                    expanded = dualCurrExpanded,
-                                    onDismissRequest = { dualCurrExpanded = false }
+                                    expanded = dualCurrExpandedCompact,
+                                    onDismissRequest = { dualCurrExpandedCompact = false }
                                 ) {
                                     currencies.forEach { cur ->
                                         DropdownMenuItem(
                                             text = { Text("${cur.code} - ${cur.name}", style = MaterialTheme.typography.bodyMedium) },
                                             onClick = {
                                                 dualCurrencyId = cur.id
-                                                dualCurrExpanded = false
-                                                updateDualVoucherState(dualAmountStr, cur.id, dualExchangeRateStr, payerAccountId, payeeAccountId, payerMemo, payeeMemo)
+                                                dualCurrExpandedCompact = false
+                                                updateDualVoucherState(dualAmountStr, cur.id, dualExchangeRateStr, payerAccountId, payeeAccountId, formDescription, formDescription)
                                             }
                                         )
                                     }
@@ -851,163 +543,742 @@ fun VoucherEditorScreen(
                                     value = dualExchangeRateStr,
                                     onValueChange = {
                                         dualExchangeRateStr = it
-                                        updateDualVoucherState(dualAmountStr, dualCurrencyId, it, payerAccountId, payeeAccountId, payerMemo, payeeMemo)
+                                        updateDualVoucherState(dualAmountStr, dualCurrencyId, it, payerAccountId, payeeAccountId, formDescription, formDescription)
                                     },
-                                    label = { Text(if (lang == "ar") "سعر الصرف" else "Rate") },
+                                    label = { Text(if (lang == "ar") "الصرف" else "Rate") },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    modifier = Modifier.weight(0.8f).testTag("dual_rate_input"),
-                                    singleLine = true
-                                )
-                            }
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-
-                        // SECTION 2: Recipient Account & Narration
-                        Text(
-                            text = if (formVoucherType == VoucherType.RECEIPT) {
-                                if (lang == "ar") "١. حساب المستلم (مدفوع له) (الطرف المدين Debit) 🏦 [الخزينة أو البنك المحلي]"
-                                else "1. Receiving Vault (Paid to / Dr Side) 🏦 [Vault or Local Bank]"
-                            } else {
-                                if (lang == "ar") "١. المستفيد / حساب مدفوع له (الطرف المدين Debit) 👤 [مورد، عهدة موظف، مصاريف]"
-                                else "1. Payee / Recipient Account (Dr Side) 👤 [Vendor, Employee Vault, Expense]"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            var payeeExpanded by remember { mutableStateOf(false) }
-                            val activePayee = leafAccounts.find { it.id == payeeAccountId }
-                            ExposedDropdownMenuBox(
-                                expanded = payeeExpanded,
-                                onExpandedChange = { payeeExpanded = !payeeExpanded },
-                                modifier = Modifier.weight(1.8f)
-                            ) {
-                                OutlinedTextField(
-                                    value = activePayee?.let { "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: (if (lang == "ar") "اختر حساب مدفوع له..." else "Choose Recipient..."),
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = payeeExpanded) },
+                                    modifier = Modifier.weight(0.7f).testTag("dual_rate_input"),
                                     singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
-                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color.Transparent,
-                                        unfocusedContainerColor = Color.Transparent
-                                    ),
-                                    modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable).testTag("dual_payee_select")
+                                    shape = RoundedCornerShape(12.dp)
                                 )
-                                ExposedDropdownMenu(
-                                    expanded = payeeExpanded,
-                                    onDismissRequest = { payeeExpanded = false }
-                                ) {
-                                    leafAccounts.forEach { acc ->
-                                        DropdownMenuItem(
-                                            text = { Text("${acc.accountCode} - ${com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)}", maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
-                                            onClick = {
-                                                payeeAccountId = acc.id
-                                                payeeExpanded = false
-                                                updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, payerAccountId, acc.id, payerMemo, payeeMemo)
-                                            }
-                                        )
-                                    }
-                                }
                             }
-
-                            OutlinedTextField(
-                                value = payeeMemo,
-                                onValueChange = {
-                                    payeeMemo = it
-                                    updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, payerAccountId, payeeAccountId, payerMemo, it)
-                                },
-                                label = { Text(if (lang == "ar") "البيان (شرح المستلم)" else "Narration / Statement") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1.4f).testTag("dual_payee_memo_input"),
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
-                            )
                         }
 
                         Spacer(Modifier.height(4.dp))
 
-                        // SECTION 3: Payer Account & Narration
-                        Text(
-                            text = if (formVoucherType == VoucherType.RECEIPT) {
-                                if (lang == "ar") "٢. المسدد / حساب دافع (الطرف الدائن Credit) 📤 [الزبون أو مصدر خارجي]"
-                                else "2. Payer Account (Paid From / Cr Side) 📤 [Client or Contributor Source]"
-                            } else {
-                                if (lang == "ar") "٢. مصدر الدفع / حساب دافع (الطرف الدائن Credit) 📤 [الخزينة المفرجة عن النقود]"
-                                else "2. Payment Vault / Payer (Cr Side) 📤 [The Vault Disbursing Cash]"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = RoseRed
-                        )
+                        // ROLE 1: SOURCE OF FUNDS (من حساب)
+                        // Receipt: Paying Client (Cr)
+                        // Payment: Beneficiary / Expense Account (Dr)
+                        val (firstLabel, firstIcon, firstColor) = if (isReceipt) {
+                            Triple(
+                                if (lang == "ar") "من حساب (الجهة الدافعة للديون/العميل) [دائن]" else "Payer Customer / Contributor (Cr)",
+                                Icons.Filled.Person,
+                                RoseRed
+                            )
+                        } else {
+                            Triple(
+                                if (lang == "ar") "من حساب (المستفيد / المصروف المستهدف) [مدين]" else "Beneficiary / Intended Expense (Dr)",
+                                Icons.Filled.ReceiptLong,
+                                MaterialTheme.colorScheme.primary
+                            )
+                        }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            var payerExpanded by remember { mutableStateOf(false) }
-                            val activePayer = leafAccounts.find { it.id == payerAccountId }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(firstIcon, contentDescription = null, modifier = Modifier.size(16.dp), tint = firstColor)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = firstLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = firstColor
+                                )
+                            }
+
+                            var firstExpanded by remember { mutableStateOf(false) }
+                            val activeFirstId = if (isReceipt) payerAccountId else payeeAccountId
+                            val activeFirstAcc = leafAccounts.find { it.id == activeFirstId }
+
                             ExposedDropdownMenuBox(
-                                expanded = payerExpanded,
-                                onExpandedChange = { payerExpanded = !payerExpanded },
-                                modifier = Modifier.weight(1.8f)
+                                expanded = firstExpanded,
+                                onExpandedChange = { firstExpanded = !firstExpanded },
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 OutlinedTextField(
-                                    value = activePayer?.let { "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: (if (lang == "ar") "اختر حساب دافع..." else "Choose Payer..."),
+                                    value = activeFirstAcc?.let { "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" } 
+                                        ?: (if (lang == "ar") "اختر الحساب المصدر..." else "Select Source Account..."),
                                     onValueChange = {},
                                     readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = payerExpanded) },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = firstExpanded) },
                                     singleLine = true,
                                     shape = RoundedCornerShape(10.dp),
-                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color.Transparent,
-                                        unfocusedContainerColor = Color.Transparent
+                                        focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.02f),
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.02f),
+                                        focusedBorderColor = firstColor,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
                                     ),
-                                    modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable).testTag("dual_payer_select")
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                                        .testTag("dual_payer_select")
                                 )
                                 ExposedDropdownMenu(
-                                    expanded = payerExpanded,
-                                    onDismissRequest = { payerExpanded = false }
+                                    expanded = firstExpanded,
+                                    onDismissRequest = { firstExpanded = false }
                                 ) {
                                     leafAccounts.forEach { acc ->
                                         DropdownMenuItem(
                                             text = { Text("${acc.accountCode} - ${com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)}", maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
                                             onClick = {
-                                                payerAccountId = acc.id
-                                                payerExpanded = false
-                                                updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, acc.id, payeeAccountId, payerMemo, payeeMemo)
+                                                if (isReceipt) {
+                                                    payerAccountId = acc.id
+                                                    updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, acc.id, payeeAccountId, formDescription, formDescription)
+                                                } else {
+                                                    payeeAccountId = acc.id
+                                                    updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, payerAccountId, acc.id, formDescription, formDescription)
+                                                }
+                                                firstExpanded = false
                                             }
                                         )
                                     }
                                 }
                             }
+                        }
+
+                        // Beautiful Visual directional flow link
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(1.dp)
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            colors = listOf(firstColor.copy(alpha = 0.2f), accentColorTheme.copy(alpha = 0.5f))
+                                        )
+                                    )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(accentColorTheme.copy(alpha = 0.12f))
+                                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = if (lang == "ar") "سريان حركة المال" else "Cash Transaction Direction",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = accentColorTheme,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 11.sp
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Filled.TrendingFlat,
+                                        contentDescription = null,
+                                        tint = accentColorTheme,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(1.dp)
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            colors = listOf(accentColorTheme.copy(alpha = 0.5f), firstColor.copy(alpha = 0.2f))
+                                        )
+                                    )
+                            )
+                        }
+
+                        // ROLE 2: DESTINATION OF FUNDS (إلى حساب)
+                        // Receipt: Deposited into bank/vault ("إلى حساب الخزينة المستلمة") (Dr)
+                        // Payment: Paid from bank/vault ("إلى حساب الخزينة الدافعة") (Cr)
+                        val (secondLabel, secondIcon, secondColor) = if (isReceipt) {
+                            Triple(
+                                if (lang == "ar") "إلى حساب (الخزينة/البنك المستلم للأموال) [مدين]" else "Receiving Cash Box or Bank Vault (Dr)",
+                                Icons.Filled.AccountBalance,
+                                EmeraldGreen
+                            )
+                        } else {
+                            Triple(
+                                if (lang == "ar") "إلى حساب (الخزينة/البنك المصدر للمال) [دائن]" else "Paying Cash Box or Bank Vault (Cr)",
+                                Icons.Filled.AccountBalanceWallet,
+                                RoseRed
+                            )
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(secondIcon, contentDescription = null, modifier = Modifier.size(16.dp), tint = secondColor)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = secondLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = secondColor
+                                )
+                            }
+
+                            var secondExpanded by remember { mutableStateOf(false) }
+                            val activeSecondId = if (isReceipt) payeeAccountId else payerAccountId
+                            val activeSecondAcc = leafAccounts.find { it.id == activeSecondId }
+
+                            ExposedDropdownMenuBox(
+                                expanded = secondExpanded,
+                                onExpandedChange = { secondExpanded = !secondExpanded },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedTextField(
+                                    value = activeSecondAcc?.let { "${it.accountCode} - ${com.example.ui.Localization.getAccountName(it.accountCode, it.name, lang)}" }
+                                        ?: (if (lang == "ar") "اختر الخزينة أو البنك..." else "Select Cash/Bank Account..."),
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = secondExpanded) },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.02f),
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.02f),
+                                        focusedBorderColor = secondColor,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                                        .testTag("dual_payee_select")
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = secondExpanded,
+                                    onDismissRequest = { secondExpanded = false }
+                                ) {
+                                    leafAccounts.forEach { acc ->
+                                        DropdownMenuItem(
+                                            text = { Text("${acc.accountCode} - ${com.example.ui.Localization.getAccountName(acc.accountCode, acc.name, lang)}", maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
+                                            onClick = {
+                                                if (isReceipt) {
+                                                    payeeAccountId = acc.id
+                                                    updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, payerAccountId, acc.id, formDescription, formDescription)
+                                                } else {
+                                                    payerAccountId = acc.id
+                                                    updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, acc.id, payeeAccountId, formDescription, formDescription)
+                                                }
+                                                secondExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+
+                        // SECTION 4: UNIFIED MEMO / STATEMENT / DETAIL
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.Description, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = if (lang == "ar") "شرح السند / البيان العام للتبيين" else "General Narration / Statement Description",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
 
                             OutlinedTextField(
-                                value = payerMemo,
+                                value = formDescription,
                                 onValueChange = {
-                                    payerMemo = it
-                                    updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, payerAccountId, payeeAccountId, it, payeeMemo)
+                                    viewModel.formDescription.value = it
+                                    updateDualVoucherState(dualAmountStr, dualCurrencyId, dualExchangeRateStr, payerAccountId, payeeAccountId, it, it)
                                 },
-                                label = { Text(if (lang == "ar") "البيان (شرح الدافع)" else "Narration / Statement") },
+                                placeholder = { Text(if (lang == "ar") "اكتب بياناً مناسباً يصف الغرض من المعاملة..." else "Describe why these funds are being moved...") },
                                 singleLine = true,
-                                modifier = Modifier.weight(1.4f).testTag("dual_payer_memo_input"),
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                                shape = RoundedCornerShape(10.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("voucher_narration_input"),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                                )
                             )
                         }
                     }
                 }
             }
         } else {
+            // Document Form Header details with high-end expand/collapse transitions (Original Journal layout)
+            AnimatedContent(
+                targetState = isHeaderCollapsed,
+                transitionSpec = {
+                    fadeIn() togetherWith fadeOut()
+                },
+                label = "HeaderDetailsTrans"
+            ) { collapsed ->
+                if (collapsed) {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isHeaderCollapsed = false }
+                            .padding(bottom = 12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                val summary = if (lang == "ar") {
+                                    "السند: ${formVoucherNo.ifBlank { "بلا رقم" }} • ${formDescription.ifBlank { "بلا شرح" }} • $formattedFormDate"
+                                } else {
+                                    "Voucher: ${formVoucherNo.ifBlank { "N/A" }} • ${formDescription.ifBlank { "No Narration" }} • $formattedFormDate"
+                                }
+                                Text(
+                                    text = summary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            Text(
+                                text = if (lang == "ar") "تعديل البيانات الأساسية ✎" else "Define Primary ✎",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+                } else {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp)
+                            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Filled.FactCheck,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = if (lang == "ar") "بيانات السند الأساسية" else "Primary Ledger Meta",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                
+                                TextButton(
+                                    onClick = { isHeaderCollapsed = true },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(Icons.Filled.KeyboardArrowUp, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = if (lang == "ar") "تصغير اللوحة" else "Collapse",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // 1. Voucher Type Selection Dropdown Box
+                                var typeDropdownExpanded by remember { mutableStateOf(false) }
+                                ExposedDropdownMenuBox(
+                                    expanded = typeDropdownExpanded,
+                                    onExpandedChange = { typeDropdownExpanded = !typeDropdownExpanded },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    val classificationText = when (formVoucherType) {
+                                        VoucherType.JOURNAL -> if (lang == "ar") "تسوية" else "Journal"
+                                        VoucherType.RECEIPT -> if (lang == "ar") "قبض" else "Receipt"
+                                        VoucherType.PAYMENT -> if (lang == "ar") "صرف" else "Payment"
+                                    }
+                                    OutlinedTextField(
+                                        value = classificationText,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text(if (lang == "ar") "نوع السند" else "Type") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeDropdownExpanded) },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(10.dp),
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = Color.Transparent,
+                                            unfocusedContainerColor = Color.Transparent
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                                    )
+                                    ExposedDropdownMenu(
+                                        expanded = typeDropdownExpanded,
+                                        onDismissRequest = { typeDropdownExpanded = false }
+                                    ) {
+                                        VoucherType.values().forEach { type ->
+                                            val labelText = when (type) {
+                                                VoucherType.JOURNAL -> if (lang == "ar") "قيد تسوية يومية (Daily Journal)" else "Journal Entry"
+                                                VoucherType.RECEIPT -> if (lang == "ar") "سند قبض مالي (Inward Receipt)" else "Receipt Voucher"
+                                                VoucherType.PAYMENT -> if (lang == "ar") "سند صرف نقدي (Cash Outflow)" else "Payment Voucher"
+                                            }
+                                            DropdownMenuItem(
+                                                text = { Text(labelText, style = MaterialTheme.typography.bodyMedium) },
+                                                onClick = {
+                                                    viewModel.formVoucherType.value = type
+                                                    typeDropdownExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // 2. Voucher Number Input TextField
+                                OutlinedTextField(
+                                    value = formVoucherNo,
+                                    onValueChange = { viewModel.formVoucherNo.value = it },
+                                    label = { Text(if (lang == "ar") "رقم السند" else "Voucher No") },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("voucher_number_input")
+                                )
+
+                                // 3. Fiscal Cycle Selection Dropdown Box
+                                ExposedDropdownMenuBox(
+                                    expanded = fyDropdownExpanded,
+                                    onExpandedChange = { fyDropdownExpanded = !fyDropdownExpanded },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    val activeFyName = if (activeFiscalYear != null) {
+                                        if (lang == "ar") activeFiscalYear.name.replace("FY", "سنة") else activeFiscalYear.name
+                                    } else {
+                                        if (lang == "ar") "اختر الفترة" else "Select Period"
+                                    }
+                                    OutlinedTextField(
+                                        value = activeFyName,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text(if (lang == "ar") "السنة المالية" else "Fiscal Year") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fyDropdownExpanded) },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(10.dp),
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                                    )
+                                    ExposedDropdownMenu(
+                                        expanded = fyDropdownExpanded,
+                                        onDismissRequest = { fyDropdownExpanded = false }
+                                    ) {
+                                        fiscalYears.forEach { fy ->
+                                            val fyName = if (lang == "ar") fy.name.replace("FY", "سنة") else fy.name
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text(fyName, style = MaterialTheme.typography.bodyMedium)
+                                                        if (fy.isLocked) {
+                                                            Spacer(Modifier.width(8.dp))
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(4.dp))
+                                                                    .background(RoseRed.copy(alpha = 0.15f))
+                                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = if (lang == "ar") "مقفل" else "LOCKED",
+                                                                    color = RoseRed,
+                                                                    style = MaterialTheme.typography.labelSmall,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                onClick = {
+                                                    viewModel.formFiscalYearId.value = fy.id
+                                                    fyDropdownExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Column 1: Configurable Date Picker TextField with click recognition
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1.1f)
+                                ) {
+                                    OutlinedTextField(
+                                        value = formattedFormDate,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text(if (lang == "ar") "تاريخ المعاملة" else "Posting Date") },
+                                        trailingIcon = { Icon(Icons.Filled.DateRange, null, modifier = Modifier.size(16.dp)) },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(10.dp),
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = Color.Transparent,
+                                            unfocusedContainerColor = Color.Transparent
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    // Overlaid touch interceptor
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .clickable {
+                                                keyboardController?.hide()
+                                                focusManager.clearFocus()
+                                                showDatePicker = true
+                                            }
+                                    )
+                                }
+
+                                // Column 2: Compact Description / Voucher Narration Memo Input Field
+                                OutlinedTextField(
+                                    value = formDescription,
+                                    onValueChange = { viewModel.formDescription.value = it },
+                                    label = { Text(if (lang == "ar") "بيان الشرح العام للسند" else "General Narration") },
+                                    placeholder = { Text(if (lang == "ar") "اكتب شرحاً للموازنة والمستندات..." else "Provide internal memo...") },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                    modifier = Modifier
+                                        .weight(1.9f)
+                                        .testTag("voucher_narration_input")
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Ledger Summary Balancing Console Redesign (Shown for general journal double entries)
+            val diffBase = Math.abs(debitTotalBase - creditTotalBase)
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(8.dp, RoundedCornerShape(16.dp), spotColor = if (isBalanced) EmeraldGreen.copy(alpha = 0.3f) else RoseRed.copy(alpha = 0.3f)),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isBalanced) EmeraldGreen.copy(alpha = 0.04f) else RoseRed.copy(alpha = 0.04f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.3.dp,
+                    if (isBalanced) EmeraldGreen.copy(alpha = 0.3f) else RoseRed.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp)
+                ) {
+                    // Header of status dashboard
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .background(
+                                    color = if (isBalanced) EmeraldGreen.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isBalanced) Icons.Filled.CheckCircle else Icons.Filled.Dangerous,
+                                contentDescription = null,
+                                tint = if (isBalanced) EmeraldGreen else RoseRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isBalanced) {
+                                    if (lang == "ar") "توازن القيد متطابق ومثالي (آمن)" else "Ledger Entries Balanced (ACID Verified)"
+                                } else {
+                                    if (lang == "ar") "غير متطابق! يوجد فرق بالمدين/الدائن" else "Double-Entry Out of Balance!"
+                                },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isBalanced) EmeraldGreen else RoseRed
+                            )
+                            Text(
+                                text = if (lang == "ar") {
+                                    "إجمالي المدين: ${FinancialUtils.formatBase(debitTotalBase)} د.ل • الدائن: ${FinancialUtils.formatBase(creditTotalBase)} د.ل"
+                                } else {
+                                    "Dr Total: ${FinancialUtils.formatBase(debitTotalBase)} LYD  |  Cr Total: ${FinancialUtils.formatBase(creditTotalBase)} LYD"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    // Interactive progress comparison gauge bar
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                    ) {
+                        if (isBalanced) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(EmeraldGreen)
+                            )
+                        } else {
+                            val totalBase = (debitTotalBase + creditTotalBase).coerceAtLeast(1L)
+                            val debitWeight = (debitTotalBase.toFloat() / totalBase).coerceIn(0.05f, 0.95f)
+                            val creditWeight = 1f - debitWeight
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .weight(debitWeight)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .weight(creditWeight)
+                                    .background(RoseRed)
+                            )
+                        }
+                    }
+
+                    // Smart Auto Balance gaps fixer
+                    if (!isBalanced && diffBase > 0 && formLines.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            ElevatedButton(
+                                onClick = {
+                                    val isDrMore = debitTotalBase > creditTotalBase
+                                    val amountStr = String.format(java.util.Locale.US, "%.2f", diffBase / 100.0)
+                                    val lastIndex = formLines.lastIndex
+                                    if (lastIndex >= 0) {
+                                        val lastLine = formLines[lastIndex]
+                                        if (isDrMore) {
+                                            viewModel.updateVoucherLineRow(
+                                                lastIndex,
+                                                lastLine.copy(creditStr = amountStr, debitStr = "")
+                                            )
+                                        } else {
+                                            viewModel.updateVoucherLineRow(
+                                                lastIndex,
+                                                lastLine.copy(debitStr = amountStr, creditStr = "")
+                                            )
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.elevatedButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 2.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Build,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                val dynamicAmountStr = FinancialUtils.formatBase(diffBase)
+                                Text(
+                                    text = if (lang == "ar") "موازنة تلقائية بالفرق (+$dynamicAmountStr)" else "Auto-Balance Offset (+$dynamicAmountStr)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
             // General Journal Multi-line voucher table list
             Row(
                 modifier = Modifier.fillMaxWidth(),

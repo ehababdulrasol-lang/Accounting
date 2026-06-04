@@ -175,7 +175,7 @@ fun VouchersScreen(
                             ) {
                                 Icon(Icons.Filled.Close, contentDescription = "Clear", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                                 Spacer(Modifier.width(4.dp))
-                                val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                                 Text(
                                     text = fmt.format(Date(selectedDateFilter!!)),
                                     style = MaterialTheme.typography.labelSmall,
@@ -583,7 +583,7 @@ fun VoucherHeaderItem(
     onDelete: () -> Unit,
     onPrint: () -> Unit
 ) {
-    val formatter = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
+    val formatter = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US) }
     val formattedDate = remember(header.date) { formatter.format(Date(header.date)) }
 
     // Left Accent Banner Color representing the category of the ledger sheet

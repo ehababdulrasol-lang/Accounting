@@ -816,7 +816,7 @@ fun DashboardEntryRow(
     onClick: () -> Unit
 ) {
     val dateString = remember(header.date) {
-        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(header.date))
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(header.date))
     }
 
     Card(
@@ -962,7 +962,7 @@ fun EmptyDashboardVouchersPlaceHolder(
 
 @Composable
 fun AuditLogRow(log: com.example.data.AuditLog) {
-    val formatter = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+    val formatter = remember { SimpleDateFormat("HH:mm:ss", Locale.US) }
     val formattedTime = remember(log.timestamp) { formatter.format(Date(log.timestamp)) }
 
     Row(
@@ -1370,7 +1370,7 @@ fun DashboardDiagnosticsCard(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = if (totalRevenue > 0) "${String.format(Locale.getDefault(), "%.1f", profitMarginPercentage)}%" else "0.0% (N/A)",
+                        text = if (totalRevenue > 0) "${String.format(Locale.US, "%.1f", profitMarginPercentage)}%" else "0.0% (N/A)",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = if (profitMarginPercentage >= 15.0) EmeraldGreen else if (profitMarginPercentage >= 0.0) MaterialTheme.colorScheme.onSurface else RoseRed

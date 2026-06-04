@@ -157,7 +157,7 @@ fun MeasurementsScreen(
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
                         itemsIndexed(measurements) { index, header ->
-                            val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(header.date))
+                            val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(header.date))
                             StaggeredItem(index = index) {
                                 Card(
                                     modifier = Modifier
@@ -249,7 +249,7 @@ fun MeasurementsScreen(
                                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                                                 )
                                                 Text(
-                                                    text = String.format(Locale.getDefault(), "%.2f", header.totalMeters) + " " + (if (lang == "ar") "متر مربع" else "M²"),
+                                                    text = String.format(Locale.US, "%.2f", header.totalMeters) + " " + (if (lang == "ar") "متر مربع" else "M²"),
                                                     fontWeight = FontWeight.Bold,
                                                     style = MaterialTheme.typography.bodyMedium
                                                 )
@@ -759,7 +759,7 @@ fun MeasurementsScreen(
                                                 )
                                             }
                                             Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f)) {
-                                                Text(text = "${String.format(Locale.getDefault(), "%.2f", ln.totalArea)} م²", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                                Text(text = "${String.format(Locale.US, "%.2f", ln.totalArea)} م²", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                                 Text(text = "${FinancialUtils.formatBase(ln.totalAmount)} ${if (isLibyan) "د.ل" else "LYD"}", fontSize = 12.sp, color = GoldAccent, fontWeight = FontWeight.Bold)
                                             }
 
@@ -817,7 +817,7 @@ fun MeasurementsScreen(
                                                 style = MaterialTheme.typography.bodyMedium
                                             )
                                             Text(
-                                                text = "${String.format(Locale.getDefault(), "%.2f", calculatedMetersSum)} م²",
+                                                text = "${String.format(Locale.US, "%.2f", calculatedMetersSum)} م²",
                                                 fontWeight = FontWeight.ExtraBold,
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = GoldAccent

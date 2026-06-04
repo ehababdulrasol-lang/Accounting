@@ -556,7 +556,7 @@ fun BalanceSheetView(viewModel: LedgerViewModel) {
                         
                         if (totalLiabilities > 0L) {
                             val ratio = totalAssets.toDouble() / totalLiabilities.toDouble()
-                            solvencyRatioText = "${String.format("%.2f", ratio)}x"
+                            solvencyRatioText = "${String.format(java.util.Locale.US, "%.2f", ratio)}x"
                             if (ratio > 2.0) {
                                 ratioColor = EmeraldGreen
                                 diagnosticsText = if (lang == "ar") "ملاءة مالية ممتازة وحماية مرتفعة ضد التعثر المالي. الأصول تغطي الالتزامات بأكثر من الضعف." else "Excellent liquidity cushion and strong protection. Assets cover liabilities more than twofold."
@@ -761,7 +761,7 @@ fun IncomeStatementView(viewModel: LedgerViewModel) {
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = if (lang == "ar") "هامش عائد الإيرادات: ${String.format("%.2f", profitMargin)}%" else "Revenue Yield Margin: ${String.format("%.2f", profitMargin)}%",
+                                text = if (lang == "ar") "هامش عائد الإيرادات: ${String.format(java.util.Locale.US, "%.2f", profitMargin)}%" else "Revenue Yield Margin: ${String.format(java.util.Locale.US, "%.2f", profitMargin)}%",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -1526,7 +1526,7 @@ fun CustomerStatementView(
     val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
     val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()) }
+    val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US) }
 
     var statementRows by remember { mutableStateOf<List<com.example.ui.viewmodel.AccountStatementRow>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -1793,7 +1793,7 @@ fun SupplierStatementView(
     val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
     val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()) }
+    val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US) }
 
     var statementRows by remember { mutableStateOf<List<com.example.ui.viewmodel.AccountStatementRow>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -2065,7 +2065,7 @@ fun BankStatementView(
     val allBranches by viewModel.allBranches.collectAsStateWithLifecycle()
     val banks by viewModel.banks.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()) }
+    val sdf = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US) }
 
     var statementRows by remember { mutableStateOf<List<com.example.ui.viewmodel.AccountStatementRow>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }

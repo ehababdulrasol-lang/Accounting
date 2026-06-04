@@ -221,7 +221,7 @@ object PrintUtils {
     }
 
     private fun formatDate(timestamp: Long): String {
-        return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(timestamp))
+        return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date(timestamp))
     }
 
     // Prints Voucher Details (Journal/Receipt/Payment Voucher)
@@ -870,7 +870,7 @@ object PrintUtils {
                     ${if (netIncome >= 0) "+" else ""}${FinancialUtils.formatBase(netIncome)} ${if (isLibyan) "د.ل" else "LYD"}
                 </div>
                 <div style="font-size: 13px; color:#555; margin-top:8px;">
-                    ${if (isAr) "هامش العائد والاسترداد المئوي:" else "Revenue Yield Margin percentage:"} ${String.format("%.2f", profitMargin)}%
+                    ${if (isAr) "هامش العائد والاسترداد المئوي:" else "Revenue Yield Margin percentage:"} ${String.format(java.util.Locale.US, "%.2f", profitMargin)}%
                 </div>
             </div>
 
