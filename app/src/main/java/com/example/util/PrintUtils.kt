@@ -21,6 +21,7 @@ object PrintUtils {
         val prAr = prefs.getString("print_details_ar", "") ?: ""
         val prEn = prefs.getString("print_details_en", "") ?: ""
         val logoText = prefs.getString("logo_config", "🕌") ?: "🕌"
+        val logoImageUri = prefs.getString("logo_image_uri", "") ?: ""
 
         val currentOrgName = if (isAr) orgAr else orgEn
         val defaultPrintDetails = if (isAr) "إدارة الشؤون والتدقيق المالي العام" else "General Ledger Finance & Auditing Dept."
@@ -29,7 +30,25 @@ object PrintUtils {
         } else {
             if (prEn.isNotEmpty()) prEn else defaultPrintDetails
         }
-        return Triple(currentOrgName, currentPrintDetails, logoText)
+
+        val brandLogo = if (logoImageUri.isNotEmpty()) {
+            try {
+                val file = java.io.File(logoImageUri)
+                if (file.exists()) {
+                    val bytes = file.readBytes()
+                    val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    "<img src=\"data:image/png;base64,$base64\" style=\"max-height:46px; max-width:120px; vertical-align:middle; object-fit:contain;\" />"
+                } else {
+                    logoText
+                }
+            } catch (e: Exception) {
+                logoText
+            }
+        } else {
+            logoText
+        }
+
+        return Triple(currentOrgName, currentPrintDetails, brandLogo)
     }
 
     private fun getHtmlTemplate(body: String, isRtl: Boolean): String {

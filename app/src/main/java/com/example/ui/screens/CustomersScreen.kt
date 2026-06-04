@@ -57,9 +57,13 @@ fun CustomersScreen(
 
     // Group Management state
     var selectedGroup by remember { mutableStateOf<com.example.data.CustomerGroup?>(null) }
+    var isGeneralGroupSelected by remember { mutableStateOf(false) }
+    var isAllGroupSelected by remember { mutableStateOf(false) }
     var showAddGroupDialog by remember { mutableStateOf(false) }
     var editingGroup by remember { mutableStateOf<com.example.data.CustomerGroup?>(null) }
     var groupToDelete by remember { mutableStateOf<com.example.data.CustomerGroup?>(null) }
+
+    val isAnyGroupSelected = selectedGroup != null || isGeneralGroupSelected || isAllGroupSelected
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -84,309 +88,156 @@ fun CustomersScreen(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                // Group Carousel section
-                Text(
-                    text = if (lang == "ar") "تصنيفات ومجموعات العملاء" else "Customer Categories & Groups",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 1. "All" Card
-                    Card(
-                        modifier = Modifier
-                            .width(130.dp)
-                            .height(85.dp)
-                            .clickable { selectedGroup = null },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (selectedGroup == null) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                            }
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (selectedGroup == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(10.dp).fillMaxSize(),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.People,
-                                    contentDescription = null,
-                                    tint = if (selectedGroup == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Badge(
-                                    containerColor = if (selectedGroup == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                    contentColor = if (selectedGroup == null) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                                ) {
-                                    Text(text = "${customers.size}", style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-                            Text(
-                                text = if (lang == "ar") "كل العملاء" else "All Customers",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selectedGroup == null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                if (isAnyGroupSelected) {
+                    // --- INSIDE A GROUP VIEW ---
+                    val activeGroupName = when {
+                        isAllGroupSelected -> if (lang == "ar") "جميع العملاء" else "All Customers"
+                        isGeneralGroupSelected -> if (lang == "ar") "عام (غير مصنفين)" else "General / Uncategorized"
+                        else -> selectedGroup?.name ?: ""
+                    }
+                    val activeGroupDesc = when {
+                        isAllGroupSelected -> if (lang == "ar") "استعراض جميع العملاء من كافة التصنيفات والمجموعات" else "View all customers from all groups"
+                        isGeneralGroupSelected -> if (lang == "ar") "العملاء المسجلون تلقائياً أو بدون تحديد مجموعة" else "Customers registered with no specified group"
+                        else -> selectedGroup?.description ?: ""
                     }
 
-                    // 2. Custom Groups Cards
-                    customerGroups.forEach { group ->
-                        val groupCount = remember(customers, group) {
-                            customers.count { it.groupId == group.id || it.groupName.trim().equals(group.name.trim(), ignoreCase = true) }
-                        }
-                        val isSelected = selectedGroup?.id == group.id
-
-                        Card(
-                            modifier = Modifier
-                                .width(160.dp)
-                                .height(85.dp)
-                                .clickable { selectedGroup = group },
+                    // Back & Header Action Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilledTonalButton(
+                            onClick = {
+                                selectedGroup = null
+                                isGeneralGroupSelected = false
+                                isAllGroupSelected = false
+                                searchQuery = ""
+                            },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                                }
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-                            )
+                            modifier = Modifier.height(36.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(10.dp).fillMaxSize(),
-                                verticalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.FolderOpen,
-                                        contentDescription = null,
-                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    
-                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        IconButton(
-                                            onClick = { editingGroup = group },
-                                            modifier = Modifier.size(20.dp)
-                                        ) {
-                                            Icon(Icons.Filled.Edit, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(11.dp))
-                                        }
-                                        IconButton(
-                                            onClick = { groupToDelete = group },
-                                            modifier = Modifier.size(20.dp)
-                                        ) {
-                                            Icon(Icons.Filled.Delete, null, tint = RoseRed, modifier = Modifier.size(11.dp))
-                                        }
-                                        Badge(
-                                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                                            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                                        ) {
-                                            Text(text = "$groupCount", style = MaterialTheme.typography.labelSmall)
-                                        }
-                                    }
-                                }
-                                
-                                Text(
-                                    text = group.name,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                            Icon(
+                                imageVector = if (lang == "ar") Icons.Filled.ArrowForward else Icons.Filled.ArrowBack, 
+                                contentDescription = "Back",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = if (lang == "ar") "الرجوع للمجموعات" else "Back to Groups",
+                                style = MaterialTheme.typography.labelMedium
+                            )
                         }
                     }
 
-                    // 3. Add Group Card
+                    // Title of Group
                     Card(
-                        modifier = Modifier
-                            .width(130.dp)
-                            .height(85.dp)
-                            .clickable { showAddGroupDialog = true },
-                        shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
                         ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                        )
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(10.dp).fillMaxSize(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                                contentAlignment = Alignment.Center
-                            ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Filled.Add,
+                                    imageVector = if (isAllGroupSelected) Icons.Filled.People else Icons.Filled.FolderOpen,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = activeGroupName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = if (lang == "ar") "مجموعة جديدة" else "New Group",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                // Search Bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    label = { Text(Localization.translate(Localization.Key.SEARCH_CUSTOMER, lang)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                        .testTag("customer_search"),
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Filled.Clear, contentDescription = "Clear")
+                            if (activeGroupDesc.isNotEmpty()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = activeGroupDesc,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
                             }
                         }
-                    },
-                    singleLine = true
-                )
+                    }
 
-                val filtered = customers.filter {
-                    val matchesSearch = it.name.contains(searchQuery, ignoreCase = true) ||
-                                        it.phone.contains(searchQuery) ||
-                                        it.email.contains(searchQuery, ignoreCase = true)
-                    val matchesGroup = if (selectedGroup != null) {
-                        it.groupId == selectedGroup!!.id || it.groupName.trim().equals(selectedGroup!!.name.trim(), ignoreCase = true)
+                    // SEARCH
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text(Localization.translate(Localization.Key.SEARCH_CUSTOMER, lang)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                            .testTag("customer_search"),
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(Icons.Filled.Clear, contentDescription = "Clear")
+                                }
+                            }
+                        },
+                        singleLine = true
+                    )
+
+                    // Customer filtering
+                    val filtered = customers.filter {
+                        val matchesSearch = it.name.contains(searchQuery, ignoreCase = true) ||
+                                             it.phone.contains(searchQuery) ||
+                                             it.email.contains(searchQuery, ignoreCase = true)
+                        val matchesGroup = when {
+                            isAllGroupSelected -> true
+                            isGeneralGroupSelected -> it.groupId == null || it.groupName.isBlank()
+                            selectedGroup != null -> it.groupId == selectedGroup!!.id || it.groupName.trim().equals(selectedGroup!!.name.trim(), ignoreCase = true)
+                            else -> true
+                        }
+                        matchesSearch && matchesGroup
+                    }
+
+                    if (filtered.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
+                                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Filled.PeopleOutline,
+                                    contentDescription = "",
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                )
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    text = Localization.translate(Localization.Key.NO_CUSTOMERS_FOUND, lang),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
                     } else {
-                        true
-                    }
-                    matchesSearch && matchesGroup
-                }
-
-                if (filtered.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
-                            .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Filled.PeopleOutline,
-                                contentDescription = "",
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                text = Localization.translate(Localization.Key.NO_CUSTOMERS_FOUND, lang),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-                } else {
-                    val grouped = remember(filtered, lang) {
-                        filtered.groupBy { it.groupName.trim() }
-                    }
-
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                            .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
-                        contentPadding = PaddingValues(bottom = 80.dp)
-                    ) {
-                        grouped.forEach { (groupName, customerList) ->
-                            item {
-                                val title = if (groupName.isBlank()) {
-                                    if (lang == "ar") "عملاء عامون (غير مصنفين)" else "General / Uncategorized"
-                                } else {
-                                    groupName
-                                }
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Folder,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            text = title,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    Badge(
-                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                        contentColor = MaterialTheme.colorScheme.primary
-                                    ) {
-                                        Text(
-                                            text = "${customerList.size}",
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            itemsIndexed(customerList) { idx, customer ->
+                        LazyColumn(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            itemsIndexed(filtered) { idx, customer ->
                                 com.example.ui.StaggeredItem(index = idx) {
                                     val linkedAccount = allAccounts.find { it.id == customer.accountId }
                                     val balance = remember(customer.accountId, snapshots) {
@@ -409,20 +260,144 @@ fun CustomersScreen(
                             }
                         }
                     }
+
+                } else {
+                    // --- MAIN GROUPS BROWSER ---
+                    Text(
+                        text = if (lang == "ar") "مجموعات وتصنيفات العملاء" else "Customer Groups & Lists",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                    Text(
+                        text = if (lang == "ar") "اختر مجموعة للاستعراض، أو لإدارة وإضافة وتعديل العملاء المنتمين إليها محاسبياً." else "Choose a group below to view, add, or manage customer profiles within it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        // All Customers Group Card
+                        item {
+                            val totalCount = customers.size
+                            FolderGroupCard(
+                                title = if (lang == "ar") "جميع المجموعات والعملاء" else "All Customers (Global List)",
+                                description = if (lang == "ar") "كافة العملاء المسجلين بالنظام بشكل شامل" else "Complete flat listing of all registered customers",
+                                count = totalCount,
+                                icon = Icons.Filled.People,
+                                tintColor = MaterialTheme.colorScheme.primary,
+                                onClick = { isAllGroupSelected = true },
+                                onEdit = null,
+                                onDelete = null,
+                                lang = lang
+                            )
+                        }
+
+                        // General Group Card
+                        item {
+                            val generalCount = customers.count { it.groupId == null || it.groupName.isBlank() }
+                            FolderGroupCard(
+                                title = if (lang == "ar") "عملاء عامون (غير مصنفين)" else "General / Uncategorized Group",
+                                description = if (lang == "ar") "العملاء الذين لم يتم ربطهم بمجموعة مخصصة" else "Customers created with no specific categorization",
+                                count = generalCount,
+                                icon = Icons.Filled.Folder,
+                                tintColor = MaterialTheme.colorScheme.secondary,
+                                onClick = { isGeneralGroupSelected = true },
+                                onEdit = null,
+                                onDelete = null,
+                                lang = lang
+                            )
+                        }
+
+                        // Custom Groups Title
+                        if (customerGroups.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = if (lang == "ar") "المجموعات المخصصة" else "Custom Defined Groups",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                )
+                            }
+                        }
+
+                        // Custom Groups Cards
+                        items(customerGroups) { group ->
+                            val groupCount = customers.count { it.groupId == group.id || it.groupName.trim().equals(group.name.trim(), ignoreCase = true) }
+                            FolderGroupCard(
+                                title = group.name,
+                                description = group.description.ifBlank { if (lang == "ar") "مجموعة عملاء مخصصة للتنظيم المالي" else "Custom group list" },
+                                count = groupCount,
+                                icon = Icons.Filled.FolderOpen,
+                                tintColor = MaterialTheme.colorScheme.primary,
+                                onClick = { selectedGroup = group },
+                                onEdit = { editingGroup = group },
+                                onDelete = { groupToDelete = group },
+                                lang = lang
+                            )
+                        }
+
+                        // Add Group Quick Button
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showAddGroupDialog = true },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CreateNewFolder,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(
+                                        text = if (lang == "ar") "إنشاء مجموعة عملاء جديدة" else "Create New Customer Group",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
             // FAB
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(24.dp)
-                    .testTag("add_customer_fab"),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Customer")
+            if (isAnyGroupSelected) {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(24.dp)
+                        .testTag("add_customer_fab"),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Customer")
+                }
             }
 
             if (showAddDialog) {
@@ -435,7 +410,17 @@ fun CustomersScreen(
                     },
                     leafAccounts = leafAccounts,
                     customerGroups = customerGroups,
-                    lang = lang
+                    lang = lang,
+                    preselectedGroupId = when {
+                        isGeneralGroupSelected -> null
+                        isAllGroupSelected -> null
+                        else -> selectedGroup?.id
+                    },
+                    preselectedGroupName = when {
+                        isGeneralGroupSelected -> ""
+                        isAllGroupSelected -> ""
+                        else -> selectedGroup?.name ?: ""
+                    }
                 )
             }
 
@@ -519,6 +504,127 @@ fun CustomersScreen(
                     message = showSuccessMessage!!,
                     lang = lang,
                     onDismiss = { showSuccessMessage = null }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FolderGroupCard(
+    title: String,
+    description: String,
+    count: Int,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tintColor: Color,
+    onClick: () -> Unit,
+    onEdit: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
+    lang: String
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .testTag("group_folder_$title"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Folder Icon Box
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(tintColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = tintColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(Modifier.width(16.dp))
+
+            // Info Column
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (description.isNotEmpty()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Right elements: Counter Badge & Actions
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Group Action Controls (Edit & Delete for custom groups)
+                if (onEdit != null && onDelete != null) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = "Edit Group",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Delete Group",
+                            tint = RoseRed,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                // Member Count Badge
+                Badge(
+                    containerColor = tintColor.copy(alpha = 0.15f),
+                    contentColor = tintColor
+                ) {
+                    Text(
+                        text = "$count",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+
+                // Forward chevron indicator
+                Icon(
+                    imageVector = if (lang == "ar") Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -881,14 +987,16 @@ fun AddCustomerDialog(
     onConfirm: (String, String, String, Long?, String, Long?) -> Unit,
     leafAccounts: List<Account>,
     customerGroups: List<com.example.data.CustomerGroup>,
-    lang: String
+    lang: String,
+    preselectedGroupId: Long? = null,
+    preselectedGroupName: String = ""
 ) {
     val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
-    var groupName by remember { mutableStateOf("") }
-    var groupId by remember { mutableStateOf<Long?>(null) }
+    var groupName by remember { mutableStateOf(preselectedGroupName) }
+    var groupId by remember { mutableStateOf<Long?>(preselectedGroupId) }
 
     var expandedGroupDropdown by remember { mutableStateOf(false) }
 

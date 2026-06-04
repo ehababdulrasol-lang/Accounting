@@ -87,6 +87,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val userDescAr = MutableStateFlow(prefs.getString("user_desc_ar", "حساب المدير المالي لشركة الامتثال") ?: "حساب المدير المالي لشركة الامتثال")
     val userDescEn = MutableStateFlow(prefs.getString("user_desc_en", "Financial Executive Compliance Terminal") ?: "Financial Executive Compliance Terminal")
     val logoConfig = MutableStateFlow(prefs.getString("logo_config", "🕌") ?: "🕌") // can be an emoji, or text logo or an image description / URL
+    val logoImageUri = MutableStateFlow(prefs.getString("logo_image_uri", "") ?: "")
     val printDetailsAr = MutableStateFlow(prefs.getString("print_details_ar", "إدارة الشؤون والتدقيق المالي العام") ?: "إدارة الشؤون والتدقيق المالي العام")
     val printDetailsEn = MutableStateFlow(prefs.getString("print_details_en", "General Ledger Finance & Auditing Dept.") ?: "General Ledger Finance & Auditing Dept.")
 
@@ -113,6 +114,49 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     fun updateLogoConfig(value: String) {
         logoConfig.value = value
         prefs.edit().putString("logo_config", value).apply()
+    }
+
+    fun updateLogoImageUri(value: String) {
+        logoImageUri.value = value
+        prefs.edit().putString("logo_image_uri", value).apply()
+    }
+
+    fun selectAndSaveLogo(context: android.content.Context, uri: android.net.Uri): Boolean {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return false
+            val file = java.io.File(context.filesDir, "custom_logo_${System.currentTimeMillis()}.png")
+            context.filesDir.listFiles()?.forEach { f ->
+                if (f.name.startsWith("custom_logo_") && f.name.endsWith(".png")) {
+                    f.delete()
+                }
+            }
+            val outputStream = java.io.FileOutputStream(file)
+            inputStream.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+            updateLogoImageUri(file.absolutePath)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    fun removeLogoImage() {
+        val savedPath = logoImageUri.value
+        if (savedPath.isNotEmpty()) {
+            try {
+                val file = java.io.File(savedPath)
+                if (file.exists()) {
+                    file.delete()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        updateLogoImageUri("")
     }
 
     fun updatePrintDetailsAr(value: String) {

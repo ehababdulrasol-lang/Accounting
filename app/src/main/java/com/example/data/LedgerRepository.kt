@@ -157,8 +157,17 @@ class LedgerRepository(private val db: AppDatabase) {
 
         val fy = fiscalYearDao.getFiscalYearById(header.fiscalYearId)
             ?: throw IllegalArgumentException("Selected Fiscal Year not found.")
-        if (fy.isLocked) {
+        if (fy.isLocked || fy.isClosed) {
             throw IllegalStateException("The fiscal period of '${fy.name}' is closed/locked.")
+        }
+
+        // Validate Voucher Date is within current open Fiscal Year boundaries
+        if (header.date < fy.startDate || header.date > fy.endDate) {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            val stStr = sdf.format(java.util.Date(fy.startDate))
+            val enStr = sdf.format(java.util.Date(fy.endDate))
+            val vDateStr = sdf.format(java.util.Date(header.date))
+            throw IllegalArgumentException("Voucher date $vDateStr is outside the selected fiscal period boundaries ($stStr to $enStr).")
         }
 
         val draftHeader = header.copy(isPosted = false)
@@ -186,7 +195,7 @@ class LedgerRepository(private val db: AppDatabase) {
         // Check Fiscal Year Lock status
         val fy = fiscalYearDao.getFiscalYearById(header.fiscalYearId)
             ?: return@withContext VoucherValidationEngine.ValidationResult.Error("Fiscal Year not found.")
-        if (fy.isLocked) {
+        if (fy.isLocked || fy.isClosed) {
             return@withContext VoucherValidationEngine.ValidationResult.Error("Fiscal period '${fy.name}' is closed and locked for auditing.")
         }
 
@@ -219,8 +228,8 @@ class LedgerRepository(private val db: AppDatabase) {
 
         val fy = fiscalYearDao.getFiscalYearById(header.fiscalYearId)
             ?: throw IllegalArgumentException("Fiscal Year not found.")
-        if (fy.isLocked) {
-            throw IllegalStateException("Cannot unpost from locked fiscal period '${fy.name}'.")
+        if (fy.isLocked || fy.isClosed) {
+            throw IllegalStateException("Cannot unpost from locked/closed fiscal period '${fy.name}'.")
         }
 
         val unpostedHeader = header.copy(isPosted = false)
@@ -243,6 +252,10 @@ class LedgerRepository(private val db: AppDatabase) {
         val header = voucherDao.getVoucherHeaderById(headerId) ?: return@withContext
         if (header.isPosted) {
             throw IllegalStateException("Posted vouchers cannot be deleted. You must unpost them first.")
+        }
+        val fy = fiscalYearDao.getFiscalYearById(header.fiscalYearId)
+        if (fy != null && (fy.isLocked || fy.isClosed)) {
+            throw IllegalStateException("Cannot delete voucher from a locked/closed fiscal period '${fy.name}'.")
         }
         voucherDao.deleteHeader(header)
         auditLogDao.insert(
@@ -323,7 +336,7 @@ class LedgerRepository(private val db: AppDatabase) {
     // Fiscal period management
     suspend fun setFiscalYearLocked(id: Long, isLocked: Boolean) = withContext(Dispatchers.IO) {
         val fy = fiscalYearDao.getFiscalYearById(id) ?: return@withContext
-        val updated = fy.copy(isLocked = isLocked)
+        val updated = fy.copy(isLocked = isLocked, isClosed = isLocked)
         fiscalYearDao.update(updated)
         auditLogDao.insert(
             AuditLog(

@@ -347,8 +347,15 @@ fun SettingsScreen(
                         val descAr by viewModel.userDescAr.collectAsStateWithLifecycle()
                         val descEn by viewModel.userDescEn.collectAsStateWithLifecycle()
                         val logoText by viewModel.logoConfig.collectAsStateWithLifecycle()
+                        val logoImageUri by viewModel.logoImageUri.collectAsStateWithLifecycle()
                         val prAr by viewModel.printDetailsAr.collectAsStateWithLifecycle()
                         val prEn by viewModel.printDetailsEn.collectAsStateWithLifecycle()
+
+                        val imagePickerLauncher = rememberLauncherForActivityResult(
+                            contract = ActivityResultContracts.GetContent()
+                        ) { uri ->
+                            uri?.let { viewModel.selectAndSaveLogo(context, it) }
+                        }
 
                         Card(
                             shape = RoundedCornerShape(16.dp),
@@ -392,44 +399,112 @@ fun SettingsScreen(
 
                                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
 
-                                // FIELD 1: App Logo Config (Emoji/Text Symbol)
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                // FIELD 1: App Logo Config (Emoji/Text Symbol & Custom Image Upload)
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Text(
-                                        text = if (lang == "ar") "رمز الشعار (إيموجي كرموز أو أحرف)" else "Brand Logo Emoji or Initials",
+                                        text = if (lang == "ar") "شعار التطبيق والهوية" else "Brand Logo & Image Identity",
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
+
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        // Preview Logo Circle
+                                        // Visual Preview Container
                                         Box(
                                             modifier = Modifier
-                                                .size(54.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                                                .size(72.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                                .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(16.dp)),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = logoText,
-                                                style = MaterialTheme.typography.headlineMedium
-                                            )
+                                            if (logoImageUri.isNotEmpty()) {
+                                                coil.compose.AsyncImage(
+                                                    model = logoImageUri,
+                                                    contentDescription = "Custom Logo Preview",
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = logoText,
+                                                    style = MaterialTheme.typography.headlineMedium
+                                                )
+                                            }
                                         }
 
-                                        OutlinedTextField(
-                                            value = logoText,
-                                            onValueChange = { viewModel.updateLogoConfig(it) },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .testTag("logo_config_input"),
-                                            placeholder = { Text(text = "🏰") },
-                                            singleLine = true,
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
+                                        Column(
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Button(
+                                                    onClick = { imagePickerLauncher.launch("image/*") },
+                                                    modifier = Modifier.weight(1f),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primary
+                                                    )
+                                                ) {
+                                                    Icon(Icons.Filled.Upload, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(Modifier.width(6.dp))
+                                                    Text(
+                                                        text = if (lang == "ar") "إرفاق صورة للشعار" else "Upload Logo Image",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
+
+                                                if (logoImageUri.isNotEmpty()) {
+                                                    FilledTonalButton(
+                                                        onClick = { viewModel.removeLogoImage() },
+                                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                                                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                                        ),
+                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                                    ) {
+                                                        Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                        Spacer(Modifier.width(4.dp))
+                                                        Text(
+                                                            text = if (lang == "ar") "حذف" else "Delete",
+                                                            style = MaterialTheme.typography.bodySmall
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Text(
+                                                text = if (lang == "ar") "تلميح: يمكنك اختيار صورة مخصصة لشعارك المطبوع أو كتابة رمز تعبيري (إيموجي) ليكون الشعار السريع." else "Tip: Select a custom company logo image to print on reports, or declare an emoji as a fast fallback logo below.",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                                                lineHeight = 14.sp
+                                            )
+                                        }
                                     }
+
+                                    Spacer(Modifier.height(4.dp))
+
+                                    // Fast emoji/text fallback input
+                                    OutlinedTextField(
+                                        value = logoText,
+                                        onValueChange = { viewModel.updateLogoConfig(it) },
+                                        label = { Text(text = if (lang == "ar") "رمز الرمز التعبيري الاحتياطي (إيموجي)" else "Backup Emoji/Initials Logo") },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("logo_config_input"),
+                                        placeholder = { Text(text = "🏰") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp),
+                                        leadingIcon = { Icon(Icons.Filled.Face, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) }
+                                    )
                                 }
 
                                 // FIELD 2 & 3: Organization Name (Arabic & English)
@@ -1643,16 +1718,16 @@ fun FiscalYearPeriodRow(
                 .padding(horizontal = 8.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(
-                    if (fy.isLocked) RoseRed.copy(alpha = 0.15f)
+                    if (fy.isLocked || fy.isClosed) RoseRed.copy(alpha = 0.15f)
                     else EmeraldGreen.copy(alpha = 0.15f)
                 )
                 .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
             Text(
-                text = if (fy.isLocked) Localization.translate(Localization.Key.LOCKED, lang) else Localization.translate(Localization.Key.ACTIVE, lang),
+                text = if (fy.isLocked || fy.isClosed) Localization.translate(Localization.Key.LOCKED, lang) else Localization.translate(Localization.Key.ACTIVE, lang),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.ExtraBold,
-                color = if (fy.isLocked) RoseRed else EmeraldGreen
+                color = if (fy.isLocked || fy.isClosed) RoseRed else EmeraldGreen
             )
         }
 
@@ -1662,9 +1737,9 @@ fun FiscalYearPeriodRow(
             enabled = enabled
         ) {
             Icon(
-                imageVector = if (fy.isLocked) Icons.Filled.LockOpen else Icons.Filled.Lock,
+                imageVector = if (fy.isLocked || fy.isClosed) Icons.Filled.LockOpen else Icons.Filled.Lock,
                 contentDescription = null,
-                tint = if (fy.isLocked) EmeraldGreen else RoseRed
+                tint = if (fy.isLocked || fy.isClosed) EmeraldGreen else RoseRed
             )
         }
     }

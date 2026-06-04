@@ -35,7 +35,8 @@ object DatabaseSeeder {
                 name = "FY 2026",
                 startDate = 1767225600000L,
                 endDate = 1798761599000L,
-                isLocked = false
+                isLocked = false,
+                isClosed = false
             )
         )
 

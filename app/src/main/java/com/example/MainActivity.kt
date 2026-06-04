@@ -68,6 +68,7 @@ fun MainLayout(viewModel: LedgerViewModel) {
     val userDescAr by viewModel.userDescAr.collectAsStateWithLifecycle()
     val userDescEn by viewModel.userDescEn.collectAsStateWithLifecycle()
     val logoConfig by viewModel.logoConfig.collectAsStateWithLifecycle()
+    val logoImageUri by viewModel.logoImageUri.collectAsStateWithLifecycle()
 
     val currentOrgName = if (lang == "ar") orgNameAr else orgNameEn
     val currentUserDesc = if (lang == "ar") userDescAr else userDescEn
@@ -175,19 +176,13 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                 .padding(36.dp)
                         ) {
                             // Growing custom logo frame
-                            Box(
-                                modifier = Modifier
-                                    .size(100.dp)
-                                    .clip(RoundedCornerShape(24.dp))
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                                    .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(24.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = logoConfig,
-                                    style = MaterialTheme.typography.displayMedium.copy(fontSize = 42.sp)
-                                )
-                            }
+                            AppLogo(
+                                logoConfig = logoConfig,
+                                logoImageUri = logoImageUri,
+                                size = 100.dp,
+                                clipShape = RoundedCornerShape(24.dp),
+                                textStyle = MaterialTheme.typography.displayMedium.copy(fontSize = 42.sp)
+                            )
                             
                             Spacer(Modifier.height(28.dp))
                             
@@ -270,6 +265,7 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                 orgName = currentOrgName,
                                 userDesc = currentUserDesc,
                                 logoConfig = logoConfig,
+                                logoImageUri = logoImageUri,
                                 onTabSelected = { index ->
                                     activeTab = index
                                 }
@@ -323,6 +319,7 @@ fun MainLayout(viewModel: LedgerViewModel) {
                                     orgName = currentOrgName,
                                     userDesc = currentUserDesc,
                                     logoConfig = logoConfig,
+                                    logoImageUri = logoImageUri,
                                     onTabSelected = { index ->
                                         activeTab = index
                                         scope.launch { drawerState.close() }
@@ -446,6 +443,46 @@ fun ToastPill(
 }
 
 @Composable
+fun AppLogo(
+    logoConfig: String,
+    logoImageUri: String,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 46.dp,
+    clipShape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(12.dp),
+    textStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleLarge
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(clipShape)
+            .background(GoldAccent.copy(alpha = 0.15f))
+            .border(1.dp, GoldAccent.copy(alpha = 0.3f), clipShape),
+        contentAlignment = Alignment.Center
+    ) {
+        if (logoImageUri.isNotEmpty()) {
+            coil.compose.AsyncImage(
+                model = logoImageUri,
+                contentDescription = "App Logo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else if (logoConfig.isNotEmpty()) {
+            Text(
+                text = logoConfig,
+                style = textStyle
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Filled.AccountBalance,
+                contentDescription = null,
+                tint = GoldAccent,
+                modifier = Modifier.size(size * 0.5f)
+            )
+        }
+    }
+}
+
+@Composable
 fun DrawerNavigationMenu(
     lang: String,
     activeTab: Int,
@@ -456,6 +493,7 @@ fun DrawerNavigationMenu(
     orgName: String,
     userDesc: String,
     logoConfig: String,
+    logoImageUri: String,
     onTabSelected: (Int) -> Unit
 ) {
     Column(
@@ -476,28 +514,13 @@ fun DrawerNavigationMenu(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // App Logo Icon reflecting the custom emoji/text logo configured
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(GoldAccent.copy(alpha = 0.15f))
-                        .border(1.dp, GoldAccent.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (logoConfig.isNotEmpty()) {
-                        Text(
-                            text = logoConfig,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Filled.AccountBalance,
-                            contentDescription = null,
-                            tint = GoldAccent,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+                AppLogo(
+                    logoConfig = logoConfig,
+                    logoImageUri = logoImageUri,
+                    size = 46.dp,
+                    clipShape = RoundedCornerShape(12.dp),
+                    textStyle = MaterialTheme.typography.titleLarge
+                )
 
                 // User Avatar
                 Box(

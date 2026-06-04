@@ -144,10 +144,10 @@ interface FiscalYearDao {
     @Query("SELECT * FROM fiscal_years ORDER BY startDate")
     fun getAllFiscalYears(): Flow<List<FiscalYear>>
 
-    @Query("SELECT * FROM fiscal_years WHERE isLocked = 0 ORDER BY startDate DESC")
+    @Query("SELECT * FROM fiscal_years WHERE isLocked = 0 AND isClosed = 0 ORDER BY startDate DESC")
     fun getActiveFiscalYears(): Flow<List<FiscalYear>>
 
-    @Query("SELECT * FROM fiscal_years WHERE isLocked = 0 ORDER BY startDate DESC")
+    @Query("SELECT * FROM fiscal_years WHERE isLocked = 0 AND isClosed = 0 ORDER BY startDate DESC")
     suspend fun getActiveFiscalYearsSuspend(): List<FiscalYear>
 
     @Query("SELECT * FROM fiscal_years WHERE id = :id")

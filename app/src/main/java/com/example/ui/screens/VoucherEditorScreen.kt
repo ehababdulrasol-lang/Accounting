@@ -505,7 +505,7 @@ fun VoucherEditorScreen(
                                             text = {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Text(fyName, style = MaterialTheme.typography.bodyMedium)
-                                                    if (fy.isLocked) {
+                                                    if (fy.isLocked || fy.isClosed) {
                                                         Spacer(Modifier.width(8.dp))
                                                         Box(
                                                             modifier = Modifier
@@ -514,7 +514,7 @@ fun VoucherEditorScreen(
                                                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                                                         ) {
                                                             Text(
-                                                                text = if (lang == "ar") "مقفل" else "LOCKED",
+                                                                text = if (lang == "ar") "مقفل" else "CLOSED",
                                                                 color = RoseRed,
                                                                 style = MaterialTheme.typography.labelSmall,
                                                                 fontWeight = FontWeight.Bold

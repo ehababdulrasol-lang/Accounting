@@ -19,7 +19,8 @@ data class FiscalYear(
     val name: String,
     val startDate: Long,
     val endDate: Long,
-    val isLocked: Boolean = false
+    val isLocked: Boolean = false,
+    val isClosed: Boolean = false
 )
 
 @Entity(tableName = "currencies")
