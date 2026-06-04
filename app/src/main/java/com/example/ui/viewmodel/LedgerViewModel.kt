@@ -81,6 +81,50 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val officialExchangeRate = MutableStateFlow(prefs.getFloat("official_rate", 4.82f).toDouble())
     val parallelExchangeRate = MutableStateFlow(prefs.getFloat("parallel_rate", 7.15f).toDouble())
 
+    // Configurable Brand & Enterprise settings (stored in SharedPreferences)
+    val orgNameAr = MutableStateFlow(prefs.getString("org_name_ar", "المؤسسة الليبية للتدقيق المالي") ?: "المؤسسة الليبية للتدقيق المالي")
+    val orgNameEn = MutableStateFlow(prefs.getString("org_name_en", "Libyan Financial Ledger Pro") ?: "Libyan Financial Ledger Pro")
+    val userDescAr = MutableStateFlow(prefs.getString("user_desc_ar", "حساب المدير المالي لشركة الامتثال") ?: "حساب المدير المالي لشركة الامتثال")
+    val userDescEn = MutableStateFlow(prefs.getString("user_desc_en", "Financial Executive Compliance Terminal") ?: "Financial Executive Compliance Terminal")
+    val logoConfig = MutableStateFlow(prefs.getString("logo_config", "🕌") ?: "🕌") // can be an emoji, or text logo or an image description / URL
+    val printDetailsAr = MutableStateFlow(prefs.getString("print_details_ar", "إدارة الشؤون والتدقيق المالي العام") ?: "إدارة الشؤون والتدقيق المالي العام")
+    val printDetailsEn = MutableStateFlow(prefs.getString("print_details_en", "General Ledger Finance & Auditing Dept.") ?: "General Ledger Finance & Auditing Dept.")
+
+    fun updateOrgNameAr(value: String) {
+        orgNameAr.value = value
+        prefs.edit().putString("org_name_ar", value).apply()
+    }
+
+    fun updateOrgNameEn(value: String) {
+        orgNameEn.value = value
+        prefs.edit().putString("org_name_en", value).apply()
+    }
+
+    fun updateUserDescAr(value: String) {
+        userDescAr.value = value
+        prefs.edit().putString("user_desc_ar", value).apply()
+    }
+
+    fun updateUserDescEn(value: String) {
+        userDescEn.value = value
+        prefs.edit().putString("user_desc_en", value).apply()
+    }
+
+    fun updateLogoConfig(value: String) {
+        logoConfig.value = value
+        prefs.edit().putString("logo_config", value).apply()
+    }
+
+    fun updatePrintDetailsAr(value: String) {
+        printDetailsAr.value = value
+        prefs.edit().putString("print_details_ar", value).apply()
+    }
+
+    fun updatePrintDetailsEn(value: String) {
+        printDetailsEn.value = value
+        prefs.edit().putString("print_details_en", value).apply()
+    }
+
     fun updateOfficialRate(rate: Double) {
         officialExchangeRate.value = rate
         prefs.edit().putFloat("official_rate", rate.toFloat()).apply()

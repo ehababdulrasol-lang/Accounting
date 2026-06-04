@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.Currency
 import com.example.data.FiscalYear
@@ -241,9 +242,10 @@ fun SettingsScreen(
                 ) {
                     val tabs = listOf(
                         Triple(0, if (lang == "ar") "المظهر" else "Theme", Icons.Filled.Palette),
-                        Triple(1, if (lang == "ar") "العملات والصرف" else "FX & Rates", Icons.Filled.MonetizationOn),
-                        Triple(2, if (lang == "ar") "الدورات والنسخ" else "Data & Periods", Icons.Filled.Backup),
-                        Triple(3, if (lang == "ar") "التدقيق" else "Audit Log", Icons.Filled.FactCheck)
+                        Triple(4, if (lang == "ar") "الهوية" else "Brand", Icons.Filled.Business),
+                        Triple(1, if (lang == "ar") "العملات" else "Rates", Icons.Filled.MonetizationOn),
+                        Triple(2, if (lang == "ar") "النسخ" else "Backup", Icons.Filled.Backup),
+                        Triple(3, if (lang == "ar") "التدقيق" else "Audit", Icons.Filled.FactCheck)
                     )
 
                     tabs.forEach { (index, title, icon) ->
@@ -263,21 +265,21 @@ fun SettingsScreen(
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .clickable { activeTab = index }
-                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                                .padding(vertical = 8.dp, horizontal = 2.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(18.dp),
                                     tint = if (isSelected) MaterialTheme.colorScheme.primary
                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     text = title,
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary
                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -292,8 +294,200 @@ fun SettingsScreen(
 
             // Display active tab contents inside the master LazyColumn
             when (activeTab) {
-                        0 -> {
-                            // TAB 0: INTERFACE & APPEARANCE
+                4 -> {
+                    // TAB 4: APP IDENTITY & PRINT CUSTOMIZATION
+                    item {
+                        val orgAr by viewModel.orgNameAr.collectAsStateWithLifecycle()
+                        val orgEn by viewModel.orgNameEn.collectAsStateWithLifecycle()
+                        val descAr by viewModel.userDescAr.collectAsStateWithLifecycle()
+                        val descEn by viewModel.userDescEn.collectAsStateWithLifecycle()
+                        val logoText by viewModel.logoConfig.collectAsStateWithLifecycle()
+                        val prAr by viewModel.printDetailsAr.collectAsStateWithLifecycle()
+                        val prEn by viewModel.printDetailsEn.collectAsStateWithLifecycle()
+
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("app_identity_card"),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Business,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = if (lang == "ar") "بيانات وتخصيص هوية التطبيق والتقارير" else "App Brand Identity & Print Layout",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                Text(
+                                    text = if (lang == "ar") {
+                                        "من هنا يمكنك تعديل البيانات الأساسية للتطبيق مثل اسم المؤسسة، الشعار (الرمز التعبيري)، والوصف، بالإضافة إلى ترويسة وتفاصيل طباعة كشوفات الـ PDF."
+                                    } else {
+                                        "From here, you can dynamically customize core app details like the organization name, selected emoji logo, user taglines, and general PDF statement print headers."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+
+                                // FIELD 1: App Logo Config (Emoji/Text Symbol)
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = if (lang == "ar") "رمز الشعار (إيموجي كرموز أو أحرف)" else "Brand Logo Emoji or Initials",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        // Preview Logo Circle
+                                        Box(
+                                            modifier = Modifier
+                                                .size(54.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = logoText,
+                                                style = MaterialTheme.typography.headlineMedium
+                                            )
+                                        }
+
+                                        OutlinedTextField(
+                                            value = logoText,
+                                            onValueChange = { viewModel.updateLogoConfig(it) },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("logo_config_input"),
+                                            placeholder = { Text(text = "🏰") },
+                                            singleLine = true,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                    }
+                                }
+
+                                // FIELD 2 & 3: Organization Name (Arabic & English)
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(
+                                        text = if (lang == "ar") "اسم المؤسسة / الشركة" else "Organization Name",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    OutlinedTextField(
+                                        value = orgAr,
+                                        onValueChange = { viewModel.updateOrgNameAr(it) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("org_name_ar_input"),
+                                        label = { Text(if (lang == "ar") "الاسم باللغة العربية" else "Name in Arabic") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    OutlinedTextField(
+                                        value = orgEn,
+                                        onValueChange = { viewModel.updateOrgNameEn(it) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("org_name_en_input"),
+                                        label = { Text(if (lang == "ar") "الاسم باللغة الإنجليزية" else "Name in English") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                }
+
+                                // FIELD 4 & 5: User/Company Tagline or Subtitle (Arabic & English)
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(
+                                        text = if (lang == "ar") "بيانات وتفاصيل المستخدم ووظيفته (تظهر بالمستندات)" else "User Description & Job Subtitle",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    OutlinedTextField(
+                                        value = descAr,
+                                        onValueChange = { viewModel.updateUserDescAr(it) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("user_desc_ar_input"),
+                                        label = { Text(if (lang == "ar") "المظهر الجانبي / رتبة المستخدم بالعربية" else "User Tagline in Arabic") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    OutlinedTextField(
+                                        value = descEn,
+                                        onValueChange = { viewModel.updateUserDescEn(it) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("user_desc_en_input"),
+                                        label = { Text(if (lang == "ar") "بيان الوظيفة بالإنجليزية" else "User Tagline in English") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                }
+
+                                // FIELD 6 & 7: Print PDF Details (Arabic & English)
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(
+                                        text = if (lang == "ar") "ترويسة أو إدارة الشؤون (تظهر في الطباعة PDF)" else "PDF Print Department Tag",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    OutlinedTextField(
+                                        value = prAr,
+                                        onValueChange = { viewModel.updatePrintDetailsAr(it) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("print_details_ar_input"),
+                                        label = { Text(if (lang == "ar") "الترويسة المطبوعة (عربي)" else "Print Subheading (Arabic)") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    OutlinedTextField(
+                                        value = prEn,
+                                        onValueChange = { viewModel.updatePrintDetailsEn(it) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("print_details_en_input"),
+                                        label = { Text(if (lang == "ar") "الترويسة المطبوعة (إنجليزي)" else "Print Subheading (English)") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                0 -> {
+                    // TAB 0: INTERFACE & APPEARANCE
                             // Language Card
                             item {
                                 Card(

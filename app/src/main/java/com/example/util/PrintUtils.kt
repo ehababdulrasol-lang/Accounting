@@ -14,6 +14,24 @@ import java.util.Locale
 
 object PrintUtils {
 
+    private fun getHeaderBrand(context: Context, isAr: Boolean): Triple<String, String, String> {
+        val prefs = context.getSharedPreferences("ledger_settings", Context.MODE_PRIVATE)
+        val orgAr = prefs.getString("org_name_ar", "المؤسسة الليبية للتدقيق المالي") ?: "المؤسسة الليبية للتدقيق المالي"
+        val orgEn = prefs.getString("org_name_en", "Libyan Financial Ledger Pro") ?: "Libyan Financial Ledger Pro"
+        val prAr = prefs.getString("print_details_ar", "") ?: ""
+        val prEn = prefs.getString("print_details_en", "") ?: ""
+        val logoText = prefs.getString("logo_config", "🕌") ?: "🕌"
+
+        val currentOrgName = if (isAr) orgAr else orgEn
+        val defaultPrintDetails = if (isAr) "إدارة الشؤون والتدقيق المالي العام" else "General Ledger Finance & Auditing Dept."
+        val currentPrintDetails = if (isAr) {
+            if (prAr.isNotEmpty()) prAr else defaultPrintDetails
+        } else {
+            if (prEn.isNotEmpty()) prEn else defaultPrintDetails
+        }
+        return Triple(currentOrgName, currentPrintDetails, logoText)
+    }
+
     private fun getHtmlTemplate(body: String, isRtl: Boolean): String {
         val dir = if (isRtl) "rtl" else "ltr"
         val textAlign = if (isRtl) "right" else "left"
@@ -197,6 +215,8 @@ object PrintUtils {
         lang: String
     ) {
         val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        
         val title = when (voucher.type) {
             VoucherType.JOURNAL -> if (isAr) "قيد تسوية يومية دفتري" else "Journal Entry Voucher"
             VoucherType.RECEIPT -> if (isAr) "سند قبض مالي نقدية" else "Receipt Cash Voucher"
@@ -259,15 +279,18 @@ object PrintUtils {
         }
 
         val body = """
-            <div class="header-container">
-                <div>
-                    <div class="header-title">$title</div>
-                    <div style="font-size:13px; color:#555; margin-top:5px;">
-                        ${if (isAr) "إدارة الشؤون والتدقيق المالي العام" else "General Ledger Finance & Auditing Dept."}
+            <div class="header-container" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
                     </div>
                 </div>
                 <div class="header-meta">
-                    <strong>${if (isAr) "النظام المحاسبي الذكي" else "Smart Ledger"}</strong><br>
+                    <strong>$brandOrg</strong><br>
                     ${if (isAr) "تاريخ الطباعة:" else "Printed:"} ${formatDate(System.currentTimeMillis())}
                 </div>
             </div>
@@ -345,6 +368,8 @@ object PrintUtils {
         lang: String
     ) {
         val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        
         val title = if (isAr) "دفتر الأستاذ المساعد - كشف حساب مالي تفصيلي" else "Sub-Ledger Account Statement Report"
         
         val totalDebit = rows.sumOf { it.debit }
@@ -368,15 +393,18 @@ object PrintUtils {
         }
 
         val body = """
-            <div class="header-container">
-                <div>
-                    <div class="header-title">$title</div>
-                    <div style="font-size:13px; color:#555; margin-top:5px;">
-                        ${if (isAr) "دليل دفتر الأستاذ والبيانات المالية المحاسبية" else "Ledger Accounting and Audit Control Registers"}
+            <div class="header-container" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
                     </div>
                 </div>
                 <div class="header-meta">
-                    <strong>${if (isAr) "النظام المحاسبي الذكي" else "Smart Ledger"}</strong><br>
+                    <strong>$brandOrg</strong><br>
                     ${if (isAr) "تاريخ الاستخراج:" else "Generated:"} ${formatDate(System.currentTimeMillis())}
                 </div>
             </div>
@@ -452,6 +480,8 @@ object PrintUtils {
         lang: String
     ) {
         val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        
         val title = if (isAr) "ميزان المراجعة الموحد بالأرصدة والحركات" else "Consolidated Audit Trial Balance Report"
 
         val rowsBuilder = StringBuilder()
@@ -471,15 +501,18 @@ object PrintUtils {
         }
 
         val body = """
-            <div class="header-container">
-                <div>
-                    <div class="header-title">$title</div>
-                    <div style="font-size:13px; color:#555; margin-top:5px;">
-                        ${if (isAr) "موازين المراجعة العمومية وتقارير التدقيق لمطابقة التقديرات" else "General Financial Statement Ledger Audits"}
+            <div class="header-container" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
                     </div>
                 </div>
                 <div class="header-meta">
-                    <strong>${if (isAr) "النظام المحاسبي الذكي" else "Smart Ledger"}</strong><br>
+                    <strong>$brandOrg</strong><br>
                     ${if (isAr) "تاريخ التصدير:" else "Exported Date:"} ${formatDate(System.currentTimeMillis())}
                 </div>
             </div>
@@ -547,6 +580,8 @@ object PrintUtils {
         lang: String
     ) {
         val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        
         val title = if (isAr) "الميزانية العمومية والمركز المالي للمؤسسة" else "Consolidated Statement of Financial Position (Balance Sheet)"
 
         val assetRows = StringBuilder()
@@ -589,15 +624,18 @@ object PrintUtils {
         val isEqBalanced = Math.abs(totalAssets - totalLE) <= 10L
 
         val body = """
-            <div class="header-container">
-                <div>
-                    <div class="header-title">$title</div>
-                    <div style="font-size:13px; color:#555; margin-top:5px;">
-                        ${if (isAr) "المعايير الدولية للتقارير المالية IFRS والتبويب المعتمد" else "Corporate Accounting Standards Compliant (IFRS Structure)"}
+            <div class="header-container" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
                     </div>
                 </div>
                 <div class="header-meta">
-                    <strong>${if (isAr) "النظام المحاسبي الذكي" else "Smart Ledger"}</strong><br>
+                    <strong>$brandOrg</strong><br>
                     ${if (isAr) "تاريخ التقرير:" else "As Of Date:"} ${formatDate(System.currentTimeMillis())}
                 </div>
             </div>
@@ -715,6 +753,8 @@ object PrintUtils {
         lang: String
     ) {
         val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        
         val title = if (isAr) "قائمة الدخل والأرباح والخسائر الرسمية" else "Official Consolidated Revenue & Income Statement"
 
         val revRows = StringBuilder()
@@ -749,15 +789,18 @@ object PrintUtils {
         }
 
         val body = """
-            <div class="header-container">
-                <div>
-                    <div class="header-title">$title</div>
-                    <div style="font-size:13px; color:#555; margin-top:5px;">
-                        ${if (isAr) "قوائم قياس نتائج الأداء والأعمال للفترات المالية" else "Periodical Income, Deficits, and Profit Margin Metrics"}
+            <div class="header-container" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
                     </div>
                 </div>
                 <div class="header-meta">
-                    <strong>${if (isAr) "النظام المحاسبي الذكي" else "Smart Ledger"}</strong><br>
+                    <strong>$brandOrg</strong><br>
                     ${if (isAr) "تاريخ التصفية:" else "Issued Date:"} ${formatDate(System.currentTimeMillis())}
                 </div>
             </div>
@@ -837,6 +880,8 @@ object PrintUtils {
         lang: String
     ) {
         val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        
         val title = if (isAr) "قائمة التدفقات النقدية الرسمية (IAS 7)" else "Official Statement of Cash Flows (IAS 7)"
 
         val netOperating = statement.operatingInflow - statement.operatingOutflow
@@ -845,15 +890,18 @@ object PrintUtils {
         val netChange = netOperating + netInvesting + netFinancing
 
         val body = """
-            <div class="header-container">
-                <div>
-                    <div class="header-title">$title</div>
-                    <div style="font-size:13px; color:#555; margin-top:5px;">
-                        ${if (isAr) "تقرير التدفقات النقدية المباشر والأنشطة المالية" else "Periodical Direct Cash Flows and Liquidity Analysis"}
+            <div class="header-container" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
                     </div>
                 </div>
                 <div class="header-meta">
-                    <strong>${if (isAr) "النظام المحاسبي الذكي" else "Smart Ledger"}</strong><br>
+                    <strong>$brandOrg</strong><br>
                     ${if (isAr) "تاريخ الإصدار:" else "Issued Date:"} ${formatDate(System.currentTimeMillis())}
                 </div>
             </div>

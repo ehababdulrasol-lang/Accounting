@@ -46,6 +46,10 @@ data class Currency(
             childColumns = ["currencyId"],
             onDelete = ForeignKey.RESTRICT
         )
+    ],
+    indices = [
+        Index(value = ["parentId"]),
+        Index(value = ["currencyId"])
     ]
 )
 data class Account(
@@ -68,6 +72,9 @@ data class Account(
             childColumns = ["fiscalYearId"],
             onDelete = ForeignKey.RESTRICT
         )
+    ],
+    indices = [
+        Index(value = ["fiscalYearId"])
     ]
 )
 data class VoucherHeader(
@@ -103,6 +110,11 @@ data class VoucherHeader(
             childColumns = ["currencyId"],
             onDelete = ForeignKey.RESTRICT
         )
+    ],
+    indices = [
+        Index(value = ["headerId"]),
+        Index(value = ["accountId"]),
+        Index(value = ["currencyId"])
     ]
 )
 data class VoucherLine(
@@ -149,6 +161,9 @@ data class AuditLog(
             childColumns = ["currencyId"],
             onDelete = ForeignKey.CASCADE
         )
+    ],
+    indices = [
+        Index(value = ["currencyId"])
     ]
 )
 data class ExchangeRateHistory(
@@ -311,6 +326,9 @@ data class SupplierGroup(
             childColumns = ["accountId"],
             onDelete = ForeignKey.RESTRICT
         )
+    ],
+    indices = [
+        Index(value = ["accountId"])
     ]
 )
 data class MeasurementHeader(
@@ -334,6 +352,9 @@ data class MeasurementHeader(
             childColumns = ["headerId"],
             onDelete = ForeignKey.CASCADE
         )
+    ],
+    indices = [
+        Index(value = ["headerId"])
     ]
 )
 data class MeasurementLine(
