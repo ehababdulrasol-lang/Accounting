@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -814,9 +815,11 @@ fun AddSupplierDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .imePadding()
                 .navigationBarsPadding()
-                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp, top = 8.dp)
+                .padding(start = 24.dp, end = 24.dp, bottom = 24.dp, top = 8.dp)
         ) {
+            // FIXED HEADER
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -843,258 +846,267 @@ fun AddSupplierDialog(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text(if (lang == "ar") "اسم المورد الكامل" else "Supplier Full Name") },
-                leadingIcon = { Icon(Icons.Filled.Person, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+            // SCROLLABLE FORM BODY
+            Column(
                 modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
                     .fillMaxWidth()
-                    .testTag("supp_input_name"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
-                label = { Text(if (lang == "ar") "رقم الهاتف والاتصال" else "Phone Number") },
-                leadingIcon = { Icon(Icons.Filled.Phone, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("supp_input_phone"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text(if (lang == "ar") "البريد الإلكتروني" else "Email Address") },
-                leadingIcon = { Icon(Icons.Filled.Email, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("supp_input_email"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            // Elegant Group selection dropdown
-            Box(modifier = Modifier.fillMaxWidth()) {
-                val selectedGroupText = remember(groupId, supplierGroups, groupName) {
-                    supplierGroups.find { it.id == groupId }?.name ?: groupName.ifBlank { if (lang == "ar") "عام / غير مصنف" else "General" }
-                }
-
+            ) {
                 OutlinedTextField(
-                    value = selectedGroupText,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(if (lang == "ar") "مجموعة الموردين" else "Supplier Group") },
-                    leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                    trailingIcon = {
-                        IconButton(onClick = { expandedGroupDropdown = !expandedGroupDropdown }) {
-                            Icon(Icons.Filled.ArrowDropDown, null)
-                        }
-                    },
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم المورد الكامل" else "Supplier Full Name") },
+                    leadingIcon = { Icon(Icons.Filled.Person, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { expandedGroupDropdown = true },
-                    shape = RoundedCornerShape(12.dp)
+                        .testTag("supp_input_name"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
                 )
 
-                DropdownMenu(
-                    expanded = expandedGroupDropdown,
-                    onDismissRequest = { expandedGroupDropdown = false },
-                    modifier = Modifier.fillMaxWidth(0.85f)
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(if (lang == "ar") "عام / غير مصنف" else "General / Uncategorized") },
-                        onClick = {
-                            groupId = null
-                            groupName = ""
-                            expandedGroupDropdown = false
-                        }
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text(if (lang == "ar") "رقم الهاتف والاتصال" else "Phone Number") },
+                    leadingIcon = { Icon(Icons.Filled.Phone, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("supp_input_phone"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text(if (lang == "ar") "البريد الإلكتروني" else "Email Address") },
+                    leadingIcon = { Icon(Icons.Filled.Email, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("supp_input_email"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                // Elegant Group selection dropdown
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    val selectedGroupText = remember(groupId, supplierGroups, groupName) {
+                        supplierGroups.find { it.id == groupId }?.name ?: groupName.ifBlank { if (lang == "ar") "عام / غير مصنف" else "General" }
+                    }
+
+                    OutlinedTextField(
+                        value = selectedGroupText,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(if (lang == "ar") "مجموعة الموردين" else "Supplier Group") },
+                        leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                        trailingIcon = {
+                            IconButton(onClick = { expandedGroupDropdown = !expandedGroupDropdown }) {
+                                Icon(Icons.Filled.ArrowDropDown, null)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { expandedGroupDropdown = true },
+                        shape = RoundedCornerShape(12.dp)
                     )
-                    supplierGroups.forEach { group ->
+
+                    DropdownMenu(
+                        expanded = expandedGroupDropdown,
+                        onDismissRequest = { expandedGroupDropdown = false },
+                        modifier = Modifier.fillMaxWidth(0.85f)
+                    ) {
                         DropdownMenuItem(
-                            text = { Text(group.name) },
+                            text = { Text(if (lang == "ar") "عام / غير مصنف" else "General / Uncategorized") },
                             onClick = {
-                                groupId = group.id
-                                groupName = group.name
+                                groupId = null
+                                groupName = ""
                                 expandedGroupDropdown = false
                             }
                         )
+                        supplierGroups.forEach { group ->
+                            DropdownMenuItem(
+                                text = { Text(group.name) },
+                                onClick = {
+                                    groupId = group.id
+                                    groupName = group.name
+                                    expandedGroupDropdown = false
+                                }
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(20.dp))
 
-            Text(
-                text = if (lang == "ar") "إعدادات الربط المالي واستحقاق اليومية" else "Payables Ledger Account Setup",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+                Text(
+                    text = if (lang == "ar") "إعدادات الربط المالي واستحقاق اليومية" else "Payables Ledger Account Setup",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
 
-            // Auto-open option
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (linkStrategy == 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = if (linkStrategy == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { linkStrategy = 0 }
-                    .padding(vertical = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(selected = linkStrategy == 0, onClick = { linkStrategy = 0 })
-                    Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = if (lang == "ar") "إنشاء حساب تلقائي" else "Auto-create a linked AP account",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = if (lang == "ar") "سيقوم النظام بإنشاء حساب فرعي ذو رمز آلي تتبعاً لحساب الدائنين الرئيسي (2101)" else "Auto-create a linked AP account under payables (2101)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-            }
-
-            // Link existing matching option
-            if (matchExist != null) {
+                // Auto-open option
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (linkStrategy == 1) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        containerColor = if (linkStrategy == 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                     ),
                     border = androidx.compose.foundation.BorderStroke(
                         width = 1.dp,
-                        color = if (linkStrategy == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        color = if (linkStrategy == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { linkStrategy = 1 }
+                        .clickable { linkStrategy = 0 }
                         .padding(vertical = 4.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(selected = linkStrategy == 1, onClick = { linkStrategy = 1 })
+                        RadioButton(selected = linkStrategy == 0, onClick = { linkStrategy = 0 })
                         Spacer(Modifier.width(8.dp))
                         Column {
                             Text(
-                                text = if (lang == "ar") "ربط بحساب مطابق (${matchExist.accountCode})" else "Link to matching account (${matchExist.accountCode})",
+                                text = if (lang == "ar") "إنشاء حساب تلقائي" else "Auto-create a linked AP account",
                                 fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = EmeraldGreen
+                                style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = if (lang == "ar") "ربط الملف بحساب مالي مطابق الاسم مسجل مسبقاً بالشجرة" else "Link to an existing ledger account with matching name",
+                                text = if (lang == "ar") "سيقوم النظام بإنشاء حساب فرعي ذو رمز آلي تتبعاً لحساب الدائنين الرئيسي (2101)" else "Auto-create a linked AP account under payables (2101)",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
                     }
                 }
-            }
 
-            // Link existing manually option
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (linkStrategy == 2) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = if (linkStrategy == 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { linkStrategy = 2 }
-                    .padding(vertical = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(selected = linkStrategy == 2, onClick = { linkStrategy = 2 })
-                    Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = if (lang == "ar") "ربط يدوي بحساب موجود" else "Manually select existing AP account",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = if (lang == "ar") "تحديد حساب مالي يدويًا من شجرة الحسابات دون قيود مطابقة الاسم" else "Choose any manual active account from Chart of Accounts",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
+                // Link existing matching option
+                if (matchExist != null) {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (linkStrategy == 1) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = if (linkStrategy == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { linkStrategy = 1 }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = linkStrategy == 1, onClick = { linkStrategy = 1 })
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = if (lang == "ar") "ربط بحساب مطابق (${matchExist.accountCode})" else "Link to matching account (${matchExist.accountCode})",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = EmeraldGreen
+                                )
+                                Text(
+                                    text = if (lang == "ar") "ربط الملف بحساب مالي مطابق الاسم مسجل مسبقاً بالشجرة" else "Link to an existing ledger account with matching name",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
                     }
+                }
+
+                // Link existing manually option
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (linkStrategy == 2) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = if (linkStrategy == 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { linkStrategy = 2 }
+                        .padding(vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = linkStrategy == 2, onClick = { linkStrategy = 2 })
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = if (lang == "ar") "ربط يدوي بحساب موجود" else "Manually select existing AP account",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = if (lang == "ar") "تحديد حساب مالي يدويًا من شجرة الحسابات دون قيود مطابقة الاسم" else "Choose any manual active account from Chart of Accounts",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+
+                if (linkStrategy == 2) {
+                    Spacer(Modifier.height(14.dp))
+
+                    val currentSelection = leafAccounts.find { it.id == selectedExistAccountId }
+                    var showAccountSearchDialog by remember { mutableStateOf(false) }
+
+                    OutlinedTextField(
+                        value = currentSelection?.let { "${it.accountCode} - ${Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(if (lang == "ar") "الحساب المقترن يدوياً" else "Manual AP Account") },
+                        leadingIcon = { Icon(Icons.Filled.AccountBalance, null, tint = MaterialTheme.colorScheme.primary) },
+                        trailingIcon = {
+                            IconButton(onClick = { showAccountSearchDialog = true }) {
+                                Icon(Icons.Filled.Search, contentDescription = "Search")
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showAccountSearchDialog = true },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    AccountSearchDialog(
+                        show = showAccountSearchDialog,
+                        onDismiss = { showAccountSearchDialog = false },
+                        accounts = leafAccounts,
+                        lang = lang,
+                        onSelect = { acc ->
+                            selectedExistAccountId = acc.id
+                        }
+                    )
                 }
             }
 
-            if (linkStrategy == 2) {
-                Spacer(Modifier.height(14.dp))
-                
-                val currentSelection = leafAccounts.find { it.id == selectedExistAccountId }
-                var showAccountSearchDialog by remember { mutableStateOf(false) }
+            Spacer(Modifier.height(16.dp))
 
-                OutlinedTextField(
-                    value = currentSelection?.let { "${it.accountCode} - ${Localization.getAccountName(it.accountCode, it.name, lang)}" } ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(if (lang == "ar") "الحساب المقترن يدوياً" else "Manual AP Account") },
-                    leadingIcon = { Icon(Icons.Filled.AccountBalance, null, tint = MaterialTheme.colorScheme.primary) },
-                    trailingIcon = {
-                        IconButton(onClick = { showAccountSearchDialog = true }) {
-                            Icon(Icons.Filled.Search, contentDescription = "Search")
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showAccountSearchDialog = true },
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                AccountSearchDialog(
-                    show = showAccountSearchDialog,
-                    onDismiss = { showAccountSearchDialog = false },
-                    accounts = leafAccounts,
-                    lang = lang,
-                    onSelect = { acc ->
-                        selectedExistAccountId = acc.id
-                    }
-                )
-            }
-
-            Spacer(Modifier.height(30.dp))
-
+            // FIXED FOOTER
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -1164,9 +1176,11 @@ fun EditSupplierDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .imePadding()
                 .navigationBarsPadding()
-                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp, top = 8.dp)
+                .padding(start = 24.dp, end = 24.dp, bottom = 24.dp, top = 8.dp)
         ) {
+            // FIXED HEADER
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -1193,118 +1207,127 @@ fun EditSupplierDialog(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text(if (lang == "ar") "اسم المورد" else "Supplier Name") },
-                leadingIcon = { Icon(Icons.Filled.Person, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+            // SCROLLABLE BODY
+            Column(
                 modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
                     .fillMaxWidth()
-                    .testTag("edit_supp_input_name"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
-                label = { Text(if (lang == "ar") "رقم الهاتف" else "Phone") },
-                leadingIcon = { Icon(Icons.Filled.Phone, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("edit_supp_input_phone"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text(if (lang == "ar") "البريد الإلكتروني" else "Email") },
-                leadingIcon = { Icon(Icons.Filled.Email, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("edit_supp_input_email"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            // Elegant Group selection dropdown
-            Box(modifier = Modifier.fillMaxWidth()) {
-                val selectedGroupText = remember(groupId, supplierGroups, groupName) {
-                    supplierGroups.find { it.id == groupId }?.name ?: groupName.ifBlank { if (lang == "ar") "عام / غير مصنف" else "General" }
-                }
-
+            ) {
                 OutlinedTextField(
-                    value = selectedGroupText,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(if (lang == "ar") "مجموعة الموردين" else "Supplier Group") },
-                    leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                    trailingIcon = {
-                        IconButton(onClick = { expandedGroupDropdown = !expandedGroupDropdown }) {
-                            Icon(Icons.Filled.ArrowDropDown, null)
-                        }
-                    },
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(if (lang == "ar") "اسم المورد" else "Supplier Name") },
+                    leadingIcon = { Icon(Icons.Filled.Person, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { expandedGroupDropdown = true },
-                    shape = RoundedCornerShape(12.dp)
+                        .testTag("edit_supp_input_name"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
                 )
 
-                DropdownMenu(
-                    expanded = expandedGroupDropdown,
-                    onDismissRequest = { expandedGroupDropdown = false },
-                    modifier = Modifier.fillMaxWidth(0.85f)
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(if (lang == "ar") "عام / غير مصنف" else "General / Uncategorized") },
-                        onClick = {
-                            groupId = null
-                            groupName = ""
-                            expandedGroupDropdown = false
-                        }
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text(if (lang == "ar") "رقم الهاتف" else "Phone") },
+                    leadingIcon = { Icon(Icons.Filled.Phone, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_supp_input_phone"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text(if (lang == "ar") "البريد الإلكتروني" else "Email") },
+                    leadingIcon = { Icon(Icons.Filled.Email, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_supp_input_email"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                // Elegant Group selection dropdown
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    val selectedGroupText = remember(groupId, supplierGroups, groupName) {
+                        supplierGroups.find { it.id == groupId }?.name ?: groupName.ifBlank { if (lang == "ar") "عام / غير مصنف" else "General" }
+                    }
+
+                    OutlinedTextField(
+                        value = selectedGroupText,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(if (lang == "ar") "مجموعة الموردين" else "Supplier Group") },
+                        leadingIcon = { Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                        trailingIcon = {
+                            IconButton(onClick = { expandedGroupDropdown = !expandedGroupDropdown }) {
+                                Icon(Icons.Filled.ArrowDropDown, null)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { expandedGroupDropdown = true },
+                        shape = RoundedCornerShape(12.dp)
                     )
-                    supplierGroups.forEach { group ->
+
+                    DropdownMenu(
+                        expanded = expandedGroupDropdown,
+                        onDismissRequest = { expandedGroupDropdown = false },
+                        modifier = Modifier.fillMaxWidth(0.85f)
+                    ) {
                         DropdownMenuItem(
-                            text = { Text(group.name) },
+                            text = { Text(if (lang == "ar") "عام / غير مصنف" else "General / Uncategorized") },
                             onClick = {
-                                groupId = group.id
-                                groupName = group.name
+                                groupId = null
+                                groupName = ""
                                 expandedGroupDropdown = false
                             }
                         )
+                        supplierGroups.forEach { group ->
+                            DropdownMenuItem(
+                                text = { Text(group.name) },
+                                onClick = {
+                                    groupId = group.id
+                                    groupName = group.name
+                                    expandedGroupDropdown = false
+                                }
+                            )
+                        }
                     }
                 }
+
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = limitInput,
+                    onValueChange = { limitInput = it },
+                    label = { Text(if (lang == "ar") "الحد الائتماني" else "Credit Limit") },
+                    leadingIcon = { Icon(Icons.Filled.AttachMoney, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_supp_input_limit"),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = limitInput,
-                onValueChange = { limitInput = it },
-                label = { Text(if (lang == "ar") "الحد الائتماني" else "Credit Limit") },
-                leadingIcon = { Icon(Icons.Filled.AttachMoney, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("edit_supp_input_limit"),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
-
-            Spacer(Modifier.height(30.dp))
-
+            // FIXED FOOTER
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
