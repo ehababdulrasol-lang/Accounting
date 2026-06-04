@@ -17,12 +17,14 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -196,6 +198,8 @@ fun DashboardScreen(
         }
     }
 
+    val primaryColor = MaterialTheme.colorScheme.primary
+
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
         Box(
             modifier = modifier
@@ -217,7 +221,7 @@ fun DashboardScreen(
                     .offset(x = 60.dp, y = (-40).dp)
                     .background(
                         Brush.radialGradient(
-                            colors = listOf(GoldAccent.copy(alpha = 0.08f), Color.Transparent)
+                            colors = listOf(primaryColor.copy(alpha = 0.08f), Color.Transparent)
                         ),
                         shape = RoundedCornerShape(120.dp)
                     )
@@ -230,7 +234,7 @@ fun DashboardScreen(
                     .offset(x = (-80).dp, y = 80.dp)
                     .background(
                         Brush.radialGradient(
-                            colors = listOf(GoldAccent.copy(alpha = 0.04f), Color.Transparent)
+                            colors = listOf(primaryColor.copy(alpha = 0.04f), Color.Transparent)
                         ),
                         shape = RoundedCornerShape(155.dp)
                     )
@@ -269,14 +273,14 @@ fun DashboardScreen(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(GoldAccent.copy(alpha = 0.15f))
-                            .border(1.dp, GoldAccent.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                            .background(primaryColor.copy(alpha = 0.15f))
+                            .border(1.dp, primaryColor.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "FO",
                             fontWeight = FontWeight.Bold,
-                            color = GoldAccent,
+                            color = primaryColor,
                             fontSize = 14.sp
                         )
                     }
@@ -326,7 +330,7 @@ fun DashboardScreen(
                                         Icon(
                                             imageVector = Icons.Filled.AccountBalanceWallet,
                                             contentDescription = null,
-                                            tint = GoldAccent,
+                                            tint = primaryColor,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(Modifier.width(8.dp))
@@ -341,14 +345,14 @@ fun DashboardScreen(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
-                                            .background(GoldAccent.copy(alpha = 0.15f))
+                                            .background(primaryColor.copy(alpha = 0.15f))
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
                                         Text(
                                             text = "${FinancialUtils.formatBase(totalAvailableFunds)} ${if (isLibyanMode) "د.ل" else "LYD"}",
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.ExtraBold,
-                                            color = GoldAccent
+                                            color = primaryColor
                                         )
                                     }
                                 }
@@ -361,7 +365,7 @@ fun DashboardScreen(
                                         title = if (lang == "ar") "إجمالي الصناديق" else "Total Cash boxes",
                                         amount = totalCashBoxesBalance,
                                         icon = Icons.Filled.Payments,
-                                        color = GoldAccent,
+                                        color = primaryColor,
                                         modifier = Modifier.weight(1f),
                                         isLibyan = isLibyanMode
                                     )
@@ -385,7 +389,7 @@ fun DashboardScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                                 ),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(alpha = 0.15f))
+                                border = androidx.compose.foundation.BorderStroke(1.dp, primaryColor.copy(alpha = 0.15f))
                             ) {
                                 Column(modifier = Modifier.padding(18.dp)) {
                                     Row(
@@ -414,14 +418,14 @@ fun DashboardScreen(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(GoldAccent.copy(alpha = 0.12f))
+                                                .background(primaryColor.copy(alpha = 0.12f))
                                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                         ) {
                                             Text(
                                                 text = "IFRS-9",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
-                                                color = GoldAccent
+                                                color = primaryColor
                                             )
                                         }
                                     }
@@ -431,7 +435,7 @@ fun DashboardScreen(
                                     SmoothLineChart(
                                         data = chartDataPoints,
                                         labels = monthsLabels,
-                                        lineColor = GoldAccent,
+                                        lineColor = primaryColor,
                                         lang = lang
                                     )
                                 }
@@ -567,8 +571,8 @@ fun DashboardScreen(
                     ) {
                         FloatingActionButton(
                             onClick = onNavigateToVouchers,
-                            containerColor = GoldAccent,
-                            contentColor = MaterialTheme.colorScheme.background,
+                            containerColor = primaryColor,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.testTag("dashboard_quick_add_voucher_fab")
                         ) {
                             Icon(Icons.Filled.PostAdd, contentDescription = "Add Voucher")
@@ -591,16 +595,24 @@ fun GlassKPICard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+            containerColor = Color.Transparent
         ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.15f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.25f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp)
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                            color.copy(alpha = 0.08f)
+                        )
+                    )
+                )
+                .padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -610,7 +622,7 @@ fun GlassKPICard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     fontWeight = FontWeight.Bold
                 )
                 Icon(
@@ -647,9 +659,10 @@ fun SmoothLineChart(
     data: List<Float>,
     labels: List<String>,
     modifier: Modifier = Modifier,
-    lineColor: Color = GoldAccent,
+    lineColor: Color = Color.Unspecified,
     lang: String
 ) {
+    val resolvedLineColor = if (lineColor == Color.Unspecified) MaterialTheme.colorScheme.primary else lineColor
     val isRtl = LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
     Box(
         modifier = modifier
@@ -717,14 +730,14 @@ fun SmoothLineChart(
                 drawPath(
                     path = areaPath,
                     brush = Brush.verticalGradient(
-                        colors = listOf(lineColor.copy(alpha = 0.20f), lineColor.copy(alpha = 0.00f))
+                        colors = listOf(resolvedLineColor.copy(alpha = 0.20f), resolvedLineColor.copy(alpha = 0.00f))
                     )
                 )
 
                 // Draw Smooth Line
                 drawPath(
                     path = linePath,
-                    color = lineColor,
+                    color = resolvedLineColor,
                     style = Stroke(
                         width = 3.dp.toPx(),
                         cap = StrokeCap.Round
@@ -734,7 +747,7 @@ fun SmoothLineChart(
                 // Draw data indicator dots
                 points.forEach { pt ->
                     drawCircle(
-                        color = lineColor,
+                        color = resolvedLineColor,
                         radius = 4.dp.toPx(),
                         center = pt
                     )
@@ -774,19 +787,37 @@ fun QuickActionTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val accent = MaterialTheme.colorScheme.primary
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1.0f,
+        label = "tile_scale"
+    )
+
     Card(
         modifier = modifier
-            .height(52.dp),
-        shape = RoundedCornerShape(12.dp),
+            .height(54.dp)
+            .then(Modifier.graphicsLayer(scaleX = scale, scaleY = scale)),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+            containerColor = Color.Transparent
         ),
         onClick = onClick,
-        border = androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(alpha = 0.1f))
+        interactionSource = interactionSource,
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.15f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            accent.copy(alpha = 0.05f)
+                        )
+                    )
+                )
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
@@ -794,15 +825,16 @@ fun QuickActionTile(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = GoldAccent,
+                tint = accent,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
             )
         }
     }
@@ -878,10 +910,10 @@ fun DashboardEntryRow(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${FinancialUtils.formatBase(header.totalAmountBase)} ${if (isLibyan) "د.ل" else "LYD"}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = GoldAccent
+                     text = "${FinancialUtils.formatBase(header.totalAmountBase)} ${if (isLibyan) "د.ل" else "LYD"}",
+                     style = MaterialTheme.typography.titleMedium,
+                     fontWeight = FontWeight.Bold,
+                     color = MaterialTheme.colorScheme.primary
                 )
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -931,7 +963,7 @@ fun EmptyDashboardVouchersPlaceHolder(
         modifier = Modifier
             .fillMaxWidth()
             .height(110.dp)
-            .border(1.dp, GoldAccent.copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
@@ -946,7 +978,7 @@ fun EmptyDashboardVouchersPlaceHolder(
             Icon(
                 imageVector = Icons.Default.PostAdd,
                 contentDescription = null,
-                tint = GoldAccent.copy(alpha = 0.6f),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                 modifier = Modifier.size(32.dp)
             )
             Spacer(Modifier.height(6.dp))
@@ -1066,6 +1098,7 @@ fun DashboardFXWidgetCard(
     val rate = if (useParallel) parallelRate else officialRate
     val numericAmount = amountText.toDoubleOrNull() ?: 100.0
     val result = if (usdToLyd) numericAmount * rate else numericAmount / rate
+    val accent = MaterialTheme.colorScheme.primary
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -1073,7 +1106,7 @@ fun DashboardFXWidgetCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
         ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(alpha = 0.15f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.15f))
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
@@ -1085,7 +1118,7 @@ fun DashboardFXWidgetCard(
                     Icon(
                         imageVector = Icons.Filled.Payments,
                         contentDescription = null,
-                        tint = GoldAccent,
+                        tint = accent,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(Modifier.width(8.dp))
@@ -1101,14 +1134,14 @@ fun DashboardFXWidgetCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(GoldAccent.copy(alpha = 0.12f))
+                        .background(accent.copy(alpha = 0.12f))
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "1 USD = ${String.format(java.util.Locale.US, "%.3f", rate)} LYD",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = GoldAccent
+                        color = accent
                     )
                 }
             }
@@ -1156,7 +1189,7 @@ fun DashboardFXWidgetCard(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (!useParallel) GoldAccent.copy(alpha = 0.15f) else Color.Transparent)
+                            .background(if (!useParallel) accent.copy(alpha = 0.15f) else Color.Transparent)
                             .clickable { useParallel = false }
                             .padding(vertical = 6.dp),
                         contentAlignment = Alignment.Center
@@ -1165,7 +1198,7 @@ fun DashboardFXWidgetCard(
                             text = if (lang == "ar") "رسمي" else "Official",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (!useParallel) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = if (!useParallel) accent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
 
@@ -1173,7 +1206,7 @@ fun DashboardFXWidgetCard(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (useParallel) GoldAccent.copy(alpha = 0.15f) else Color.Transparent)
+                            .background(if (useParallel) accent.copy(alpha = 0.15f) else Color.Transparent)
                             .clickable { useParallel = true }
                             .padding(vertical = 6.dp),
                         contentAlignment = Alignment.Center
@@ -1182,7 +1215,7 @@ fun DashboardFXWidgetCard(
                             text = if (lang == "ar") "موازي" else "Parallel",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (useParallel) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = if (useParallel) accent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -1206,7 +1239,7 @@ fun DashboardFXWidgetCard(
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = GoldAccent,
+                        focusedBorderColor = accent,
                         unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                     ),
                     shape = RoundedCornerShape(10.dp),

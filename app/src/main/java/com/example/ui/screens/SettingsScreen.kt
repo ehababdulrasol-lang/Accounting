@@ -873,41 +873,83 @@ fun SettingsScreen(
                                             Triple(ThemeStyle.CLASSIC_SKY, if (lang == "ar") "الأزرق الكلاسيكي" else "Classic Sky", Color(0xFF0284C7)),
                                             Triple(ThemeStyle.EMERALD_GOLD, if (lang == "ar") "الأخضر الذهبي" else "Emerald Gold", Color(0xFF0D9488)),
                                             Triple(ThemeStyle.COSMIC_AMETHYST, if (lang == "ar") "البنفسج الكوني" else "Cosmic Purple", Color(0xFF8B5CF6)),
-                                            Triple(ThemeStyle.WARM_SAHARA, if (lang == "ar") "نسيم الصحراء (تراثي)" else "Sahara Breeze (Native)", Color(0xFFF59E0B))
+                                            Triple(ThemeStyle.WARM_SAHARA, if (lang == "ar") "نسيم الصحراء" else "Sahara Breeze", Color(0xFFF59E0B)),
+                                            Triple(ThemeStyle.LUXURY_ONYX, if (lang == "ar") "الأونكس الفاخر" else "Luxury Onyx", Color(0xFFF7D16A))
                                         )
 
-                                        Row(
+                                        Column(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
-                                            styles.forEach { (style, name, accentColor) ->
-                                                val isSelected = currentStyle == style
-                                                Column(
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                                        .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                        .clickable { viewModel.setThemeStyle(style) }
-                                                        .padding(8.dp),
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Center
-                                                ) {
-                                                    Box(
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                styles.take(3).forEach { (style, name, accentColor) ->
+                                                    val isSelected = currentStyle == style
+                                                    Column(
                                                         modifier = Modifier
-                                                            .size(24.dp)
-                                                            .clip(RoundedCornerShape(12.dp))
-                                                            .background(accentColor)
-                                                    )
-                                                    Spacer(Modifier.height(4.dp))
-                                                    Text(
-                                                        text = name,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                                    )
+                                                            .weight(1f)
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                                             .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                            .clickable { viewModel.setThemeStyle(style) }
+                                                            .padding(8.dp),
+                                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                                        verticalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(24.dp)
+                                                                .clip(RoundedCornerShape(12.dp))
+                                                                .background(accentColor)
+                                                        )
+                                                        Spacer(Modifier.height(4.dp))
+                                                        Text(
+                                                            text = name,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                                        )
+                                                    }
                                                 }
+                                            }
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                             ) {
+                                                styles.drop(3).forEach { (style, name, accentColor) ->
+                                                    val isSelected = currentStyle == style
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                             .clip(RoundedCornerShape(8.dp))
+                                                            .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                                            .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                             .clickable { viewModel.setThemeStyle(style) }
+                                                            .padding(8.dp),
+                                                         horizontalAlignment = Alignment.CenterHorizontally,
+                                                        verticalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Box(
+                                                             modifier = Modifier
+                                                                .size(24.dp)
+                                                                .clip(RoundedCornerShape(12.dp))
+                                                                .background(accentColor)
+                                                        )
+                                                        Spacer(Modifier.height(4.dp))
+                                                        Text(
+                                                             text = name,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                                        )
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.weight(1f))
                                             }
                                         }
                                     }

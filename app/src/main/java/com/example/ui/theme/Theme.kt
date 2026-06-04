@@ -11,7 +11,8 @@ enum class ThemeStyle {
     CLASSIC_SKY,
     EMERALD_GOLD,
     COSMIC_AMETHYST,
-    WARM_SAHARA
+    WARM_SAHARA,
+    LUXURY_ONYX
 }
 
 // Define the updated Financial Dashboard schemes per Style
@@ -119,6 +120,32 @@ private val LightWarmSahara = lightColorScheme(
     onError = CleanWhite
 )
 
+private val DarkLuxuryOnyx = darkColorScheme(
+    primary = Color(0xFFF7D16A), // Bright Luxury Champagne Gold
+    onPrimary = Color(0xFF0F0F12),
+    secondary = Color(0xFF16161C), // Obsidian grey
+    onSecondary = Color.White,
+    background = Color(0xFF0B0B0E), // Onyx deep space dark
+    onBackground = Color.White,
+    surface = Color(0xFF131318), // Pure slate black surface
+    onSurface = Color.White,
+    error = ErrorRed,
+    onError = Color.White
+)
+
+private val LightLuxuryOnyx = lightColorScheme(
+    primary = Color(0xFF916B19), // Antique rich gold
+    onPrimary = Color.White,
+    secondary = Color(0xFFFAFAFD), // Alabaster white
+    onSecondary = Color(0xFF0F0F12),
+    background = Color(0xFFFFFFFF),
+    onBackground = Color(0xFF0F0F12),
+    surface = Color(0xFFF2F2F6), // Pearl surface
+    onSurface = Color(0xFF0F0F12),
+    error = ErrorRed,
+    onError = Color.White
+)
+
 @Composable
 fun MyApplicationTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -131,6 +158,7 @@ fun MyApplicationTheme(
             ThemeStyle.EMERALD_GOLD -> DarkEmeraldGold
             ThemeStyle.COSMIC_AMETHYST -> DarkCosmicAmethyst
             ThemeStyle.WARM_SAHARA -> DarkWarmSahara
+            ThemeStyle.LUXURY_ONYX -> DarkLuxuryOnyx
         }
     } else {
         when (style) {
@@ -138,6 +166,7 @@ fun MyApplicationTheme(
             ThemeStyle.EMERALD_GOLD -> LightEmeraldGold
             ThemeStyle.COSMIC_AMETHYST -> LightCosmicAmethyst
             ThemeStyle.WARM_SAHARA -> LightWarmSahara
+            ThemeStyle.LUXURY_ONYX -> LightLuxuryOnyx
         }
     }
 
