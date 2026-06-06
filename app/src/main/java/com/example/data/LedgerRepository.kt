@@ -38,6 +38,7 @@ class LedgerRepository(private val db: AppDatabase) {
     private val cashBoxDao = db.cashBoxDao()
     private val bankDao = db.bankDao()
     private val measurementDao = db.measurementDao()
+    private val notificationDao = db.notificationDao()
 
     // Flow listings
     val rootAccounts: Flow<List<Account>> = accountDao.getRootAccounts()
@@ -58,6 +59,28 @@ class LedgerRepository(private val db: AppDatabase) {
     val allBranches: Flow<List<BankBranch>> = bankDao.getAllBranchesFlow()
     val allBankAccounts: Flow<List<BankAccount>> = bankDao.getAllBankAccountsFlow()
     val measurementHeaders: Flow<List<MeasurementHeader>> = measurementDao.getAllMeasurementHeadersFlow()
+    val allNotifications: Flow<List<Notification>> = notificationDao.getAllNotificationsFlow()
+    val unreadNotifications: Flow<List<Notification>> = notificationDao.getUnreadNotificationsFlow()
+
+    suspend fun insertNotification(notification: Notification): Long = withContext(Dispatchers.IO) {
+        notificationDao.insert(notification)
+    }
+
+    suspend fun updateNotification(notification: Notification) = withContext(Dispatchers.IO) {
+        notificationDao.update(notification)
+    }
+
+    suspend fun markAllNotificationsAsRead() = withContext(Dispatchers.IO) {
+        notificationDao.markAllAsRead()
+    }
+
+    suspend fun deleteNotificationById(id: Long) = withContext(Dispatchers.IO) {
+        notificationDao.deleteById(id)
+    }
+
+    suspend fun clearAllNotifications() = withContext(Dispatchers.IO) {
+        notificationDao.clearAll()
+    }
 
     suspend fun getActiveFiscalYearsSuspend(): List<FiscalYear> = withContext(Dispatchers.IO) {
         fiscalYearDao.getActiveFiscalYearsSuspend()

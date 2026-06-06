@@ -857,6 +857,7 @@ fun MainScaffoldContainer(
     viewModel: LedgerViewModel
 ) {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    var showNotificationHub by remember { mutableStateOf(false) }
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -901,6 +902,34 @@ fun MainScaffoldContainer(
                     }
                 },
                 actions = {
+                    val unreadNotifs by viewModel.unreadNotifications.collectAsStateWithLifecycle()
+                    IconButton(
+                        onClick = { showNotificationHub = true },
+                        modifier = Modifier.testTag("notification_bell_button")
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (unreadNotifs.isNotEmpty()) {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
+                                    ) {
+                                        Text(
+                                            text = unreadNotifs.size.toString(),
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Notifications,
+                                contentDescription = if (lang == "ar") "التنبيهات والطلبات" else "Alerts & Notifications",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
                     IconButton(onClick = onLangClick) {
                         Text(
                             text = if (lang == "ar") "EN" else "عربي",
@@ -982,6 +1011,12 @@ fun MainScaffoldContainer(
                     21 -> ReportsScreen(viewModel = viewModel, forcedTab = 8)
                     20 -> MeasurementsScreen(viewModel = viewModel)
                 }
+            }
+            if (showNotificationHub) {
+                NotificationHubDialog(
+                    viewModel = viewModel,
+                    onDismissRequest = { showNotificationHub = false }
+                )
             }
         }
     }

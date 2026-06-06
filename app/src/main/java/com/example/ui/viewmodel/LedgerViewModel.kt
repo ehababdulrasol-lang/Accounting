@@ -73,6 +73,10 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val banks = repository.banks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allBranches = repository.allBranches.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allBankAccounts = repository.allBankAccounts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    
+    // Notifications and Alerts States
+    val notifications = repository.allNotifications.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val unreadNotifications = repository.unreadNotifications.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val prefs = application.getSharedPreferences("ledger_settings", android.content.Context.MODE_PRIVATE)
 
@@ -235,6 +239,62 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 repository.checkAndSeedDatabase()
+                
+                // Seed custom ledger notifications & alerts if empty
+                val currentNotifs = repository.allNotifications.first()
+                if (currentNotifs.isEmpty()) {
+                    repository.insertNotification(
+                        Notification(
+                            titleAr = "تنبيه غسيل الأموال وامتثال أسعار الصرف",
+                            titleEn = "Urgent: Compliance Exchange Notice",
+                            messageAr = "تحذير من الإدارة المالية: ارتفع سعر الدولار بالسوق الموازي الليبي إلى 7.15 د.ل. نؤكد على ضرورة مراجعة وتعديل أسعار ترحيل القيود الأجنبية فوراً لضمان عدم وجود انحرافات مسجلة بميزان المراجعة والأرباح والخسائر.",
+                            messageEn = "Parallel exchange rate of USD climbed to 7.15 LYD. Compliance regulations mandate auditing foreign transactions for variance and currency-gain tracking.",
+                            type = "ADMIN",
+                            priority = "HIGH",
+                            senderAr = "الإدارة العامة",
+                            senderEn = "General Board Administration",
+                            receiverAr = "جميع مهندسي الحسابات والمدراء",
+                            receiverEn = "All Financial Officers",
+                            isRead = false,
+                            timestamp = System.currentTimeMillis() - 7200000 // 2 hours ago
+                        )
+                    )
+                    repository.insertNotification(
+                        Notification(
+                            titleAr = "طلب فحص واعتماد: قيد رواتب موظفي مايو",
+                            titleEn = "Awaiting Verification: May Staff Payroll Voucher",
+                            messageAr = "الرجاء مراجعة وإقرار قيود مسودة رواتب الموظفين لشهر مايو والمقيدة برقم JV-002 ومطابقتها بالتسويات النقدية وصناديق الفروع الجارية قبل الإقفال النهائي للميزانية.",
+                            messageEn = "Review and approve the draft payroll statement JV-002 filed by the junior accountant. Verification matches branch cash reserves before monthly ledger close.",
+                            type = "TEAM",
+                            priority = "MEDIUM",
+                            senderAr = "أحمد الورفلي (محاسب مساعد)",
+                            senderEn = "Ahmed Al-Warfali (Junior)",
+                            receiverAr = "المراجع المالي الرائد",
+                            receiverEn = "Senior Auditor",
+                            isRead = false,
+                            actionType = "APPROVE_VOUCHER",
+                            actionPayload = "JV-002",
+                            timestamp = System.currentTimeMillis() - 14400000 // 4 hours ago
+                        )
+                    )
+                    repository.insertNotification(
+                        Notification(
+                            titleAr = "مراقبة الأمان (اليمامة): سيولة صندوق الفرع الرئيسي",
+                            titleEn = "Yamama Intelligence Alert: Branch Cash Buffer",
+                            messageAr = "تنبيه تلقائي: رصيد نقدية صندوق الفرع الرئيسي تجاوز الحد الأقصى المسموح به للتحوط (150,000 د.ل)؛ الرصيد الحالي المتراكم يقارب 180,000 د.ل. نوصي بترحيل الفائض للحساب الجاري في مصرف الأمان.",
+                            messageEn = "Automated advisory: Cash-on-hand for the Main Cash Box exceeded the safe operating margin of 150,000 LYD. Current balance ~180,000 LYD. Recommend bank deposit.",
+                            type = "SYSTEM",
+                            priority = "MEDIUM",
+                            senderAr = "الذكاء الاصطناعي (Copilot)",
+                            senderEn = "Yamama Audit Engine (Copilot)",
+                            receiverAr = "أمين الصندوق العام",
+                            receiverEn = "General Cashier",
+                            isRead = false,
+                            timestamp = System.currentTimeMillis() - 86400000 // 1 day ago
+                        )
+                    )
+                }
+
                 // Set default fiscal year id once loaded
                 val fys = repository.getActiveFiscalYearsSuspend()
                 if (fys.isNotEmpty()) {
@@ -279,6 +339,115 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun clearMessage() {
         _uiMessage.value = null
+    }
+
+    fun sendNotification(
+        titleAr: String,
+        titleEn: String,
+        messageAr: String,
+        messageEn: String,
+        type: String,
+        priority: String,
+        senderAr: String,
+        senderEn: String,
+        receiverAr: String,
+        receiverEn: String,
+        actionType: String? = null,
+        actionPayload: String? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                repository.insertNotification(
+                    Notification(
+                        titleAr = titleAr,
+                        titleEn = titleEn,
+                        messageAr = messageAr,
+                        messageEn = messageEn,
+                        type = type,
+                        priority = priority,
+                        senderAr = senderAr,
+                        senderEn = senderEn,
+                        receiverAr = receiverAr,
+                        receiverEn = receiverEn,
+                        actionType = actionType,
+                        actionPayload = actionPayload,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+            } catch (e: Exception) {
+                _uiMessage.value = "Failed to send notification: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun markAllNotificationsAsRead() {
+        viewModelScope.launch {
+            try {
+                repository.markAllNotificationsAsRead()
+            } catch (e: Exception) {
+                _uiMessage.value = "Error: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun markNotificationAsRead(notification: Notification) {
+        viewModelScope.launch {
+            try {
+                repository.updateNotification(notification.copy(isRead = true))
+            } catch (e: Exception) {
+                _uiMessage.value = "Error: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteNotification(id: Long) {
+        viewModelScope.launch {
+            try {
+                repository.deleteNotificationById(id)
+            } catch (e: Exception) {
+                _uiMessage.value = "Error: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun handleNotificationAction(notification: Notification) {
+        viewModelScope.launch {
+            try {
+                if (notification.actionType == "APPROVE_VOUCHER" && notification.actionPayload != null) {
+                    val voucherNo = notification.actionPayload
+                    val draftVouchers = repository.voucherHeaders.first().filter { !it.isPosted && it.voucherNo == voucherNo }
+                    if (draftVouchers.isNotEmpty()) {
+                        val target = draftVouchers.first()
+                        repository.postVoucher(target.id)
+                        _uiMessage.value = if (currentLanguage.value == "ar") {
+                            "✅ تم بنجاح مراجعة واعتماد وترحيل القيد رقم $voucherNo للدفتر المالي العام!"
+                        } else {
+                            "✅ Successfully validated, audited, and posted Voucher No: $voucherNo to the General Ledger!"
+                        }
+                    } else {
+                        _uiMessage.value = if (currentLanguage.value == "ar") {
+                            "✅ تمت الموافقة بنجاح على المعاملة $voucherNo وأرشفتها."
+                        } else {
+                            "✅ Request $voucherNo approved and archived successfully."
+                        }
+                    }
+                } else {
+                    _uiMessage.value = if (currentLanguage.value == "ar") {
+                        "✅ تم تأكيد ومعالجة هذا التنبيه بنجاح."
+                    } else {
+                        "✅ This alert was successfully confirmed and processed."
+                    }
+                }
+                repository.updateNotification(
+                    notification.copy(
+                        isRead = true,
+                        isActionHandled = true
+                    )
+                )
+            } catch (e: Exception) {
+                _uiMessage.value = "Failed to process notification action: ${e.localizedMessage}"
+            }
+        }
     }
 
     // Chart of Accounts Operations

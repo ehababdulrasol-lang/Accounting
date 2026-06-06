@@ -370,4 +370,25 @@ data class MeasurementLine(
     val totalAmount: Long
 )
 
+@Entity(tableName = "notifications")
+data class Notification(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val titleAr: String,
+    val titleEn: String,
+    val messageAr: String,
+    val messageEn: String,
+    val type: String, // "ADMIN", "TEAM", "SYSTEM"
+    val priority: String, // "HIGH", "MEDIUM", "LOW"
+    val senderAr: String,
+    val senderEn: String,
+    val receiverAr: String,
+    val receiverEn: String,
+    val isRead: Boolean = false,
+    val isActionHandled: Boolean = false,
+    val actionType: String? = null, // "APPROVE_VOUCHER", "UNLOCK_FY", "NONE"
+    val actionPayload: String? = null,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+
 

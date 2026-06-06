@@ -413,3 +413,28 @@ interface MeasurementDao {
         return id
     }
 }
+
+@Dao
+interface NotificationDao {
+    @Query("SELECT * FROM notifications ORDER BY timestamp DESC")
+    fun getAllNotificationsFlow(): Flow<List<Notification>>
+
+    @Query("SELECT * FROM notifications WHERE isRead = 0")
+    fun getUnreadNotificationsFlow(): Flow<List<Notification>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(notification: Notification): Long
+
+    @Update
+    suspend fun update(notification: Notification)
+
+    @Query("UPDATE notifications SET isRead = 1")
+    suspend fun markAllAsRead()
+
+    @Query("DELETE FROM notifications WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM notifications")
+    suspend fun clearAll()
+}
+

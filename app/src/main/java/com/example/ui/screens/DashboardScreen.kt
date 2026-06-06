@@ -512,6 +512,17 @@ fun DashboardScreen(
                             )
                         }
 
+                        // Section: Yamama Smart Scenario Modeler (Simulation Module)
+                        item {
+                            YamamaFinancialSimulationCard(
+                                lang = lang,
+                                totalRevenue = totalRevenue,
+                                totalExpense = totalExpense,
+                                isLibyanMode = isLibyanMode,
+                                viewModel = viewModel
+                            )
+                        }
+
                         // Section: Recent Vouchers
                         item {
                             Row(
@@ -1473,6 +1484,420 @@ fun DashboardDiagnosticsCard(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 fontWeight = FontWeight.Medium
             )
+        }
+    }
+}
+
+@Composable
+fun YamamaFinancialSimulationCard(
+    lang: String,
+    totalRevenue: Long,
+    totalExpense: Long,
+    isLibyanMode: Boolean,
+    viewModel: LedgerViewModel
+) {
+    val parallelRate by viewModel.parallelExchangeRate.collectAsStateWithLifecycle()
+    
+    // Sliders state
+    var simulatedRevFactor by remember { mutableStateOf(1.0f) } // 0.5x to 2.5x
+    var simulatedExpFactor by remember { mutableStateOf(1.0f) } // 0.5x to 2.0x
+    var simulatedRate by remember { mutableStateOf(if (parallelRate > 0f) parallelRate.toFloat() else 6.45f) } // 4.0 to 10.0
+    
+    val accent = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.secondary
+    
+    // Compute Simulated Metrics
+    val simRevenue = (totalRevenue * simulatedRevFactor).toLong()
+    val simExpense = (totalExpense * simulatedExpFactor).toLong()
+    val simProfit = simRevenue - simExpense
+    val simRevenueM = simRevenue.toDouble() / 1_000_000.0
+    val simProfitM = simProfit.toDouble() / 1_000_000.0
+    val simMargin = if (simRevenueM > 0) (simProfitM / simRevenueM) * 100.0 else 0.0
+    
+    // Let's compute a Simulated Financial Health Score (5 - 98)
+    val score = remember(simulatedRevFactor, simulatedExpFactor, simulatedRate, simMargin) {
+        var calculated = 50f
+        
+        // Margin component
+        val marginBonus = if (simMargin > 0) (simMargin * 0.4).toFloat().coerceAtMost(25f) else (simMargin * 0.6).toFloat().coerceAtLeast(-30f)
+        calculated += marginBonus
+        
+        // Revenue-to-expense component
+        val expRatio = if (simRevenue > 0) simExpense.toFloat() / simRevenue.toFloat() else 2f
+        if (expRatio < 0.6f) calculated += 15f
+        else if (expRatio > 1.2f) calculated -= 25f
+        else calculated += (1f - expRatio) * 10f
+        
+        // Exchange Rate stability component
+        val rateDeviation = kotlin.math.abs(simulatedRate - 6.45f)
+        calculated -= (rateDeviation * 5f)
+        
+        calculated.coerceIn(5f, 98f)
+    }
+    
+    val healthColor = if (score >= 75f) {
+        EmeraldGreen
+    } else if (score >= 45f) {
+        CorporateSky
+    } else {
+        RoseRed
+    }
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("yamama_simulation_card"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.2.dp, accent.copy(alpha = 0.2f))
+    ) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(accent.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Assessment,
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (lang == "ar") "محاكاة التخطيط والسيناريوهات المالية الذكية" else "Visual Financial Scenario Modeler",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (lang == "ar") "نموذج Yamama 1 الاستشرافي للملاءة والإنذار المبكر" else "Yamama 1 diagnostic stress-testing engine",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            }
+            
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            
+            // Score Gauge Column
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Interactive Gauge Indicator Box
+                Box(
+                    modifier = Modifier
+                        .size(110.dp)
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val strokeW = 9.dp.toPx()
+                        
+                        // Background track
+                        drawArc(
+                            color = Color.LightGray.copy(alpha = 0.25f),
+                            startAngle = 140f,
+                            sweepAngle = 260f,
+                            useCenter = false,
+                            style = Stroke(width = strokeW, cap = StrokeCap.Round)
+                        )
+                        
+                        // Foreground active colored track
+                        drawArc(
+                            brush = Brush.sweepGradient(
+                                colors = listOf(
+                                    RoseRed,
+                                    CorporateSky,
+                                    EmeraldGreen
+                                )
+                            ),
+                            startAngle = 140f,
+                            sweepAngle = (score / 100f) * 260f,
+                            useCenter = false,
+                            style = Stroke(width = strokeW, cap = StrokeCap.Round)
+                        )
+                    }
+                    
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "${score.toInt()}%",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = healthColor
+                        )
+                        Text(
+                            text = if (lang == "ar") "درجة الأمان" else "Safety Rating",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                // Detailed simulated metrics (Profit Margin, Net Simulated profit)
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = if (lang == "ar") "النتائج المالية المتوقعة:" else "Projected Scenario Yield:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    // Sales
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "الإيرادات الافتراضية" else "Projected Revenue",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "${FinancialUtils.formatBase(simRevenue)} ${if (isLibyanMode) "د.ل" else "LYD"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldGreen
+                        )
+                    }
+                    
+                    // Expense
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "المصاريف الافتراضية" else "Projected Expenses",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "${FinancialUtils.formatBase(simExpense)} ${if (isLibyanMode) "د.ل" else "LYD"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = RoseRed
+                        )
+                    }
+                    
+                    // simulated net profit
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(healthColor.copy(alpha = 0.08f))
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "صافي الربح المفترض" else "Scenario Net Profit",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = healthColor
+                        )
+                        Text(
+                            text = "${FinancialUtils.formatBase(simProfit)} ${if (isLibyanMode) "د.ل" else "LYD"}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = healthColor
+                        )
+                    }
+                    
+                    // profit margin ratio
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "هامش الملاءة المستهدف" else "Modeled Target Margin",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = "${String.format(java.util.Locale.US, "%.1f", simMargin)}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (simMargin >= 15.0) EmeraldGreen else if (simMargin >= 0.0) MaterialTheme.colorScheme.onSurface else RoseRed
+                        )
+                    }
+                }
+            }
+            
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            
+            // Sliders Section
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                
+                // Slider 1: Revenue Volume Growth
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "النمو المتوقع بالمبيعات" else "Projected Sales Growth Volume",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${String.format(java.util.Locale.US, "%.0f", (simulatedRevFactor - 1.0f) * 100f)}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = accent
+                        )
+                    }
+                    Slider(
+                        value = simulatedRevFactor,
+                        onValueChange = { simulatedRevFactor = it },
+                        valueRange = 0.5f..2.5f,
+                        modifier = Modifier
+                            .height(36.dp)
+                            .testTag("sim_revenue_slider"),
+                        colors = SliderDefaults.colors(
+                            thumbColor = accent,
+                            activeTrackColor = accent.copy(alpha = 0.7f)
+                        )
+                    )
+                }
+                
+                // Slider 2: Expenses Cost variation
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (lang == "ar") "تعديل المصروفات التشغيلية" else "Projected Overheads Cost Curve",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${String.format(java.util.Locale.US, "%.0f", (simulatedExpFactor - 1.0f) * 100f)}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (simulatedExpFactor > 1.0f) RoseRed else EmeraldGreen
+                        )
+                    }
+                    Slider(
+                        value = simulatedExpFactor,
+                        onValueChange = { simulatedExpFactor = it },
+                        valueRange = 0.5f..2.0f,
+                        modifier = Modifier
+                            .height(36.dp)
+                            .testTag("sim_expense_slider"),
+                        colors = SliderDefaults.colors(
+                            thumbColor = secondary,
+                            activeTrackColor = secondary.copy(alpha = 0.7f)
+                        )
+                    )
+                }
+                
+                // Slider 3: Parallel Exchange Rate
+                if (isLibyanMode) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (lang == "ar") "سعر صرف الدولار المحاكى بليبيا (سوق موازي)" else "Simulated Parallel USD Exchange Rate (LYD)",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${String.format(java.util.Locale.US, "%.2f", simulatedRate)} د.ل",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (simulatedRate > 7.0f) RoseRed else accent
+                            )
+                        }
+                        Slider(
+                            value = simulatedRate,
+                            onValueChange = { simulatedRate = it },
+                            valueRange = 4.0f..10.0f,
+                            modifier = Modifier
+                                .height(36.dp)
+                                .testTag("sim_rate_slider"),
+                            colors = SliderDefaults.colors(
+                                thumbColor = CorporateSky,
+                                activeTrackColor = CorporateSky.copy(alpha = 0.7f)
+                            )
+                        )
+                    }
+                }
+            }
+            
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            
+            // Intelligence Advisory Text
+            val advisorRecommendation = remember(simProfit, score, lang) {
+                if (simProfit < 0) {
+                    if (lang == "ar") {
+                        "❌ تحذير عجز تشغيلي: المصاريف تتجاوز المبيعات بالكامل بهذا السيناريو. يجب فورا تقليل الأعباء التشغيلية وتفعيل سياسات التقشف لتجنب نفاد رأس المال والسيولة."
+                    } else {
+                        "❌ OPERATIONAL DEFICIT DETECTED: Simulated overhead is draining capital fast. Aggressively downscale variable liabilities by at least 15% immediately to safeguard continuous solvency."
+                    }
+                } else if (score < 50f) {
+                    if (lang == "ar") {
+                        "⚠️ ملاءة تشغيلية منخفضة: معدل الأرباح غير آمن كفاية لمقاومة تقلبات السوق المحلية. ينصح بالتحوط لتقليل الالتزامات قصيرة الأجل مع الموردين."
+                    } else {
+                        "⚠️ COGNITIVE VOLATILITY ALERT: Profit yield levels are highly exposed. Build up reserves buffers quickly to bridge expected macro volatility and currency rate fluctuations."
+                    }
+                } else {
+                    if (lang == "ar") {
+                        "💡 ملاءة ممتازة ومستدامة: السيناريو يمنح المؤسسة قدرة تنافسية وهامش ربح آمن جداً. يوصى بتمويل استثمارات رأسمالية جديدة أو زيادة موازنة التوريد الخارجية."
+                    } else {
+                        "💡 HEALTHY SOLVENCY SIGNAL: This scenario unlocks dynamic working capital. Perfect opportunity to finance secondary expansions or expand stock allocations."
+                    }
+                }
+            }
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(healthColor.copy(alpha = 0.08f))
+                    .padding(12.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Intelligence Advisory Icon",
+                        tint = healthColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = advisorRecommendation,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
         }
     }
 }
