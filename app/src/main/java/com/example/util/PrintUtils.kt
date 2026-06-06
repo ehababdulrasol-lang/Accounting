@@ -1287,4 +1287,197 @@ object PrintUtils {
 
         printHtml(context, getHtmlTemplate(body, isAr), "banks_report_print")
     }
+
+    fun printMonthlyAnalytics(
+        context: Context,
+        monthsData: List<Triple<String, Long, Long>>,
+        lang: String
+    ) {
+        val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        val title = if (isAr) "تقرير التحليلات التشغيلية والأرباح الشهرية" else "Monthly Operational Performance & Income Report"
+
+        val rowsHtml = StringBuilder()
+        var totalRev = 0L
+        var totalExp = 0L
+
+        monthsData.forEach { (monthName, rev, exp) ->
+            totalRev += rev
+            totalExp += exp
+            val profit = rev - exp
+            val profitColor = if (profit >= 0) "#0d8343" else "#c5221f"
+            rowsHtml.append("""
+                <tr>
+                    <td><strong>$monthName</strong></td>
+                    <td class="text-right" style="color:#0d8343;">${FinancialUtils.formatBase(rev)}</td>
+                    <td class="text-right" style="color:#c5221f;">${FinancialUtils.formatBase(exp)}</td>
+                    <td class="text-right" style="font-weight:bold; color: $profitColor;">${FinancialUtils.formatBase(profit)}</td>
+                </tr>
+            """.trimIndent())
+        }
+
+        val totalProfit = totalRev - totalExp
+        val totalProfitColor = if (totalProfit >= 0) "#0d8343" else "#c5221f"
+
+        val body = """
+            <div class="header-container">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
+                    </div>
+                </div>
+                <div class="header-meta">
+                    <strong>$brandOrg</strong><br>
+                    ${if (isAr) "تاريخ التقرير:" else "Prepared On:"} ${formatDate(System.currentTimeMillis())}
+                </div>
+            </div>
+
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>${if (isAr) "الشهر" else "Month"}</th>
+                        <th class="text-right">${if (isAr) "إجمالي الإيرادات" else "Total Revenue"}</th>
+                        <th class="text-right">${if (isAr) "إجمالي المصروفات" else "Total Expense"}</th>
+                        <th class="text-right">${if (isAr) "صافي الأرباح / الخسائر" else "Net Margin (P/L)"}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    $rowsHtml
+                    <tr style="background-color: #f1f0f5; font-weight: bold; font-size:13px;">
+                        <td>${if (isAr) "إجمالي السنوي" else "Annual Consolidation"}</td>
+                        <td class="text-right" style="color:#0d8343;">${FinancialUtils.formatBase(totalRev)}</td>
+                        <td class="text-right" style="color:#c5221f;">${FinancialUtils.formatBase(totalExp)}</td>
+                        <td class="text-right" style="color:$totalProfitColor;">${FinancialUtils.formatBase(totalProfit)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="footer-signatures" style="margin-top:50px;">
+                <div class="sig-block">
+                    <strong>${if (isAr) "إعداد المحلل المالي" else "Financial Intelligence Dept."}</strong>
+                    <div class="sig-line"></div>
+                </div>
+                <div class="sig-block">
+                    <strong>&nbsp;</strong>
+                </div>
+                <div class="sig-block">
+                    <strong>${if (isAr) "الاعتماد والختم الرسمي" else "Official Seal of Approval"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+        """.trimIndent()
+
+        printHtml(context, getHtmlTemplate(body, isAr), "monthly_analytics_print")
+    }
+
+    fun printZakatReport(
+        context: Context,
+        liquidAssets: Long,
+        receivables: Long,
+        liabilities: Long,
+        pool: Long,
+        goldPrice: Double,
+        nisaab: Double,
+        isEligible: Boolean,
+        zakatDue: Long,
+        lang: String
+    ) {
+        val isAr = lang == "ar"
+        val (brandOrg, brandDetails, brandLogo) = getHeaderBrand(context, isAr)
+        val title = if (isAr) "شهادة تقدير الكفاية والوعاء الزكوي الشرعي" else "Shari'ah Zakat Assessment Certificate"
+
+        val body = """
+            <div class="header-container">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:36px; line-height:1;">$brandLogo</span>
+                    <div>
+                        <div class="header-title" style="color:#0d8343;">$title</div>
+                        <div style="font-size:13px; color:#555; margin-top:5px;">
+                            $brandDetails
+                        </div>
+                    </div>
+                </div>
+                <div class="header-meta">
+                    <strong>$brandOrg</strong><br>
+                    ${if (isAr) "تاريخ الاحتساب:" else "Date of calculation:"} ${formatDate(System.currentTimeMillis())}
+                </div>
+            </div>
+
+            <div style="background:#eaf6ee; border-right:4px solid #0d8343; border-left:4px solid #0d8343; padding:12px; margin-bottom:20px; font-weight:bold; font-size:13px; color:#0b6635; text-align:center;">
+                ${if (isAr) "﴿ خُذْ مِنْ أَمْوَالِهِمْ صَدَقَةً تُطَهِّرُهُمْ وَتُزَكِّيهِمْ بِهَا ﴾ [التوبة: ١٠٣]" else "“Take alms from their wealth, so that you may purify and sanctify them with it.” [Al-Tawbah: 103]"}
+            </div>
+
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>${if (isAr) "مكونات الوعاء والاحتساب الزكوي" else "Zakat Pool Calculations & Components"}</th>
+                        <th class="text-right">${if (isAr) "القيمة بالموجب / (السالب)" else "Value"}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>${if (isAr) "1. السيولة النقدية والمصرفية (النقد في الخزائن والبنوك)" else "1. Cash & Liquidity Equivalents"}</strong></td>
+                        <td class="text-right" style="color:#0d8343; font-weight:bold;">${FinancialUtils.formatBase(liquidAssets)}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>${if (isAr) "2. الذمم المدينة للعملاء (الديون المرجوة التحصيل)" else "2. Customer Trade Receivables"}</strong></td>
+                        <td class="text-right" style="color:#0d8343; font-weight:bold;">${FinancialUtils.formatBase(receivables)}</td>
+                    </tr>
+                    <tr style="color:#c5221f;">
+                        <td><strong>${if (isAr) "خصم: 3. الالتزامات المتداولة (ديون الموردين ومستحقات السداد)" else "Less: 3. Deductible Urgent Liabilities"}</strong></td>
+                        <td class="text-right" style="font-weight:bold;">(${FinancialUtils.formatBase(liabilities)})</td>
+                    </tr>
+                    <tr style="background:#f1f0f5; font-size:13px; font-weight:bold;">
+                        <td>${if (isAr) "الوعاء الزكوي الخاضع للتقدير (الوعاء = 1 + 2 - 3)" else "Net Zakat Pool (Pool = 1 + 2 - 3)"}</td>
+                        <td class="text-right" style="color:#0d8343; font-size:14px;">${FinancialUtils.formatBase(pool)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-top:20px; border:1px solid #ddd; padding:15px; border-radius:5px; background:#fafafa;">
+                <h4 style="margin:0 0 10px 0; color:#0d8343;">${if (isAr) "معايير النصاب الشرعي المقارن" else "Shari'ah Nisaab Equivalent Benchmarks"}</h4>
+                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+                    <span>${if (isAr) "سعر جرام الذهب عيار 24 الحالي المحدد:" else "Assumed Gold price per gram (24K):"}</span>
+                    <strong>${FinancialUtils.formatBase(Math.round(goldPrice * 1000))} / g</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+                    <span>${if (isAr) "النصاب الشرعي المقرر (85 جرام ذهب):" else "Calculated Nisaab Threshold (85g):"}</span>
+                    <strong>${FinancialUtils.formatBase(Math.round(nisaab * 1000))}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:12px;">
+                    <span>${if (isAr) "تحقق شروط بلوغ النصاب الشرعي:" else "Nisaab Eligibility Status:"}</span>
+                    <strong style="color: ${if (isEligible) "#0d8343" else "#c5221f"};">
+                        ${if (isEligible) (if (isAr) "بلغ النصاب الشرعي وجبت الزكاة" else "Nisaab met - Zakat is due") else (if (isAr) "لم يبلغ النصاب - لا تجب الزكاة" else "Below Nisaab - No Zakat due")}
+                    </strong>
+                </div>
+            </div>
+
+            <div style="margin-top:20px; border:2px dashed #0d8343; background:#f4fbf6; padding:16px; text-align:center; border-radius:4px;">
+                <div style="font-size:12px; color:#555; text-transform:uppercase;">${if (isAr) "إجمالي قيمة الزكاة الشرعية الواجب إخراجها (2.5%)" else "TOTAL MANDATORY SHARI'AH ZAKAT DUE (2.5%)"}</div>
+                <div style="font-size:24px; font-weight:bold; color:#0d8343; margin-top:8px;">
+                    ${FinancialUtils.formatBase(zakatDue)}
+                </div>
+            </div>
+
+            <div class="footer-signatures" style="margin-top:40px;">
+                <div class="sig-block">
+                    <strong>${if (isAr) "قسم التدقيق والمراقبة الشرعية" else "Shari'ah Compliance Division"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+                <div class="sig-block">
+                    <strong>&nbsp;</strong>
+                </div>
+                <div class="sig-block">
+                    <strong>${if (isAr) "توقيع رئيس مجلس الإدارة والختم" else "Authorized Management Seal"}</strong>
+                    <div class="sig-line"></div>
+                </div>
+            </div>
+        """.trimIndent()
+
+        printHtml(context, getHtmlTemplate(body, isAr), "zakat_assessment_print")
+    }
 }

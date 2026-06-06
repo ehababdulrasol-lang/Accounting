@@ -1,17 +1,8 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <!-- Corporate shield wrapper representing asset security and compliance -->
-    <path
-        android:fillColor="#059669"
-        android:pathData="M54,16 L24,28 L24,56 C24,76.4 36.8,92 54,96 C71.2,92 84,76.4 84,56 L84,28 Z" />
-    <!-- Classical Greek columnar pillar representing structural strength, balance and strict IFRS integrity -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M44,42 L64,42 L64,46 L56,46 L56,66 L64,66 L64,70 L44,70 L44,66 L52,66 L52,46 L44,46 Z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M38,36 L70,36 L70,42 L38,42 Z" />
-</vector>
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="72dp"
+        android:height="72dp"
+        android:drawable="@drawable/ic_yamama_logo"
+        android:gravity="center" />
+</layer-list>

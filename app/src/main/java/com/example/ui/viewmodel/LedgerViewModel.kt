@@ -66,7 +66,9 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val suppliers = repository.suppliers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val customerGroups = repository.customerGroups.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val supplierGroups = repository.supplierGroups.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val accountSnapshots = repository.allSnapshots.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val selectedReportingFy = MutableStateFlow<FiscalYear?>(null)
+    private val _accountSnapshots = MutableStateFlow<List<AccountBalanceSnapshot>>(emptyList())
+    val accountSnapshots: StateFlow<List<AccountBalanceSnapshot>> = _accountSnapshots.asStateFlow()
     val cashBoxes = repository.cashBoxes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val banks = repository.banks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allBranches = repository.allBranches.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -237,12 +239,36 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                 val fys = repository.getActiveFiscalYearsSuspend()
                 if (fys.isNotEmpty()) {
                     formFiscalYearId.value = fys.first().id
+                    selectedReportingFy.value = fys.first()
+                    trialBalanceStart.value = fys.first().startDate
+                    trialBalanceEnd.value = fys.first().endDate
                 }
             } catch (e: Exception) {
                 _uiMessage.value = "Init Error: ${e.localizedMessage}"
             } finally {
                 isSeeding.value = false
                 refreshTrialBalance()
+            }
+        }
+
+        viewModelScope.launch {
+            kotlinx.coroutines.flow.combine(repository.allSnapshots, selectedReportingFy) { _, fy -> fy }.collect { fy ->
+                try {
+                    val list = if (fy != null) {
+                        repository.getSnapshotsForPeriod(fy.startDate, fy.endDate)
+                    } else {
+                        val activeFys = repository.getActiveFiscalYearsSuspend()
+                        if (activeFys.isNotEmpty()) {
+                            val defaultFy = activeFys.first()
+                            repository.getSnapshotsForPeriod(defaultFy.startDate, defaultFy.endDate)
+                        } else {
+                            repository.getSnapshotsForPeriod(0L, Long.MAX_VALUE)
+                        }
+                    }
+                    _accountSnapshots.value = list
+                } catch (e: Exception) {
+                    _uiMessage.value = "Failed to load snapshots: ${e.localizedMessage}"
+                }
             }
         }
     }
@@ -584,6 +610,32 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
             } catch (e: Exception) {
                 _uiMessage.value = "Status update failed: ${e.localizedMessage}"
             }
+        }
+    }
+
+    fun selectReportingFiscalYear(fy: FiscalYear?) {
+        viewModelScope.launch {
+            selectedReportingFy.value = fy
+            if (fy != null) {
+                trialBalanceStart.value = fy.startDate
+                trialBalanceEnd.value = fy.endDate
+            } else {
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.YEAR, 2026)
+                cal.set(Calendar.MONTH, Calendar.JANUARY)
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                trialBalanceStart.value = cal.timeInMillis
+
+                cal.set(Calendar.MONTH, Calendar.DECEMBER)
+                cal.set(Calendar.DAY_OF_MONTH, 31)
+                cal.set(Calendar.HOUR_OF_DAY, 23)
+                cal.set(Calendar.MINUTE, 59)
+                trialBalanceEnd.value = cal.timeInMillis
+            }
+            refreshTrialBalance()
         }
     }
 

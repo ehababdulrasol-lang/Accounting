@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- 🌐 light blue latitude/longitude lines (the Globe Dome) -->
+    <!-- Draw outer globe base -->
+    <path
+        android:pathData="M32,64 C32,44 44,28 60,28 C76,28 88,44 88,64 Z"
+        android:fillColor="#E0F2FE" />
+
+    <!-- Horizontal rings -->
+    <path
+        android:pathData="M34,56 C44,48 76,48 86,56 M38,44 C46,38 74,38 82,44 M43,35 C50,30 70,30 77,35"
+        android:strokeColor="#0EA5E9"
+        android:strokeWidth="1.2" />
+
+    <!-- Vertical grids (meridians) -->
+    <path
+        android:pathData="M60,28 C53,38 53,54 60,64 M60,28 C67,38 67,54 60,64 M60,28 L60,64 M60,28 C46,38 46,54 60,64 M60,28 C74,38 74,54 60,64"
+        android:strokeColor="#0EA5E9"
+        android:strokeWidth="1.2" />
+
+
+    <!-- 🕊️ Stylized orange-red soaring Dove representing "Yamama" (wings swept majestically upwards) -->
+    <path
+        android:strokeColor="#EA580C"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M48,36 C45,36 42,34 40,30 C38.5,27 40,24 43,24 C45.5,24 47,27 49,28 C52,29.5 55,29 58,27 M49,28 C51,25 54,19 61,14 C64,12 67,11 70,13 C71.5,14 71.5,16.5 69,18 C64,21 57,24 56,30 M56,30 C58.5,28 63,24.5 70,21.5 C74.5,19.5 77,19 78.5,21 C79.5,22 77.5,24.5 75,26 C69,29.5 60,32 56,40" />
+
+
+    <!-- 🟦 Deep Corporate blue banner badge (Yamama logo text structure) -->
+    <path
+        android:pathData="M24,70 L98,70 L91,102 L17,102 Z"
+        android:fillColor="#1E3A8A" />
+
+    <!-- Sweeping calligraphic "Y" symbol on the left of the corporate ribbon -->
+    <path
+        android:strokeColor="#1D4ED8"
+        android:strokeWidth="4.0"
+        android:strokeLineCap="round"
+        android:pathData="M16,56 Q11,76 21,88 T28,102" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.0"
+        android:strokeLineCap="round"
+        android:pathData="M17,58 Q12,77 22,87 T29,101" />
+
+
+    <!-- 🔠 Custom letters "amama" of "Yamama 1" logo in clean white curves -->
+    <!-- Letter 'a' -->
+    <path
+        android:pathData="M35,88 C32,88 30,85 30,83 C30,80 32,79 35,79 C38,79 39,81 39,83 L39,88 Z M35,76 C31,76 28,79 28,83 C28,86 31,89 35,89 C38,89 39.5,87 39.5,87 L39.5,88.5 L41.5,88.5 L41.5,80 C41.5,77 39,76 35,76 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Letter 'm' -->
+    <path
+        android:pathData="M44,77 L45.8,77 L45.8,79.5 C46.5,77.5 48.5,76.5 50.5,76.5 C52,76.5 53.5,77.2 54,78.5 C54.8,77 56.5,76.5 58,76.5 C60.5,76.5 62,78 62,81.5 L62,88.5 L60.2,88.5 L60.2,81.5 C60.2,79.5 59.5,78.3 57.5,78.3 C55.5,78.3 54.8,79.5 54.8,81.5 L54.8,88.5 L53,88.5 L53,81.5 C53,79.5 52.3,78.3 50.3,78.3 C48.3,78.3 47.6,79.5 47.6,81.5 L47.6,88.5 L45.8,88.5 L45.8,77 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Letter 'a' -->
+    <path
+        android:pathData="M70,88 C67,88 65,85 65,83 C65,80 67,79 70,79 C73,79 74,81 74,83 L74,88 Z M70,76 C66,76 63,79 63,83 C63,86 66,89 70,89 C73,89 74.5,87 74.5,87 L74.5,88.5 L76.5,88.5 L76.5,80 C76.5,77 74,76 70,76 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Letter 'm' -->
+    <path
+        android:pathData="M79,77 L80.8,77 L80.8,79.5 C81.5,77.5 83.5,76.5 85.5,76.5 C87,76.5 88.5,77.2 89,78.5 C89.8,77 91.5,76.5 93,76.5 C95.5,76.5 97,78 97,81.5 L97,88.5 L95.2,88.5 L95.2,81.5 C95.2,79.5 94.5,78.3 92.5,78.3 C90.5,78.3 89.8,79.5 89.8,81.5 L89.8,88.5 L88,88.5 L88,81.5 C88,79.5 87.3,78.3 85.3,78.3 C83.3,78.3 82.6,79.5 82.6,81.5 L82.6,88.5 L80.8,88.5 L80.8,77 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Letter 'a' -->
+    <path
+        android:pathData="M104,88 C101,88 99,85 99,83 C99,80 101,79 104,79 C107,79 108,81 108,83 L108,88 Z M104,76 C100,76 97,79 97,83 C97,86 100,89 104,89 C107,89 108.5,87 108.5,87 L108.5,88.5 L110.5,88.5 L110.5,80 C110.5,77 108,76 104,76 Z"
+        android:fillColor="#FFFFFF" />
+
+
+    <!-- 1️⃣ Slanted "1" bounding component in elegant corporate banner end -->
+    <path
+        android:pathData="M100,60 L104,88 L110,88 L106,60 Z"
+        android:fillColor="#1E3A8A" />
+    <path
+        android:pathData="M101,62 L103,86 L108,86 L106,62 Z"
+        android:fillColor="#FFFFFF" />
+
+</vector>

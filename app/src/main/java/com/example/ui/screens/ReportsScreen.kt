@@ -110,6 +110,165 @@ fun ReportsScreen(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
+            // 📅 Active Fiscal Period Selection Header Widget
+            val fiscalYears by viewModel.fiscalYears.collectAsStateWithLifecycle()
+            val selectedReportingFy by viewModel.selectedReportingFy.collectAsStateWithLifecycle()
+            var showPeriodDropdown by remember { mutableStateOf(false) }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp)
+                    .testTag("fiscal_period_toggle_card"),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Filled.DateRange,
+                                    contentDescription = "Fiscal Period Selector Icon",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = if (lang == "ar") "الفترة والسنوات المالية النشطة" else "Reporting Fiscal Boundary",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = selectedReportingFy?.name ?: (if (lang == "ar") "جميع الفترات المالية" else "All Fiscal Periods"),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Box {
+                        Button(
+                            onClick = { showPeriodDropdown = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                            modifier = Modifier
+                                .height(40.dp)
+                                .testTag("select_period_trigger_button")
+                        ) {
+                            Icon(Icons.Filled.FilterList, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = if (lang == "ar") "تصفية الفترات" else "Toggle period",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showPeriodDropdown,
+                            onDismissRequest = { showPeriodDropdown = false },
+                            modifier = Modifier
+                                .width(280.dp)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = if (lang == "ar") "جميع حركات النظام" else "Cumulative (All Entries)",
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            text = if (lang == "ar") "تجاهل حدود السنة الحالية" else "Ignore year boundaries custom limit",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    viewModel.selectReportingFiscalYear(null)
+                                    showPeriodDropdown = false
+                                },
+                                modifier = Modifier.testTag("period_option_all")
+                            )
+
+                            if (fiscalYears.isNotEmpty()) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                fiscalYears.forEach { fy ->
+                                    val isSelected = selectedReportingFy?.id == fy.id
+                                    val sdf = remember { java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale.US) }
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = fy.name,
+                                                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Text(
+                                                        text = "${sdf.format(fy.startDate)} - ${sdf.format(fy.endDate)}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                                    )
+                                                }
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.Check,
+                                                        contentDescription = "Selected Period",
+                                                        tint = EmeraldGreen,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.selectReportingFiscalYear(fy)
+                                            showPeriodDropdown = false
+                                        },
+                                        modifier = Modifier.testTag("period_option_${fy.id}")
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if (forcedTab == null) {
                 ScrollableTabRow(
                     selectedTabIndex = activeTab,
@@ -161,6 +320,18 @@ fun ReportsScreen(
                         text = { Text(if (lang == "ar") "حسابات البنوك" else "Bank Accounts", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
                         icon = { Icon(Icons.Filled.AccountBalanceWallet, null) }
                     )
+                    Tab(
+                        selected = activeTab == 7,
+                        onClick = { activeTab = 7 },
+                        text = { Text(if (lang == "ar") "التحليل الشهري" else "Monthly Performance", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                        icon = { Icon(Icons.Filled.QueryStats, null) }
+                    )
+                    Tab(
+                        selected = activeTab == 8,
+                        onClick = { activeTab = 8 },
+                        text = { Text(if (lang == "ar") "حساب الزكاة" else "Zakat Assessment", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall) },
+                        icon = { Icon(Icons.Filled.CardMembership, null) }
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -176,6 +347,8 @@ fun ReportsScreen(
                 4 -> CustomersReportView(viewModel, onSelectCustomer = { activeDetailCustomer = it })
                 5 -> SuppliersReportView(viewModel, onSelectSupplier = { activeDetailSupplier = it })
                 6 -> BanksReportView(viewModel, onSelectBank = { activeDetailBank = it })
+                7 -> MonthlyPerformanceView(viewModel)
+                8 -> ZakatPoolView(viewModel)
             }
         }
     }
@@ -186,6 +359,7 @@ fun TrialBalanceView(viewModel: LedgerViewModel) {
     val rows by viewModel.trialBalanceRows.collectAsStateWithLifecycle()
     val loading by viewModel.trialBalanceLoading.collectAsStateWithLifecycle()
     val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val selectedReportingFy by viewModel.selectedReportingFy.collectAsStateWithLifecycle()
 
     val totalOpDr = remember(rows) { rows.sumOf { it.openingDebit } }
     val totalOpCr = remember(rows) { rows.sumOf { it.openingCredit } }
@@ -201,7 +375,13 @@ fun TrialBalanceView(viewModel: LedgerViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = if (lang == "ar") "ميزان المراجعة غير المعدل (السنة المالية 2026)" else "Unadjusted Trial Balance (FY 2026)",
+                text = if (lang == "ar") {
+                    val fyName = selectedReportingFy?.name ?: "2026"
+                    "ميزان المراجعة غير المعدل ($fyName)"
+                } else {
+                    val fyName = selectedReportingFy?.name ?: "FY 2026"
+                    "Unadjusted Trial Balance ($fyName)"
+                },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -2320,6 +2500,553 @@ fun BankStatementView(
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun MonthlyPerformanceView(viewModel: LedgerViewModel) {
+    val vouchers by viewModel.vouchers.collectAsStateWithLifecycle()
+    val allLines by viewModel.allVoucherLines.collectAsStateWithLifecycle()
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val selectedReportingFy by viewModel.selectedReportingFy.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val baseYear = remember(selectedReportingFy) {
+        val cal = java.util.Calendar.getInstance()
+        selectedReportingFy?.let {
+            cal.timeInMillis = it.startDate
+            cal.get(java.util.Calendar.YEAR)
+        } ?: 2026
+    }
+
+    val monthsData = remember(vouchers, allLines, accounts, baseYear) {
+        val list = ArrayList<Triple<String, Long, Long>>()
+        val postedHeaders = vouchers.filter { it.isPosted }
+        val postedIds = postedHeaders.map { it.id }.toSet()
+        val postedLines = allLines.filter { it.headerId in postedIds }
+
+        // Compile month names
+        val monthNames = if (lang == "ar") {
+            listOf("يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر")
+        } else {
+            listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+        }
+
+        for (m in 0..11) {
+            val cal = java.util.Calendar.getInstance()
+            cal.set(baseYear, m, 1, 0, 0, 0)
+            val startMs = cal.timeInMillis
+            cal.set(baseYear, m, cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH), 23, 59, 59)
+            val endMs = cal.timeInMillis
+
+            val monthHeaders = postedHeaders.filter { it.date in startMs..endMs }
+            val monthHeaderIds = monthHeaders.map { it.id }.toSet()
+            val monthLines = postedLines.filter { it.headerId in monthHeaderIds }
+
+            var monthlyRev = 0L
+            var monthlyExp = 0L
+
+            monthLines.forEach { line ->
+                val acc = accounts.find { it.id == line.accountId } ?: return@forEach
+                val debitVal = if (line.debit > 0) line.amountBase else 0L
+                val creditVal = if (line.credit > 0) line.amountBase else 0L
+
+                if (acc.accountType == com.example.data.AccountType.REVENUE) {
+                    monthlyRev += (creditVal - debitVal)
+                } else if (acc.accountType == com.example.data.AccountType.EXPENSE) {
+                    monthlyExp += (debitVal - creditVal)
+                }
+            }
+
+            // Ensure we don't have negative values representing baseline performance
+            list.add(Triple(monthNames[m], maxOf(0L, monthlyRev), maxOf(0L, monthlyExp)))
+        }
+        list
+    }
+
+    val totalRevenue = remember(monthsData) { monthsData.sumOf { it.second } }
+    val totalExpense = remember(monthsData) { monthsData.sumOf { it.third } }
+    val totalProfit = totalRevenue - totalExpense
+
+    val peakRevenue = remember(monthsData) { monthsData.maxByOrNull { it.second } }
+    val peakExpense = remember(monthsData) { monthsData.maxByOrNull { it.third } }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.05f))
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = if (lang == "ar") "أداة التحليل والربحية التشغيلية" else "Operational Analytical Insights",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = if (lang == "ar") {
+                        val fyName = selectedReportingFy?.name ?: "2026"
+                        "تتبع الإيرادات ونمو المصروفات شهرياً خلال السنة التشغيلية $fyName"
+                    } else {
+                        val fyName = selectedReportingFy?.name ?: "FY 2026"
+                        "Comparison of monthly sales peaks vs overheads dynamically ($fyName)"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+            IconButton(
+                onClick = { com.example.util.PrintUtils.printMonthlyAnalytics(context, monthsData, lang) }
+            ) {
+                Icon(Icons.Filled.Print, contentDescription = "Print Analytical Charts")
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Summary Analytics Widgets Grid
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Widget 1: Revenue
+            Card(
+                modifier = Modifier.weight(1f),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(if (lang == "ar") "الإيرادات السنوية" else "Annual Revenue", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Spacer(Modifier.height(4.dp))
+                    Text(FinancialUtils.formatBase(totalRevenue), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EmeraldGreen)
+                }
+            }
+
+            // Widget 2: Expense
+            Card(
+                modifier = Modifier.weight(1f),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(if (lang == "ar") "المصروفات السنوية" else "Annual Expenses", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Spacer(Modifier.height(4.dp))
+                    Text(FinancialUtils.formatBase(totalExpense), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = RoseRed)
+                }
+            }
+
+            // Widget 3: Net Profit
+            Card(
+                modifier = Modifier.weight(1.1f),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(if (lang == "ar") "صافي الأرباح" else "Annual Net Income", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = FinancialUtils.formatBase(totalProfit),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (totalProfit >= 0) EmeraldGreen else RoseRed
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // Peak details card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = if (lang == "ar") "قمة المبيعات: ${peakRevenue?.first ?: "-"} (${FinancialUtils.formatBase(peakRevenue?.second ?: 0L)})"
+                               else "Revenue Peak: ${peakRevenue?.first ?: "-"} (${FinancialUtils.formatBase(peakRevenue?.second ?: 0L)})",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldGreen
+                    )
+                    Text(
+                        text = if (lang == "ar") "أعباء مصروفات: ${peakExpense?.first ?: "-"} (${FinancialUtils.formatBase(peakExpense?.third ?: 0L)})"
+                               else "Overhead Peak: ${peakExpense?.first ?: "-"} (${FinancialUtils.formatBase(peakExpense?.third ?: 0L)})",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = RoseRed
+                    )
+                }
+                
+                val margin = if (totalRevenue > 0L) (totalProfit.toDouble() / totalRevenue.toDouble() * 100.0) else 0.0
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(if (lang == "ar") "هامش الربح الإجمالي" else "Operational Profit Margin", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Text(String.format(java.util.Locale.US, "%.1f%%", margin), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Visual horizontal performance chart list
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surface)
+        ) {
+            items(monthsData) { (monthName, rev, exp) ->
+                val profit = rev - exp
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = monthName, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Dr: " + FinancialUtils.formatBase(exp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = RoseRed
+                            )
+                            Text(
+                                text = "Cr: " + FinancialUtils.formatBase(rev),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = EmeraldGreen
+                            )
+                            Text(
+                                text = "Net: " + FinancialUtils.formatBase(profit),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (profit >= 0) EmeraldGreen else RoseRed
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(6.dp))
+
+                    // Simulated Horizontal Stacked/Relative Bar
+                    val maxVal = remember(monthsData) {
+                        val maxR = monthsData.maxOfOrNull { it.second } ?: 1L
+                        val maxE = monthsData.maxOfOrNull { it.third } ?: 1L
+                        maxOf(1L, maxOf(maxR, maxE))
+                    }
+
+                    val revWeight = (rev.toFloat() / maxVal.toFloat()).coerceIn(0f, 1f)
+                    val expWeight = (exp.toFloat() / maxVal.toFloat()).coerceIn(0f, 1f)
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        // Revenue bar progress
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(revWeight)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(EmeraldGreen)
+                        )
+                        // Expense bar progress
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(expWeight)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(RoseRed)
+                        )
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ZakatPoolView(viewModel: LedgerViewModel) {
+    val snapshots by viewModel.accountSnapshots.collectAsStateWithLifecycle()
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Standard Gold grams benchmark for 85g gold Nisaab threshold
+    var goldPriceInput by remember { mutableStateOf("320.00") } // Assumed LYD price per gram of 24K gold
+    val goldPrice = goldPriceInput.toDoubleOrNull() ?: 320.0
+    val nisaabThreshold = 85.0 * goldPrice
+
+    // 1. Liquid Cash accounts starting with 1101, 1102, 1104, 1105
+    val liquidCashAmount = remember(accounts, snapshots) {
+        accounts.filter {
+            !it.isGroup && (
+                it.accountCode.startsWith("1101") ||
+                it.accountCode.startsWith("1102") ||
+                it.accountCode.startsWith("1104") ||
+                it.accountCode.startsWith("1105")
+            )
+        }.sumOf { snapshots.find { s -> s.accountId == it.id }?.balance ?: 0L }
+    }
+
+    // 2. Customers and trade receivables starting with 1201 (Asset)
+    val customerReceivablesAmount = remember(accounts, snapshots) {
+        accounts.filter {
+            !it.isGroup && it.accountCode.startsWith("1201")
+        }.sumOf { snapshots.find { s -> s.accountId == it.id }?.balance ?: 0L }
+    }
+
+    // 3. Current short-term liabilities / Payables, typically suppliers starting with 2101
+    val suppliersPayablesAmount = remember(accounts, snapshots) {
+        accounts.filter {
+            !it.isGroup && it.accountCode.startsWith("2101")
+        }.sumOf { -(snapshots.find { s -> s.accountId == it.id }?.balance ?: 0L) }
+    }
+
+    // Zakat Pool = Liquid Assets + Receivables - Current Liabilities
+    val zakatNetPool = maxOf(0L, liquidCashAmount + customerReceivablesAmount - suppliersPayablesAmount)
+
+    // Check if the Zakat Pool value is higher or equal than Shari'ah Nisaab
+    val netPoolCoinsDb = zakatNetPool / 1000.0 // scaled db to double
+    val isZakatDue = netPoolCoinsDb >= nisaabThreshold
+    val zakatDueAmount = if (isZakatDue) Math.round(zakatNetPool * 0.025) else 0L
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.05f))
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = if (lang == "ar") "حساب الوعاء والأنصبة الشرعية للزكاة" else "Shari'ah Zakat Asset Pool Assessment",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldGreen
+                )
+                Text(
+                    text = if (lang == "ar") "تقدير فريضة الزكاة (2.5%) على الأرصدة والسيولة والمديونيات الدورة" else "Calculated based on real-time liquid assets minus short liabilities",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+            IconButton(
+                onClick = {
+                    com.example.util.PrintUtils.printZakatReport(
+                        context = context,
+                        liquidAssets = liquidCashAmount,
+                        receivables = customerReceivablesAmount,
+                        liabilities = suppliersPayablesAmount,
+                        pool = zakatNetPool,
+                        goldPrice = goldPrice,
+                        nisaab = nisaabThreshold,
+                        isEligible = isZakatDue,
+                        zakatDue = zakatDueAmount,
+                        lang = lang
+                    )
+                },
+                modifier = Modifier.testTag("print_zakat_certificate_button")
+            ) {
+                Icon(Icons.Filled.CardMembership, contentDescription = "Print Zakat Assessment Certificate", tint = EmeraldGreen)
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Quran advice banner
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .background(EmeraldGreen.copy(alpha = 0.08f))
+                .padding(10.dp)
+        ) {
+            Text(
+                text = if (lang == "ar") "«خُذْ مِنْ أَمْوَالِهِمْ صَدَقَةً تُطَهِّرُهُمْ وَتُزَكِّيهِمْ بِهَا» [التوبة: ١٠٣]"
+                       else "\"Take alms from their wealth, so that you may purify and sanctify them with it.\" [Al-Tawbah: 103]",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = EmeraldGreen,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Interactive Gram calculation
+            OutlinedTextField(
+                value = goldPriceInput,
+                onValueChange = { goldPriceInput = it },
+                label = { Text(if (lang == "ar") "سعر جرام الذهب الحالي المعتمد بالفئة (24K)" else "Today's gold price 24K per gram") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = EmeraldGreen,
+                    focusedLabelColor = EmeraldGreen
+                )
+            )
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Text(if (lang == "ar") "نصاب الذهب الشرعي (85g)" else "Nisaab Equiv. (85g Gold)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = FinancialUtils.formatBase(Math.round(nisaabThreshold * 1000)),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // Calculations list card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // 1. Cash Box & Bank Total
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(if (lang == "ar") "1. السيولة المتوفرة بالخزائن والحسابات الجارية" else "1. Available Treasury & Cash Equivalents", style = MaterialTheme.typography.bodyMedium)
+                    Text(FinancialUtils.formatBase(liquidCashAmount), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = EmeraldGreen)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+
+                // 2. Receivables Total
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(if (lang == "ar") "2. مديونيات العملاء والتجارة (ديون مرجوة السداد)" else "2. Trade & Clients Receivables (Estimated good)", style = MaterialTheme.typography.bodyMedium)
+                    Text(FinancialUtils.formatBase(customerReceivablesAmount), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = EmeraldGreen)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+
+                // 3. Deductibles liabilities
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(if (lang == "ar") "خصم: 3. الديون والالتزامات التجارية المستحقة فوراً" else "Less: 3. Short-term trade suppliers payables", style = MaterialTheme.typography.bodyMedium, color = RoseRed)
+                    Text("-(${FinancialUtils.formatBase(suppliersPayablesAmount)})", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = RoseRed)
+                }
+                HorizontalDivider(thickness = 1.5.dp)
+
+                // 4. Net Zakat Pool
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(if (lang == "ar") "الوعاء الزكوي الصافي الخاضع للتقدير (الوعاء = 1 + 2 - 3)" else "Net Zakat Pool (Pool = 1 + 2 - 3)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text(FinancialUtils.formatBase(zakatNetPool), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold, color = EmeraldGreen)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // Threshold Eligibility Check Ribbon
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .background(
+                    if (isZakatDue) EmeraldGreen.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                )
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = if (isZakatDue) Icons.Filled.NewReleases else Icons.Filled.Verified,
+                contentDescription = null,
+                tint = if (isZakatDue) EmeraldGreen else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = if (isZakatDue) {
+                    if (lang == "ar") "رأس المال الخاضع لتقدير الوعاء تجتاز النصاب الشرعي المقارن ($goldPrice LYD/g). فريضة الزكاة واجبة."
+                    else "Net Zakat Pool exceeds Nisaab Threshold ($goldPrice LYD/g). Shari'ah Zakat is mandatory."
+                } else {
+                    if (lang == "ar") "الوعاء المالي أقل من النصاب الشرعي ($goldPrice LYD/g). لا تجب الزكاة حالياً على هذا الوعاء."
+                    else "Net Zakat Pool is below Nisaab Threshold ($goldPrice LYD/g). No Zakat due."
+                },
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isZakatDue) EmeraldGreen else MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Final box representing the exact Due Zakat Value
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = EmeraldGreen.copy(alpha = 0.12f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreen.copy(alpha = 0.3f))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (lang == "ar") "مجموع الزكاة الشرعية المستحقة (2.5%)" else "TOTAL MANDATORY SHARI'AH ZAKAT DUE (2.5%)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = EmeraldGreen,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = FinancialUtils.formatBase(zakatDueAmount) + " " + (if (lang == "ar") "د.ل" else "LYD"),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = EmeraldGreen
+                )
             }
         }
     }

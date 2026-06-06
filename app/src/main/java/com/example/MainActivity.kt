@@ -8,6 +8,8 @@ import androidx.activity.viewModels
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -478,11 +480,10 @@ fun AppLogo(
                 style = textStyle
             )
         } else {
-            Icon(
-                imageVector = Icons.Filled.AccountBalance,
-                contentDescription = null,
-                tint = GoldAccent,
-                modifier = Modifier.size(size * 0.5f)
+            Image(
+                painter = painterResource(id = R.drawable.ic_yamama_logo),
+                contentDescription = "Yamama 1 Logo",
+                modifier = Modifier.fillMaxSize()
             )
         }
     }
@@ -564,139 +565,272 @@ fun DrawerNavigationMenu(
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
         Spacer(Modifier.height(12.dp))
 
-        // Flat Main Top Navigation Items
-        val topLevelItems = listOf(
-            Triple(0, Icons.Filled.SpaceDashboard, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_DASHBOARD, lang)),
-            Triple(1, Icons.Filled.AccountTree, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_ACCOUNTS, lang)),
-            Triple(20, Icons.Filled.SquareFoot, if (lang == "ar") "التمتير والمقاسات" else "Sizing & Measurements"),
-            Triple(2, Icons.Filled.People, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_CUSTOMERS, lang)),
-            Triple(3, Icons.Filled.Storefront, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SUPPLIERS, lang)),
-            Triple(4, Icons.Filled.AccountBalanceWallet, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_CASH_BOXES, lang)),
-            Triple(5, Icons.Filled.AccountBalance, com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_BANKS, lang)),
-            Triple(7, Icons.Filled.Book, com.example.ui.Localization.translate(com.example.ui.Localization.Key.VIEW_STATEMENT, lang))
+        // Local expansion states for collapsible categories, automatically matching open tab categories
+        var accountsExpanded by remember { mutableStateOf(activeTab in listOf(1, 4, 5)) }
+        var partiesExpanded by remember { mutableStateOf(activeTab in listOf(2, 3)) }
+        var vouchersExpanded by remember { mutableStateOf(isVouchersGroupExpanded || activeTab in listOf(10, 11, 12, 6)) }
+        var reportsExpanded by remember { mutableStateOf(isReportsGroupExpanded || activeTab in listOf(7, 15, 16, 17)) }
+
+        // 1. Dashboard (الرئيسية)
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Filled.SpaceDashboard, contentDescription = null, tint = if (activeTab == 0) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            label = { Text(if (lang == "ar") "لوحة التحكم الرئيسية" else "Dashboard Hub", fontWeight = FontWeight.Bold, color = if (activeTab == 0) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            selected = activeTab == 0,
+            onClick = { onTabSelected(0) },
+            colors = NavigationDrawerItemDefaults.colors(
+                selectedContainerColor = GoldAccent.copy(alpha = 0.1f),
+                unselectedContainerColor = Color.Transparent
+            ),
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 2.dp)
+                .testTag("nav_drawer_tab_0")
         )
 
-        // Render top level flat items
-        topLevelItems.forEach { (index, icon, label) ->
-            NavigationDrawerItem(
-                icon = { Icon(icon, contentDescription = null, tint = if (activeTab == index) GoldAccent else MaterialTheme.colorScheme.onSurface) },
-                label = { Text(label, fontWeight = FontWeight.SemiBold, color = if (activeTab == index) GoldAccent else MaterialTheme.colorScheme.onSurface) },
-                selected = activeTab == index,
-                onClick = { onTabSelected(index) },
-                colors = NavigationDrawerItemDefaults.colors(
-                    selectedContainerColor = GoldAccent.copy(alpha = 0.1f),
-                    unselectedContainerColor = Color.Transparent
-                ),
-                modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 2.dp)
-                    .testTag("nav_drawer_tab_$index")
-            )
-        }
+        Spacer(Modifier.height(4.dp))
 
-        Spacer(Modifier.height(8.dp))
-
-        // COLLAPSIBLE VOUCHERS GROUP
+        // 2. Sizing & Measurements (التمتير والمقاسات الفنية)
         NavigationDrawerItem(
-            icon = { Icon(Icons.Filled.Assignment, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface) },
-            label = { Text(if (lang == "ar") "سندات الحسابات والقيود" else "Voucher Registry", fontWeight = FontWeight.SemiBold) },
+            icon = { Icon(Icons.Filled.SquareFoot, contentDescription = null, tint = if (activeTab == 20) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            label = { Text(if (lang == "ar") "التمتير والمقاسات الفنية" else "Sizing & Measurements", fontWeight = FontWeight.Bold, color = if (activeTab == 20) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            selected = activeTab == 20,
+            onClick = { onTabSelected(20) },
+            colors = NavigationDrawerItemDefaults.colors(
+                selectedContainerColor = GoldAccent.copy(alpha = 0.1f),
+                unselectedContainerColor = Color.Transparent
+            ),
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 2.dp)
+                .testTag("nav_drawer_tab_20")
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        // 3. CORE ACCOUNTS & FUNDS (الحسابات والخزائن المالية)
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Filled.AccountBalanceWallet, contentDescription = null, tint = if (accountsExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            label = { Text(if (lang == "ar") "الحسابات والخزائن المالية" else "Accounts, Cash & Banks", fontWeight = FontWeight.Bold, color = if (accountsExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface) },
             selected = false,
-            onClick = { onVouchersGroupExpandedChange(!isVouchersGroupExpanded) },
+            onClick = { accountsExpanded = !accountsExpanded },
             badge = {
                 Icon(
-                    if (isVouchersGroupExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = null
+                    if (accountsExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = if (accountsExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             },
             colors = NavigationDrawerItemDefaults.colors(
                 selectedContainerColor = Color.Transparent,
                 unselectedContainerColor = Color.Transparent
             ),
-            modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
 
-        if (isVouchersGroupExpanded) {
-            val voucherSubItems = listOf(
-                Triple(10, Icons.Filled.ArrowDownward, if (lang == "ar") "سند قبض مالي" else "Receipt Voucher"),
-                Triple(11, Icons.Filled.ArrowUpward, if (lang == "ar") "سند دفع وصرف" else "Payment Voucher"),
-                Triple(12, Icons.Filled.CompareArrows, if (lang == "ar") "قيد اليومية والتسوية" else "Journal Entry")
-            )
-            voucherSubItems.forEach { (index, icon, label) ->
-                val isSelected = activeTab == index
-                val iconTint = when (index) {
-                    10 -> com.example.ui.theme.EmeraldGreen
-                    11 -> com.example.ui.theme.RoseRed
-                    else -> if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+        AnimatedVisibility(
+            visible = accountsExpanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column {
+                val accountsSubItems = listOf(
+                    Triple(1, Icons.Filled.AccountTree, if (lang == "ar") "دليل شجرة الحسابات" else "Chart of Accounts"),
+                    Triple(4, Icons.Filled.Payments, if (lang == "ar") "صناديق المال والخزائن" else "Cash Boxes Registry"),
+                    Triple(5, Icons.Filled.AccountBalance, if (lang == "ar") "الحسابات والمصارف البنكية" else "Bank Accounts")
+                )
+                accountsSubItems.forEach { (index, icon, label) ->
+                    val isSelected = activeTab == index
+                    NavigationDrawerItem(
+                        icon = { Icon(icon, contentDescription = null, tint = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), modifier = Modifier.size(20.dp)) },
+                        label = { Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)) },
+                        selected = isSelected,
+                        onClick = { onTabSelected(index) },
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = GoldAccent.copy(alpha = 0.08f),
+                            unselectedContainerColor = Color.Transparent
+                        ),
+                        modifier = Modifier
+                            .padding(start = 28.dp, end = 12.dp, top = 2.dp, bottom = 2.dp)
+                            .testTag("nav_drawer_tab_$index")
+                    )
                 }
-                NavigationDrawerItem(
-                    icon = { Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp)) },
-                    label = { Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)) },
-                    selected = isSelected,
-                    onClick = { onTabSelected(index) },
-                    colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = GoldAccent.copy(alpha = 0.08f),
-                        unselectedContainerColor = Color.Transparent
-                    ),
-                    modifier = Modifier
-                        .padding(start = 28.dp, end = 12.dp, top = 2.dp, bottom = 2.dp)
-                        .testTag("nav_drawer_tab_$index")
-                )
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
-        // COLLAPSIBLE REPORTS GROUP
+        // 4. PARTIES & CONTACTS (إدارة العلاقات والجهات)
         NavigationDrawerItem(
-            icon = { Icon(Icons.Filled.Assessment, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface) },
-            label = { Text(if (lang == "ar") "القوائم والتقارير المالية" else "Financial Reports", fontWeight = FontWeight.SemiBold) },
+            icon = { Icon(Icons.Filled.People, contentDescription = null, tint = if (partiesExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            label = { Text(if (lang == "ar") "إدارة العلاقات والجهات" else "Parties & Contacts", fontWeight = FontWeight.Bold, color = if (partiesExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface) },
             selected = false,
-            onClick = { onReportsGroupExpandedChange(!isReportsGroupExpanded) },
+            onClick = { partiesExpanded = !partiesExpanded },
             badge = {
                 Icon(
-                    if (isReportsGroupExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = null
+                    if (partiesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = if (partiesExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             },
             colors = NavigationDrawerItemDefaults.colors(
                 selectedContainerColor = Color.Transparent,
                 unselectedContainerColor = Color.Transparent
             ),
-            modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
         )
 
-        if (isReportsGroupExpanded) {
-            val reportsSubItems = listOf(
-                Triple(15, Icons.Filled.AccountBalance, if (lang == "ar") "ميزان المراجعة بالأرصدة" else "Trial Balance"),
-                Triple(16, Icons.Filled.Assessment, if (lang == "ar") "الميزانية العمومية والمركز" else "Balance Sheet"),
-                Triple(17, Icons.Filled.TrendingUp, if (lang == "ar") "قائمة الدخل والأرباح" else "Income Statement")
-            )
-            reportsSubItems.forEach { (index, icon, label) ->
-                val isSelected = activeTab == index
-                val iconTint = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                NavigationDrawerItem(
-                    icon = { Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp)) },
-                    label = { Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)) },
-                    selected = isSelected,
-                    onClick = { onTabSelected(index) },
-                    colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = GoldAccent.copy(alpha = 0.08f),
-                        unselectedContainerColor = Color.Transparent
-                    ),
-                    modifier = Modifier
-                        .padding(start = 28.dp, end = 12.dp, top = 2.dp, bottom = 2.dp)
-                        .testTag("nav_drawer_tab_$index")
+        AnimatedVisibility(
+            visible = partiesExpanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column {
+                val partiesSubItems = listOf(
+                    Triple(2, Icons.Filled.Person, if (lang == "ar") "كشوفات العملاء والزبائن" else "Customers Register"),
+                    Triple(3, Icons.Filled.Business, if (lang == "ar") "كشوفات الموردين والشركات" else "Suppliers Register")
                 )
+                partiesSubItems.forEach { (index, icon, label) ->
+                    val isSelected = activeTab == index
+                    NavigationDrawerItem(
+                        icon = { Icon(icon, contentDescription = null, tint = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), modifier = Modifier.size(20.dp)) },
+                        label = { Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)) },
+                        selected = isSelected,
+                        onClick = { onTabSelected(index) },
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = GoldAccent.copy(alpha = 0.08f),
+                            unselectedContainerColor = Color.Transparent
+                        ),
+                        modifier = Modifier
+                            .padding(start = 28.dp, end = 12.dp, top = 2.dp, bottom = 2.dp)
+                            .testTag("nav_drawer_tab_$index")
+                    )
+                }
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
-        // Settings Item
+        // 5. COLLAPSIBLE VOUCHERS GROUP
         NavigationDrawerItem(
-            icon = { Icon(Icons.Filled.Security, contentDescription = null, tint = if (activeTab == 9) GoldAccent else MaterialTheme.colorScheme.onSurface) },
-            label = { Text(com.example.ui.Localization.translate(com.example.ui.Localization.Key.NAV_SETTINGS, lang), fontWeight = FontWeight.SemiBold, color = if (activeTab == 9) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            icon = { Icon(Icons.Filled.Assignment, contentDescription = null, tint = if (vouchersExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            label = { Text(if (lang == "ar") "سندات الحسابات والقيود" else "Vouchers & Daily Journals", fontWeight = FontWeight.Bold, color = if (vouchersExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            selected = false,
+            onClick = { 
+                vouchersExpanded = !vouchersExpanded
+                onVouchersGroupExpandedChange(vouchersExpanded)
+            },
+            badge = {
+                Icon(
+                    if (vouchersExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = if (vouchersExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            },
+            colors = NavigationDrawerItemDefaults.colors(
+                selectedContainerColor = Color.Transparent,
+                unselectedContainerColor = Color.Transparent
+            ),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+        )
+
+        AnimatedVisibility(
+            visible = vouchersExpanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column {
+                val voucherSubItems = listOf(
+                    Triple(10, Icons.Filled.ArrowDownward, if (lang == "ar") "سند قبض مالي جديد" else "New Receipt Voucher"),
+                    Triple(11, Icons.Filled.ArrowUpward, if (lang == "ar") "سند دفع وصرف نقدي" else "New Payment Voucher"),
+                    Triple(12, Icons.Filled.CompareArrows, if (lang == "ar") "قيد معالجة وتسوية يومية" else "Daily Journal Entry")
+                )
+                voucherSubItems.forEach { (index, icon, label) ->
+                    val isSelected = activeTab == index
+                    val iconTint = when (index) {
+                        10 -> com.example.ui.theme.EmeraldGreen
+                        11 -> com.example.ui.theme.RoseRed
+                        else -> if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    }
+                    NavigationDrawerItem(
+                        icon = { Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp)) },
+                        label = { Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)) },
+                        selected = isSelected,
+                        onClick = { onTabSelected(index) },
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = GoldAccent.copy(alpha = 0.08f),
+                            unselectedContainerColor = Color.Transparent
+                        ),
+                        modifier = Modifier
+                            .padding(start = 28.dp, end = 12.dp, top = 2.dp, bottom = 2.dp)
+                            .testTag("nav_drawer_tab_$index")
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // 6. COLLAPSIBLE REPORTS GROUP
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Filled.Assessment, contentDescription = null, tint = if (reportsExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            label = { Text(if (lang == "ar") "التقارير والقوائم المالية" else "Statements & Reports", fontWeight = FontWeight.Bold, color = if (reportsExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            selected = false,
+            onClick = { 
+                reportsExpanded = !reportsExpanded
+                onReportsGroupExpandedChange(reportsExpanded)
+            },
+            badge = {
+                Icon(
+                    if (reportsExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = if (reportsExpanded) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            },
+            colors = NavigationDrawerItemDefaults.colors(
+                selectedContainerColor = Color.Transparent,
+                unselectedContainerColor = Color.Transparent
+            ),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+        )
+
+        AnimatedVisibility(
+            visible = reportsExpanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column {
+                val reportsSubItems = listOf(
+                    Triple(7, Icons.Filled.Book, if (lang == "ar") "كشف حساب تفصيلي" else "Detailed Account Statement"),
+                    Triple(15, Icons.Filled.ListAlt, if (lang == "ar") "ميزان المراجعة بالأرصدة" else "Trial Balance"),
+                    Triple(16, Icons.Filled.Assessment, if (lang == "ar") "الميزانية والمركز المالي" else "Balance Sheet Ledger"),
+                    Triple(17, Icons.Filled.TrendingUp, if (lang == "ar") "قائمة الأرباح والخسائر والدخل" else "Income Statement"),
+                    Triple(18, Icons.Filled.SwapHoriz, if (lang == "ar") "قائمة التدفقات النقدية" else "Statement of Cash Flows"),
+                    Triple(19, Icons.Filled.QueryStats, if (lang == "ar") "التحليل والأداء الشهري" else "Monthly Performance"),
+                    Triple(21, Icons.Filled.CardMembership, if (lang == "ar") "حساب وتقييم الزكاة الشرعية" else "Zakat Shari'ah Assessment")
+                )
+                reportsSubItems.forEach { (index, icon, label) ->
+                    val isSelected = activeTab == index
+                    NavigationDrawerItem(
+                        icon = { Icon(icon, contentDescription = null, tint = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), modifier = Modifier.size(20.dp)) },
+                        label = { Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) GoldAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)) },
+                        selected = isSelected,
+                        onClick = { onTabSelected(index) },
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = GoldAccent.copy(alpha = 0.08f),
+                            unselectedContainerColor = Color.Transparent
+                        ),
+                        modifier = Modifier
+                            .padding(start = 28.dp, end = 12.dp, top = 2.dp, bottom = 2.dp)
+                            .testTag("nav_drawer_tab_$index")
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // 7. Settings Item
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Filled.Settings, contentDescription = null, tint = if (activeTab == 9) GoldAccent else MaterialTheme.colorScheme.onSurface) },
+            label = { Text(if (lang == "ar") "إعدادات وتهيئة النظام" else "System Settings", fontWeight = FontWeight.Bold, color = if (activeTab == 9) GoldAccent else MaterialTheme.colorScheme.onSurface) },
             selected = activeTab == 9,
             onClick = { onTabSelected(9) },
             colors = NavigationDrawerItemDefaults.colors(
@@ -844,6 +978,8 @@ fun MainScaffoldContainer(
                     16 -> ReportsScreen(viewModel = viewModel, forcedTab = 1)
                     17 -> ReportsScreen(viewModel = viewModel, forcedTab = 2)
                     18 -> ReportsScreen(viewModel = viewModel, forcedTab = 3)
+                    19 -> ReportsScreen(viewModel = viewModel, forcedTab = 7)
+                    21 -> ReportsScreen(viewModel = viewModel, forcedTab = 8)
                     20 -> MeasurementsScreen(viewModel = viewModel)
                 }
             }

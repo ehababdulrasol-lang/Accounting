@@ -278,6 +278,10 @@ class LedgerRepository(private val db: AppDatabase) {
         Log.d("LedgerRepository", "Account list cached. Total records: ${calculatedSnapshots.size}")
     }
 
+    suspend fun getSnapshotsForPeriod(startDate: Long, endDate: Long): List<AccountBalanceSnapshot> = withContext(Dispatchers.IO) {
+        snapshotDao.calculateRecursiveBalancesForPeriod(startDate, endDate, System.currentTimeMillis())
+    }
+
     // Report Queries
     fun getTrialBalance(startDate: Long, endDate: Long): Flow<List<TrialBalanceReportRow>> = flow {
         val accounts = accountDao.getAllAccountsSuspend().filter { !it.isGroup } // Only leaf accounts
@@ -413,11 +417,11 @@ class LedgerRepository(private val db: AppDatabase) {
                 // Fetch subaccounts of 1103 to find max suffix code
                 val children = accountDao.getSubAccountsSuspend(receivablesParent.id)
                 val maxSuffix = children.mapNotNull { child ->
-                    child.accountCode.removePrefix("1103").toIntOrNull()
+                    child.accountCode.removePrefix("1103").toEnglishDigits().toIntOrNull()
                 }.maxOrNull() ?: 0
                 
                 val nextSuffix = maxSuffix + 1
-                val nextCodeStr = "1103" + String.format("%03d", nextSuffix)
+                val nextCodeStr = "1103" + String.format(java.util.Locale.US, "%03d", nextSuffix)
                 
                 val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
                 val newAccountId = accountDao.insert(
@@ -536,11 +540,11 @@ class LedgerRepository(private val db: AppDatabase) {
                 // Fetch subaccounts of 2101 to find max suffix code
                 val children = accountDao.getSubAccountsSuspend(payablesParent.id)
                 val maxSuffix = children.mapNotNull { child ->
-                    child.accountCode.removePrefix("2101").toIntOrNull()
+                    child.accountCode.removePrefix("2101").toEnglishDigits().toIntOrNull()
                 }.maxOrNull() ?: 0
                 
                 val nextSuffix = maxSuffix + 1
-                val nextCodeStr = "2101" + String.format("%03d", nextSuffix)
+                val nextCodeStr = "2101" + String.format(java.util.Locale.US, "%03d", nextSuffix)
                 
                 val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
                 val newAccountId = accountDao.insert(
@@ -657,10 +661,10 @@ class LedgerRepository(private val db: AppDatabase) {
                 // Find max suffix under 1101
                 val children = accountDao.getSubAccountsSuspend(cashParent.id)
                 val maxSuffix = children.mapNotNull { child ->
-                    child.accountCode.removePrefix("1101").toIntOrNull()
+                    child.accountCode.removePrefix("1101").toEnglishDigits().toIntOrNull()
                 }.maxOrNull() ?: 0
                 val nextSuffix = maxSuffix + 1
-                val nextCodeStr = "1101" + String.format("%03d", nextSuffix)
+                val nextCodeStr = "1101" + String.format(java.util.Locale.US, "%03d", nextSuffix)
 
                 val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
                 val newAccountId = accountDao.insert(
@@ -860,10 +864,10 @@ class LedgerRepository(private val db: AppDatabase) {
                 // Find max suffix under 1104
                 val children = accountDao.getSubAccountsSuspend(bankParent.id)
                 val maxSuffix = children.mapNotNull { child ->
-                    child.accountCode.removePrefix("1104").toIntOrNull()
+                    child.accountCode.removePrefix("1104").toEnglishDigits().toIntOrNull()
                 }.maxOrNull() ?: 0
                 val nextSuffix = maxSuffix + 1
-                val nextCodeStr = "1104" + String.format("%03d", nextSuffix)
+                val nextCodeStr = "1104" + String.format(java.util.Locale.US, "%03d", nextSuffix)
 
                 val lyCur = currencyDao.getBaseCurrency() ?: throw IllegalStateException("Base currency not initialized.")
                 val newAccountId = accountDao.insert(
@@ -1040,4 +1044,18 @@ class LedgerRepository(private val db: AppDatabase) {
     suspend fun updateMeasurementHeader(header: MeasurementHeader) = withContext(Dispatchers.IO) {
         measurementDao.updateHeader(header)
     }
+}
+
+private fun String.toEnglishDigits(): String {
+    val builder = java.lang.StringBuilder()
+    for (ch in this) {
+        if (ch in '٠'..'٩') {
+            builder.append((ch - '٠' + '0'.toInt()).toChar())
+        } else if (ch in '۰'..'۹') {
+            builder.append((ch - '۰' + '0'.toInt()).toChar())
+        } else {
+            builder.append(ch)
+        }
+    }
+    return builder.toString()
 }

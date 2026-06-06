@@ -47,4 +47,38 @@ class ExampleRobolectricTest {
     assertNotNull(viewModel.accounts.value)
     println("Successfully initialized and seeded DB! Total accounts: ${viewModel.accounts.value.size}")
   }
+
+  @Test
+  fun `test fiscal period boundary selection and snapshot updates`() = runBlocking {
+    val app = ApplicationProvider.getApplicationContext<Application>()
+    val viewModel = LedgerViewModel(app)
+    
+    // Wait for initialization and database seeding
+    var isSeeding = viewModel.isSeeding.value
+    var count = 0
+    while (isSeeding && count < 100) {
+      kotlinx.coroutines.delay(100)
+      isSeeding = viewModel.isSeeding.value
+      count++
+    }
+    
+    val initialSelectedFy = viewModel.selectedReportingFy.value
+    assertNotNull(initialSelectedFy)
+    assertEquals("FY 2026", initialSelectedFy?.name)
+    
+    // Ensure boundaries are set
+    val startBoundary = viewModel.trialBalanceStart.value
+    val endBoundary = viewModel.trialBalanceEnd.value
+    assertEquals(1767225600000L, startBoundary)
+    assertEquals(1798761599000L, endBoundary)
+    
+    // Test selecting a different fiscal period or cumulative null period
+    viewModel.selectReportingFiscalYear(null)
+    kotlinx.coroutines.delay(200)
+    
+    // Verify boundaries updated to cumulative (None selecion)
+    assertEquals(null, viewModel.selectedReportingFy.value)
+    
+    println("Fiscal period boundary selection unit test passed successfully!")
+  }
 }

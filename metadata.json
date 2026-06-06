@@ -1,5 +1,5 @@
 {
-  "name": "Ledger Pro",
+  "name": "Yamama 1",
   "description": "An enterprise-grade ledger system with double-entry validation, multi-level Chart of Accounts, live recursive balances, audit trails, and Trial Balance reporting.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

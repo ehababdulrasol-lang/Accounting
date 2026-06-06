@@ -205,6 +205,26 @@ interface AccountBalanceSnapshotDao {
         GROUP BY a.id
     """)
     suspend fun calculateRecursiveBalances(updateTime: Long): List<AccountBalanceSnapshot>
+
+    @Transaction
+    @Query("""
+        WITH RECURSIVE ParentChild(ancestorId, descendantId) AS (
+            SELECT id AS ancestorId, id AS descendantId FROM accounts
+            UNION ALL
+            SELECT pc.ancestorId, a.id FROM accounts a
+            JOIN ParentChild pc ON a.parentId = pc.descendantId
+        )
+        SELECT 
+            a.id AS accountId,
+            COALESCE(SUM(CASE WHEN vl.debit > 0 THEN vl.amountBase ELSE -vl.amountBase END), 0) AS balance,
+            :updateTime AS lastUpdated
+        FROM accounts a
+        LEFT JOIN ParentChild pc ON a.id = pc.ancestorId
+        LEFT JOIN voucher_lines vl ON pc.descendantId = vl.accountId
+        LEFT JOIN voucher_headers vh ON vl.headerId = vh.id AND vh.isPosted = 1 AND vh.date BETWEEN :startDate AND :endDate
+        GROUP BY a.id
+    """)
+    suspend fun calculateRecursiveBalancesForPeriod(startDate: Long, endDate: Long, updateTime: Long): List<AccountBalanceSnapshot>
 }
 
 @Dao

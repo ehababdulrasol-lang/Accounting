@@ -1070,6 +1070,7 @@ fun SettingsScreen(
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
+                            }
                         }
 
                         1 -> {
@@ -1660,7 +1661,7 @@ fun SettingsScreen(
                                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 localBackups.forEach { file ->
                                                     val sizeInKB = file.length() / 1024
-                                                    val sizeStr = if (sizeInKB > 1024) String.format("%.1f MB", sizeInKB / 1024.0) else "$sizeInKB KB"
+                                                    val sizeStr = if (sizeInKB > 1024) String.format(java.util.Locale.US, "%.1f MB", sizeInKB / 1024.0) else "$sizeInKB KB"
                                                     
                                                     val dateStr = try {
                                                         val parts = file.name.removePrefix("ledger_backup_").removeSuffix(".db").split("_")
