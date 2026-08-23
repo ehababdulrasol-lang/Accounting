@@ -32,6 +32,10 @@ import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.RoseRed
 import com.example.ui.viewmodel.LedgerViewModel
 import com.example.util.FinancialUtils
+import com.example.util.ExportUtils
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 @Composable
 fun ReportsScreen(
@@ -360,6 +364,29 @@ fun TrialBalanceView(viewModel: LedgerViewModel) {
     val loading by viewModel.trialBalanceLoading.collectAsStateWithLifecycle()
     val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
     val selectedReportingFy by viewModel.selectedReportingFy.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val exportCsvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        uri?.let {
+            val csvContent = ExportUtils.generateTrialBalanceCsv(rows, lang)
+            val success = ExportUtils.writeCsvToUri(context, it, csvContent)
+            if (success) {
+                Toast.makeText(
+                    context,
+                    if (lang == "ar") "تم تصدير ميزان المراجعة بنجاح لملف CSV/Excel!" else "Trial Balance exported successfully to CSV/Excel!",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                Toast.makeText(
+                    context,
+                    if (lang == "ar") "فشل في حفظ الملف." else "Failed to save file.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
 
     val totalOpDr = remember(rows) { rows.sumOf { it.openingDebit } }
     val totalOpCr = remember(rows) { rows.sumOf { it.openingCredit } }
@@ -387,7 +414,6 @@ fun TrialBalanceView(viewModel: LedgerViewModel) {
             )
 
             Row {
-                val context = androidx.compose.ui.platform.LocalContext.current
                 IconButton(
                     onClick = { viewModel.refreshTrialBalance() },
                     modifier = Modifier.testTag("refresh_trial_balance_button")
@@ -411,6 +437,26 @@ fun TrialBalanceView(viewModel: LedgerViewModel) {
                     modifier = Modifier.testTag("print_trial_balance_button")
                 ) {
                     Icon(Icons.Filled.Print, contentDescription = "Print Trial Balance")
+                }
+                if (rows.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            val fyName = selectedReportingFy?.name ?: "2026"
+                            val suggestedName = if (lang == "ar") {
+                                "ميزان_المراجعة_$fyName.csv"
+                            } else {
+                                "trial_balance_$fyName.csv"
+                            }
+                            exportCsvLauncher.launch(suggestedName)
+                        },
+                        modifier = Modifier.testTag("export_trial_balance_csv_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.FileDownload,
+                            contentDescription = if (lang == "ar") "تصدير Excel/CSV" else "Export Excel/CSV",
+                            tint = EmeraldGreen
+                        )
+                    }
                 }
             }
         }

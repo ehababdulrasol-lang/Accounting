@@ -29,6 +29,10 @@ import com.example.ui.viewmodel.AccountStatementRow
 import com.example.ui.viewmodel.LedgerViewModel
 import com.example.util.FinancialUtils
 import com.example.util.PrintUtils
+import com.example.util.ExportUtils
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -67,6 +71,31 @@ fun AccountStatementScreen(
     
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val exportCsvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        uri?.let {
+            val account = selectedAccount
+            if (account != null) {
+                val csvContent = ExportUtils.generateAccountStatementCsv(account, statementRows, lang)
+                val success = ExportUtils.writeCsvToUri(context, it, csvContent)
+                if (success) {
+                    Toast.makeText(
+                        context,
+                        if (lang == "ar") "تم تصدير كشف الحساب بنجاح لملف CSV/Excel!" else "Statement exported successfully to CSV/Excel!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        context,
+                        if (lang == "ar") "فشل في حفظ الملف." else "Failed to save file.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
     
     val filteredAccounts = remember(allAccounts, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -127,18 +156,43 @@ fun AccountStatementScreen(
             }
             
             if (selectedAccount != null && statementRows.isNotEmpty()) {
-                Button(
-                    onClick = {
-                        selectedAccount?.let { acc ->
-                            PrintUtils.printAccountStatement(context, acc, statementRows, lang)
-                        }
-                    },
-                    modifier = Modifier.testTag("print_statement_direct_button"),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                val acc = selectedAccount
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.Print, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (lang == "ar") "طباعة كشف الحساب" else "Print Statement")
+                    Button(
+                        onClick = {
+                            acc?.let {
+                                PrintUtils.printAccountStatement(context, it, statementRows, lang)
+                            }
+                        },
+                        modifier = Modifier.testTag("print_statement_direct_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Filled.Print, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (lang == "ar") "طباعة" else "Print")
+                    }
+
+                    Button(
+                        onClick = {
+                            acc?.let {
+                                val suggestedName = if (lang == "ar") {
+                                    "كشف_حساب_${it.accountCode}.csv"
+                                } else {
+                                    "statement_${it.accountCode}_${it.name}.csv"
+                                }
+                                exportCsvLauncher.launch(suggestedName)
+                            }
+                        },
+                        modifier = Modifier.testTag("export_statement_csv_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen)
+                    ) {
+                        Icon(Icons.Filled.FileDownload, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (lang == "ar") "تصدير Excel/CSV" else "Export Excel/CSV")
+                    }
                 }
             }
         }

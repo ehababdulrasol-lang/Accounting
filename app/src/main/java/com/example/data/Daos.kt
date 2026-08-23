@@ -438,3 +438,110 @@ interface NotificationDao {
     suspend fun clearAll()
 }
 
+@Dao
+interface InvoiceDao {
+    @Query("SELECT * FROM invoices ORDER BY date DESC, id DESC")
+    fun getAllInvoicesFlow(): Flow<List<InvoiceHeader>>
+
+    @Query("SELECT * FROM invoices WHERE type = :type ORDER BY date DESC, id DESC")
+    fun getInvoicesByTypeFlow(type: InvoiceType): Flow<List<InvoiceHeader>>
+
+    @Query("SELECT * FROM invoices WHERE id = :invoiceId")
+    suspend fun getInvoiceHeaderById(invoiceId: Long): InvoiceHeader?
+
+    @Query("SELECT * FROM invoice_lines WHERE invoiceId = :invoiceId")
+    fun getInvoiceLinesForHeaderFlow(invoiceId: Long): Flow<List<InvoiceLine>>
+
+    @Query("SELECT * FROM invoice_lines WHERE invoiceId = :invoiceId")
+    suspend fun getInvoiceLinesForHeader(invoiceId: Long): List<InvoiceLine>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHeader(header: InvoiceHeader): Long
+
+    @Update
+    suspend fun updateHeader(header: InvoiceHeader)
+
+    @Delete
+    suspend fun deleteHeader(header: InvoiceHeader)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLines(lines: List<InvoiceLine>)
+
+    @Query("DELETE FROM invoice_lines WHERE invoiceId = :invoiceId")
+    suspend fun deleteLinesForHeader(invoiceId: Long)
+
+    @Transaction
+    suspend fun saveInvoice(header: InvoiceHeader, lines: List<InvoiceLine>): Long {
+        val id = if (header.id == 0L) {
+            insertHeader(header)
+        } else {
+            updateHeader(header)
+            deleteLinesForHeader(header.id)
+            header.id
+        }
+        val linesWithHeaderId = lines.map { it.copy(invoiceId = id) }
+        insertLines(linesWithHeaderId)
+        return id
+    }
+}
+
+@Dao
+interface WarehouseDao {
+    @Query("SELECT * FROM warehouses ORDER BY name ASC")
+    fun getAllWarehousesFlow(): Flow<List<Warehouse>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(warehouse: Warehouse): Long
+
+    @Update
+    suspend fun update(warehouse: Warehouse)
+
+    @Delete
+    suspend fun delete(warehouse: Warehouse)
+}
+
+@Dao
+interface ItemCategoryDao {
+    @Query("SELECT * FROM item_categories ORDER BY name ASC")
+    fun getAllCategoriesFlow(): Flow<List<ItemCategory>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(category: ItemCategory): Long
+
+    @Update
+    suspend fun update(category: ItemCategory)
+
+    @Delete
+    suspend fun delete(category: ItemCategory)
+}
+
+@Dao
+interface ItemUnitDao {
+    @Query("SELECT * FROM item_units ORDER BY name ASC")
+    fun getAllUnitsFlow(): Flow<List<ItemUnit>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(unit: ItemUnit): Long
+
+    @Update
+    suspend fun update(unit: ItemUnit)
+
+    @Delete
+    suspend fun delete(unit: ItemUnit)
+}
+
+@Dao
+interface ItemDao {
+    @Query("SELECT * FROM items ORDER BY name ASC")
+    fun getAllItemsFlow(): Flow<List<Item>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(item: Item): Long
+
+    @Update
+    suspend fun update(item: Item)
+
+    @Delete
+    suspend fun delete(item: Item)
+}
+

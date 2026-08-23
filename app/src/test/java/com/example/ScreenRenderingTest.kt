@@ -5,7 +5,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.core.app.ApplicationProvider
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.LedgerViewModel
-import com.example.MainLayout
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

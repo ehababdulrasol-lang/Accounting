@@ -53,6 +53,8 @@ fun DashboardScreen(
     modifier: Modifier = Modifier
 ) {
     val lang by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    var activeDashboardTab by remember { mutableStateOf(0) } // 0 = Overview, 1 = Analytics & Simulator, 2 = Exchange rates
+
     val allAccounts by viewModel.accounts.collectAsStateWithLifecycle()
     val leafAccounts = remember(allAccounts) { allAccounts.filter { !it.isGroup } }
 
@@ -87,9 +89,6 @@ fun DashboardScreen(
         bankAccountsList.sumOf { ba -> snapshots.find { it.accountId == ba.accountId }?.balance ?: 0L }
     }
 
-    // Total Available Funds (الموجود حالياً)
-    val totalAvailableFunds = totalCashBoxesBalance + totalBankAccountsBalance
-
     // 1. KPI Calculations (Total Revenue, Expenses, Profit, Pending)
     val revenueAccounts = remember(leafAccounts) { leafAccounts.filter { it.accountType == AccountType.REVENUE } }
     val expenseAccounts = remember(leafAccounts) { leafAccounts.filter { it.accountType == AccountType.EXPENSE } }
@@ -103,11 +102,6 @@ fun DashboardScreen(
     }
 
     val netProfit = totalRevenue - totalExpense
-
-    // Pending represents Draft (unposted) Vouchers totals in the system
-    val totalPendingAmount = remember(headers) {
-        headers.filter { !it.isPosted }.sumOf { it.totalAmountBase }
-    }
 
     val direction = Localization.getLayoutDirection(lang)
 
@@ -213,7 +207,7 @@ fun DashboardScreen(
                     )
                 )
         ) {
-            // Glassmorphic background blur highlight using safe performance-friendly radial gradient
+            // Glassmorphic background blur highlight using radial gradient
             Box(
                 modifier = Modifier
                     .size(240.dp)
@@ -250,7 +244,7 @@ fun DashboardScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 24.dp, bottom = 16.dp),
+                        .padding(top = 24.dp, bottom = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -286,289 +280,260 @@ fun DashboardScreen(
                     }
                 }
 
-                // Scrollable workspace content
+                // Premium Custom Tab Selector (Sticky at top of dashboard workspace)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(14.dp))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val tabs = listOf(
+                        Triple(0, Icons.Filled.SpaceDashboard, if (lang == "ar") "نظرة عامة" else "Overview"),
+                        Triple(1, Icons.Filled.QueryStats, if (lang == "ar") "التحليل الاستراتيجي" else "Strategic Analytics"),
+                        Triple(2, Icons.Filled.Payments, if (lang == "ar") "أسعار العملات" else "FX Board")
+                    )
+                    tabs.forEach { (index, icon, title) ->
+                        val isSelected = activeDashboardTab == index
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (isSelected) primaryColor else Color.Transparent
+                                )
+                                .clickable { activeDashboardTab = index }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 11.sp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Scrollable workspace content depending on selected tab
                 Box(modifier = Modifier.weight(1f)) {
                     androidx.compose.foundation.lazy.LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                         contentPadding = PaddingValues(bottom = 80.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // Section: Glass KPI Cards (Top Rows with Client/Supplier and Current Assets)
-                        item {
-                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                // Arasid of Customers & Suppliers (at the top)
-                                Row(
+                        if (activeDashboardTab == 0) {
+                            // Section 1: Responsive Live Balances Header with Drill-down audits
+                            item {
+                                LiveBalancesHeader(viewModel = viewModel)
+                            }
+
+                            // Section 2: Smooth Line Chart Card (Financial growth)
+                            item {
+                                Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                                    ),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, primaryColor.copy(alpha = 0.15f))
                                 ) {
-                                    GlassKPICard(
-                                        title = if (lang == "ar") "إجمالي أرصدة العملاء" else "Total Customer Balances",
-                                        amount = kotlin.math.abs(totalCustomersBalance),
-                                        icon = Icons.Filled.People,
-                                        color = EmeraldGreen,
-                                        modifier = Modifier.weight(1f),
-                                        isLibyan = isLibyanMode
+                                    Column(modifier = Modifier.padding(18.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text(
+                                                    text = if (lang == "ar") "النمو المالي والتدفق النقدي" else "Revenue Trend & Cash Flow",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = if (lang == "ar") {
+                                                        if (hasActualData) "تحليل البيانات الفعلية المتراكمة من القيود والسجلات" else "تحليل الإيرادات التراكمية الربع سنوية (نموذج هدف المستهدف)"
+                                                    } else {
+                                                        if (hasActualData) "Real-time compiled ledger trend analytics" else "Quarterly general ledger stream (Target benchmark)"
+                                                    },
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                                                )
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(primaryColor.copy(alpha = 0.12f))
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "IFRS-9",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = primaryColor
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(Modifier.height(16.dp))
+
+                                        SmoothLineChart(
+                                            data = chartDataPoints,
+                                            labels = monthsLabels,
+                                            lineColor = primaryColor,
+                                            lang = lang
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Section 3: Quick Action Launches
+                            item {
+                                Text(
+                                    text = if (lang == "ar") "الوصول السريع للمهام المحاسبية" else "LEDGER QUICK LAUNCHES",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                    letterSpacing = 1.sp
+                                )
+                                Spacer(Modifier.height(8.dp))
+
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    maxItemsInEachRow = 3
+                                ) {
+                                    QuickActionTile(
+                                        label = if (lang == "ar") "الدليل المالي" else "Accounts Chart",
+                                        icon = Icons.Default.AccountTree,
+                                        onClick = onNavigateToAccounts,
+                                        modifier = Modifier.weight(1f)
                                     )
-                                    GlassKPICard(
-                                        title = if (lang == "ar") "إجمالي أرصدة الموردين" else "Total Supplier Balances",
-                                        amount = kotlin.math.abs(totalSuppliersBalance),
-                                        icon = Icons.Filled.Business,
-                                        color = RoseRed,
-                                        modifier = Modifier.weight(1f),
-                                        isLibyan = isLibyanMode
+                                    QuickActionTile(
+                                        label = if (lang == "ar") "الحسابات اليومية" else "Ledger Books",
+                                        icon = Icons.Default.PostAdd,
+                                        onClick = onNavigateToVouchers,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    QuickActionTile(
+                                        label = if (lang == "ar") "التقارير الشاملة" else "Verify sheets",
+                                        icon = Icons.Default.Assessment,
+                                        onClick = onNavigateToReports,
+                                        modifier = Modifier.weight(1f)
                                     )
                                 }
+                            }
 
-                                // Header for Current Assets (الموجود حالياً)
-                                Spacer(Modifier.height(4.dp))
+                            // Section 4: Recent Vouchers and entries
+                            item {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Filled.AccountBalanceWallet,
-                                            contentDescription = null,
-                                            tint = primaryColor,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            text = if (lang == "ar") "الموجود حالياً (النقدية والأرصدة)" else "Current Funds & Liquidity",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onBackground
-                                        )
-                                    }
-                                    
+                                    Text(
+                                        text = if (lang == "ar") "مستندات اليومية وحالة ترحيل العمليات" else "RECORDED LEDGER ENTRIES",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                        letterSpacing = 1.sp
+                                    )
+
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(primaryColor.copy(alpha = 0.15f))
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(EmeraldGreen.copy(alpha = 0.1f))
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
                                     ) {
                                         Text(
-                                            text = "${FinancialUtils.formatBase(totalAvailableFunds)} ${if (isLibyanMode) "د.ل" else "LYD"}",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = primaryColor
+                                            text = "AUDITED SECURE",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = EmeraldGreen,
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    GlassKPICard(
-                                        title = if (lang == "ar") "إجمالي الصناديق" else "Total Cash boxes",
-                                        amount = totalCashBoxesBalance,
-                                        icon = Icons.Filled.Payments,
-                                        color = primaryColor,
-                                        modifier = Modifier.weight(1f),
-                                        isLibyan = isLibyanMode
-                                    )
-                                    GlassKPICard(
-                                        title = if (lang == "ar") "إجمالي البنوك" else "Total Banks",
-                                        amount = totalBankAccountsBalance,
-                                        icon = Icons.Filled.AccountBalance,
-                                        color = CorporateSky,
-                                        modifier = Modifier.weight(1f),
-                                        isLibyan = isLibyanMode
-                                    )
-                                }
-                            }
-                        }
+                                Spacer(Modifier.height(8.dp))
 
-                        // Section: Smooth Line Chart Card
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, primaryColor.copy(alpha = 0.15f))
-                            ) {
-                                Column(modifier = Modifier.padding(18.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column {
-                                            Text(
-                                                text = if (lang == "ar") "النمو المالي والتدفق النقدي" else "Revenue Trend & Cash Flow",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Text(
-                                                text = if (lang == "ar") {
-                                                    if (hasActualData) "تحليل البيانات الفعلية المتراكمة من القيود والسجلات" else "تحليل الإيرادات التراكمية الربع سنوية (نموذج هدف المستهدف)"
-                                                } else {
-                                                    if (hasActualData) "Real-time compiled ledger trend analytics" else "Quarterly general ledger stream (Target benchmark)"
-                                                },
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                                            )
-                                        }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(primaryColor.copy(alpha = 0.12f))
-                                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                        ) {
-                                            Text(
-                                                text = "IFRS-9",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = primaryColor
-                                            )
+                                if (headers.isEmpty()) {
+                                    EmptyDashboardVouchersPlaceHolder(lang = lang, onClickToPost = onNavigateToVouchers)
+                                } else {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        headers.take(3).forEachIndexed { idx, header ->
+                                            com.example.ui.StaggeredItem(index = idx) {
+                                                DashboardEntryRow(
+                                                    header = header,
+                                                    lang = lang,
+                                                    isLibyan = isLibyanMode,
+                                                    onClick = onNavigateToVouchers
+                                                )
+                                            }
                                         }
                                     }
-
-                                    Spacer(Modifier.height(16.dp))
-
-                                    SmoothLineChart(
-                                        data = chartDataPoints,
-                                        labels = monthsLabels,
-                                        lineColor = primaryColor,
-                                        lang = lang
-                                    )
                                 }
                             }
-                        }
-
-                        // Section: Quick Action Launches
-                        item {
-                            Text(
-                                text = if (lang == "ar") "الوصول السريع للمهام المحاسبية" else "LEDGER QUICK LAUNCHES",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                                letterSpacing = 1.sp
-                            )
-                            Spacer(Modifier.height(8.dp))
-
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                maxItemsInEachRow = 3
-                            ) {
-                                QuickActionTile(
-                                    label = if (lang == "ar") "الدليل المالي" else "Accounts Chart",
-                                    icon = Icons.Default.AccountTree,
-                                    onClick = onNavigateToAccounts,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                QuickActionTile(
-                                    label = if (lang == "ar") "الحسابات اليومية" else "Ledger Books",
-                                    icon = Icons.Default.PostAdd,
-                                    onClick = onNavigateToVouchers,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                QuickActionTile(
-                                    label = if (lang == "ar") "التقارير الشاملة" else "Verify sheets",
-                                    icon = Icons.Default.Assessment,
-                                    onClick = onNavigateToReports,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-
-                        // Section: Live FX Conversions Board
-                        item {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(
-                                    text = if (lang == "ar") "محرر ومؤشرات أسعار الصرف" else "ANALYTICS & ESCROW EXCHANGE BOARD",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                                    letterSpacing = 1.sp
-                                )
-                                
-                                DashboardFXWidgetCard(
+                        } else if (activeDashboardTab == 1) {
+                            // Section 5: Advanced Financial Diagnostics (IAS-1 Health Rating & Warnings)
+                            item {
+                                DashboardDiagnosticsCard(
                                     lang = lang,
-                                    viewModel = viewModel,
-                                    modifier = Modifier.padding(bottom = 6.dp)
+                                    totalRevenue = totalRevenue,
+                                    totalExpense = totalExpense,
+                                    netProfit = netProfit,
+                                    draftCount = headers.count { !it.isPosted },
+                                    solvencyRatio = if (totalCustomersBalance + totalCashBoxesBalance > 0) {
+                                        (totalCustomersBalance + totalCashBoxesBalance).toDouble() / (if (totalSuppliersBalance > 0) totalSuppliersBalance.toDouble() else 1.0)
+                                    } else 1.5
                                 )
                             }
-                        }
 
-                        // Section: Dynamic Financial Diagnostics Card
-                        item {
-                            DashboardDiagnosticsCard(
-                                lang = lang,
-                                totalRevenue = totalRevenue,
-                                totalExpense = totalExpense,
-                                netProfit = netProfit,
-                                draftCount = headers.count { !it.isPosted },
-                                solvencyRatio = if (totalCustomersBalance + totalCashBoxesBalance > 0) {
-                                    (totalCustomersBalance + totalCashBoxesBalance).toDouble() / (if (totalSuppliersBalance > 0) totalSuppliersBalance.toDouble() else 1.0)
-                                } else 1.5
-                            )
-                        }
-
-                        // Section: Yamama Smart Scenario Modeler (Simulation Module)
-                        item {
-                            YamamaFinancialSimulationCard(
-                                lang = lang,
-                                totalRevenue = totalRevenue,
-                                totalExpense = totalExpense,
-                                isLibyanMode = isLibyanMode,
-                                viewModel = viewModel
-                            )
-                        }
-
-                        // Section: Recent Vouchers
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = if (lang == "ar") "مستندات اليومية وحالة ترحيل العمليات" else "RECORDED LEDGER ENTRIES",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                                    letterSpacing = 1.sp
+                            // Section 6: Smart Stress Scenario Modeler (Sliders & Gauge Indicator)
+                            item {
+                                YamamaFinancialSimulationCard(
+                                    lang = lang,
+                                    totalRevenue = totalRevenue,
+                                    totalExpense = totalExpense,
+                                    isLibyanMode = isLibyanMode,
+                                    viewModel = viewModel
                                 )
-
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(EmeraldGreen.copy(alpha = 0.1f))
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
+                            }
+                        } else {
+                            // Section 7: Live FX Translator & Escrow Indicators
+                            item {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Text(
-                                        text = "AUDITED SECURE",
+                                        text = if (lang == "ar") "محرر ومؤشرات أسعار الصرف" else "ANALYTICS & ESCROW EXCHANGE BOARD",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = EmeraldGreen,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                        letterSpacing = 1.sp
                                     )
-                                }
-                            }
-
-                            Spacer(Modifier.height(8.dp))
-
-                            if (headers.isEmpty()) {
-                                EmptyDashboardVouchersPlaceHolder(lang = lang, onClickToPost = onNavigateToVouchers)
-                            } else {
-                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    headers.take(3).forEachIndexed { idx, header ->
-                                        com.example.ui.StaggeredItem(index = idx) {
-                                            DashboardEntryRow(
-                                                header = header,
-                                                lang = lang,
-                                                isLibyan = isLibyanMode,
-                                                onClick = onNavigateToVouchers
-                                            )
-                                        }
-                                    }
+                                    
+                                    DashboardFXWidgetCard(
+                                        lang = lang,
+                                        viewModel = viewModel,
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
                                 }
                             }
                         }

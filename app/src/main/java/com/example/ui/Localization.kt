@@ -520,6 +520,7 @@ object Localization {
                 "5101" -> "مصروفات الإيجار"
                 "5102" -> "مصروفات الرواتب ومزايا الموظفين"
                 "5103" -> "أرباح وخسائر فروقات أسعار الصرف"
+                "5104" -> "حساب تكلفة المشتريات"
                 else -> defaultName
             }
         } else {
@@ -545,6 +546,7 @@ object Localization {
                 "5101" -> "Rent Expense"
                 "5102" -> "Salaries Expense"
                 "5103" -> "FX Gain or Loss"
+                "5104" -> "Purchases Cost"
                 else -> defaultName
             }
         }

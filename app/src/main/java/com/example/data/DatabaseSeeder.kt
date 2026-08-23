@@ -117,6 +117,9 @@ object DatabaseSeeder {
         accountDao.insert(
             Account(accountCode = "5103", name = "FX Gain or Loss", parentId = operationalExpensesId, accountType = AccountType.EXPENSE, currencyId = lydId, isGroup = false, isSystemAccount = true)
         )
+        accountDao.insert(
+            Account(accountCode = "5104", name = "Purchases Cost", parentId = operationalExpensesId, accountType = AccountType.EXPENSE, currencyId = lydId, isGroup = false)
+        )
 
         // Log initiation in Audit Logs
         auditLogDao.insert(

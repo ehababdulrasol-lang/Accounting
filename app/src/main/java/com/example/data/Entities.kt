@@ -390,5 +390,127 @@ data class Notification(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+enum class InvoiceType {
+    PURCHASE, SALES
+}
+
+@Entity(
+    tableName = "invoices",
+    foreignKeys = [
+        ForeignKey(
+            entity = Account::class,
+            parentColumns = ["id"],
+            childColumns = ["accountId"],
+            onDelete = ForeignKey.RESTRICT
+        )
+    ],
+    indices = [
+        Index(value = ["accountId"])
+    ]
+)
+data class InvoiceHeader(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val invoiceNo: String,
+    val date: Long = System.currentTimeMillis(),
+    val type: InvoiceType,
+    val accountId: Long, // Customer account for Sales, Supplier account for Purchase
+    val counterPartyName: String,
+    val paymentMode: String, // "CREDIT", "CASH"
+    val notes: String = "",
+    val totalAmount: Long = 0L,
+    val isPosted: Boolean = false,
+    val voucherHeaderId: Long? = null
+)
+
+@Entity(
+    tableName = "invoice_lines",
+    foreignKeys = [
+        ForeignKey(
+            entity = InvoiceHeader::class,
+            parentColumns = ["id"],
+            childColumns = ["invoiceId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["invoiceId"])
+    ]
+)
+data class InvoiceLine(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val invoiceId: Long,
+    val itemDescription: String,
+    val quantity: Double,
+    val unitPrice: Double,
+    val discountPercent: Double = 0.0,
+    val taxPercent: Double = 0.0,
+    val lineTotal: Long
+)
+
+@Entity(tableName = "warehouses")
+data class Warehouse(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val location: String = "",
+    val manager: String = "",
+    val phone: String = ""
+)
+
+@Entity(tableName = "item_categories")
+data class ItemCategory(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val description: String = ""
+)
+
+@Entity(tableName = "item_units")
+data class ItemUnit(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val description: String = ""
+)
+
+@Entity(
+    tableName = "items",
+    foreignKeys = [
+        ForeignKey(
+            entity = ItemCategory::class,
+            parentColumns = ["id"],
+            childColumns = ["categoryId"],
+            onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = ItemUnit::class,
+            parentColumns = ["id"],
+            childColumns = ["unitId"],
+            onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = Warehouse::class,
+            parentColumns = ["id"],
+            childColumns = ["defaultWarehouseId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [
+        Index(value = ["categoryId"]),
+        Index(value = ["unitId"]),
+        Index(value = ["defaultWarehouseId"])
+    ]
+)
+data class Item(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val code: String,
+    val name: String,
+    val categoryId: Long? = null,
+    val unitId: Long? = null,
+    val defaultWarehouseId: Long? = null,
+    val purchasePrice: Double = 0.0,
+    val salePrice: Double = 0.0,
+    val minLimit: Double = 0.0,
+    val currentStock: Double = 0.0,
+    val notes: String = ""
+)
+
 
 

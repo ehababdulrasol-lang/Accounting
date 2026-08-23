@@ -38,9 +38,15 @@ class Converters {
         SupplierGroup::class,
         MeasurementHeader::class,
         MeasurementLine::class,
-        Notification::class
+        Notification::class,
+        InvoiceHeader::class,
+        InvoiceLine::class,
+        Warehouse::class,
+        ItemCategory::class,
+        ItemUnit::class,
+        Item::class
     ],
-    version = 11,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -59,6 +65,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun bankDao(): BankDao
     abstract fun measurementDao(): MeasurementDao
     abstract fun notificationDao(): NotificationDao
+    abstract fun invoiceDao(): InvoiceDao
+    abstract fun warehouseDao(): WarehouseDao
+    abstract fun itemCategoryDao(): ItemCategoryDao
+    abstract fun itemUnitDao(): ItemUnitDao
+    abstract fun itemDao(): ItemDao
 
     companion object {
         @Volatile

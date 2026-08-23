@@ -39,6 +39,11 @@ class LedgerRepository(private val db: AppDatabase) {
     private val bankDao = db.bankDao()
     private val measurementDao = db.measurementDao()
     private val notificationDao = db.notificationDao()
+    private val invoiceDao = db.invoiceDao()
+    private val warehouseDao = db.warehouseDao()
+    private val itemCategoryDao = db.itemCategoryDao()
+    private val itemUnitDao = db.itemUnitDao()
+    private val itemDao = db.itemDao()
 
     // Flow listings
     val rootAccounts: Flow<List<Account>> = accountDao.getRootAccounts()
@@ -59,8 +64,13 @@ class LedgerRepository(private val db: AppDatabase) {
     val allBranches: Flow<List<BankBranch>> = bankDao.getAllBranchesFlow()
     val allBankAccounts: Flow<List<BankAccount>> = bankDao.getAllBankAccountsFlow()
     val measurementHeaders: Flow<List<MeasurementHeader>> = measurementDao.getAllMeasurementHeadersFlow()
+    val allInvoices: Flow<List<InvoiceHeader>> = invoiceDao.getAllInvoicesFlow()
     val allNotifications: Flow<List<Notification>> = notificationDao.getAllNotificationsFlow()
     val unreadNotifications: Flow<List<Notification>> = notificationDao.getUnreadNotificationsFlow()
+    val allWarehouses: Flow<List<Warehouse>> = warehouseDao.getAllWarehousesFlow()
+    val allItemCategories: Flow<List<ItemCategory>> = itemCategoryDao.getAllCategoriesFlow()
+    val allItemUnits: Flow<List<ItemUnit>> = itemUnitDao.getAllUnitsFlow()
+    val allItems: Flow<List<Item>> = itemDao.getAllItemsFlow()
 
     suspend fun insertNotification(notification: Notification): Long = withContext(Dispatchers.IO) {
         notificationDao.insert(notification)
@@ -309,16 +319,18 @@ class LedgerRepository(private val db: AppDatabase) {
     fun getTrialBalance(startDate: Long, endDate: Long): Flow<List<TrialBalanceReportRow>> = flow {
         val accounts = accountDao.getAllAccountsSuspend().filter { !it.isGroup } // Only leaf accounts
         val headers = voucherDao.getAllVoucherHeadersSuspend().filter { it.isPosted }
+        val headersMap = headers.associateBy { it.id }
         val allLines = voucherDao.getAllVoucherLines()
+        val linesByAccount = allLines.groupBy { it.accountId }
         
         val rows = mutableListOf<TrialBalanceReportRow>()
 
         for (acc in accounts) {
-            val accLines = allLines.filter { it.accountId == acc.id }
+            val accLines = linesByAccount[acc.id] ?: emptyList()
             
             // 1. Fetch opening lines (in-memory)
             val linesBefore = accLines.filter { line ->
-                val h = headers.find { it.id == line.headerId }
+                val h = headersMap[line.headerId]
                 h != null && h.date < startDate
             }
             
@@ -326,7 +338,7 @@ class LedgerRepository(private val db: AppDatabase) {
 
             // 2. Fetch period lines (in-memory)
             val linesPeriod = accLines.filter { line ->
-                val h = headers.find { it.id == line.headerId }
+                val h = headersMap[line.headerId]
                 h != null && h.date in startDate..endDate
             }
 
@@ -1066,6 +1078,92 @@ class LedgerRepository(private val db: AppDatabase) {
 
     suspend fun updateMeasurementHeader(header: MeasurementHeader) = withContext(Dispatchers.IO) {
         measurementDao.updateHeader(header)
+    }
+
+    // Invoice operations
+    fun getInvoicesByTypeFlow(type: InvoiceType): Flow<List<InvoiceHeader>> {
+        return invoiceDao.getInvoicesByTypeFlow(type)
+    }
+
+    fun getInvoiceLinesForHeaderFlow(invoiceId: Long): Flow<List<InvoiceLine>> {
+        return invoiceDao.getInvoiceLinesForHeaderFlow(invoiceId)
+    }
+
+    suspend fun getInvoiceLinesForHeader(invoiceId: Long): List<InvoiceLine> = withContext(Dispatchers.IO) {
+        invoiceDao.getInvoiceLinesForHeader(invoiceId)
+    }
+
+    suspend fun saveInvoice(header: InvoiceHeader, lines: List<InvoiceLine>): Long = withContext(Dispatchers.IO) {
+        val id = invoiceDao.saveInvoice(header, lines)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = id,
+                voucherNo = "INVOICE",
+                action = if (header.id == 0L) "INVOICE_CREATED" else "INVOICE_UPDATED",
+                details = "Saved ${header.type.name} Invoice #${header.invoiceNo} for '${header.counterPartyName}' with total of ${FinancialUtils.formatBase(header.totalAmount)}."
+            )
+        )
+        id
+    }
+
+    suspend fun deleteInvoice(header: InvoiceHeader) = withContext(Dispatchers.IO) {
+        invoiceDao.deleteHeader(header)
+        auditLogDao.insert(
+            AuditLog(
+                voucherId = header.id,
+                voucherNo = "INVOICE",
+                action = "INVOICE_DELETED",
+                details = "Deleted ${header.type.name} Invoice #${header.invoiceNo} for '${header.counterPartyName}'."
+            )
+        )
+    }
+
+    suspend fun updateInvoiceHeader(header: InvoiceHeader) = withContext(Dispatchers.IO) {
+        invoiceDao.updateHeader(header)
+    }
+
+    // Warehouses CRUD
+    suspend fun addWarehouse(warehouse: Warehouse): Long = withContext(Dispatchers.IO) {
+        warehouseDao.insert(warehouse)
+    }
+    suspend fun updateWarehouse(warehouse: Warehouse) = withContext(Dispatchers.IO) {
+        warehouseDao.update(warehouse)
+    }
+    suspend fun deleteWarehouse(warehouse: Warehouse) = withContext(Dispatchers.IO) {
+        warehouseDao.delete(warehouse)
+    }
+
+    // Item Categories CRUD
+    suspend fun addItemCategory(category: ItemCategory): Long = withContext(Dispatchers.IO) {
+        itemCategoryDao.insert(category)
+    }
+    suspend fun updateItemCategory(category: ItemCategory) = withContext(Dispatchers.IO) {
+        itemCategoryDao.update(category)
+    }
+    suspend fun deleteItemCategory(category: ItemCategory) = withContext(Dispatchers.IO) {
+        itemCategoryDao.delete(category)
+    }
+
+    // Item Units CRUD
+    suspend fun addItemUnit(unit: ItemUnit): Long = withContext(Dispatchers.IO) {
+        itemUnitDao.insert(unit)
+    }
+    suspend fun updateItemUnit(unit: ItemUnit) = withContext(Dispatchers.IO) {
+        itemUnitDao.update(unit)
+    }
+    suspend fun deleteItemUnit(unit: ItemUnit) = withContext(Dispatchers.IO) {
+        itemUnitDao.delete(unit)
+    }
+
+    // Items CRUD
+    suspend fun addItem(item: Item): Long = withContext(Dispatchers.IO) {
+        itemDao.insert(item)
+    }
+    suspend fun updateItem(item: Item) = withContext(Dispatchers.IO) {
+        itemDao.update(item)
+    }
+    suspend fun deleteItem(item: Item) = withContext(Dispatchers.IO) {
+        itemDao.delete(item)
     }
 }
 

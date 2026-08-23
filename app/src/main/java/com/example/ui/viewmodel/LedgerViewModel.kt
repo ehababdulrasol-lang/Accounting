@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.*
 import com.example.util.FinancialUtils
 import com.example.util.VoucherValidationEngine
+import com.example.api.LocalLedgerApiServer
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -219,7 +220,38 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val cashFlowLoading = MutableStateFlow(false)
     val cashFlowStatement = MutableStateFlow<CashFlowStatement?>(null)
 
+    // Local API Server properties and states
+    val apiServer = LocalLedgerApiServer(repository, viewModelScope)
+    val isApiServerRunning = MutableStateFlow(false)
+    val apiServerStatusMessage = MutableStateFlow("HTTP API Server starting...")
+    val apiServerUrl = MutableStateFlow("http://localhost:8089/api/trial-balance")
+
+    fun toggleApiServer() {
+        if (apiServer.isRunning) {
+            apiServer.stop { running, msg ->
+                isApiServerRunning.value = running
+                apiServerStatusMessage.value = msg
+            }
+        } else {
+            apiServer.start { running, msg ->
+                isApiServerRunning.value = running
+                apiServerStatusMessage.value = msg
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        apiServer.stop()
+    }
+
     init {
+        // Auto-start Local REST API Server on setup
+        apiServer.start { running, msg ->
+            isApiServerRunning.value = running
+            apiServerStatusMessage.value = msg
+        }
+
         // Initialize trial balance date range for FY 2026 default
         val cal = Calendar.getInstance()
         cal.set(Calendar.YEAR, 2026)
@@ -894,14 +926,15 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
         val targetIds = getRecursiveSubAccountIds(accountId, allAccounts)
         
         val postedHeaders = vouchers.value.filter { it.isPosted }
+        val postedHeadersMap = postedHeaders.associateBy { it.id }
         val allLines = repository.getAllVoucherLines()
         
         val filteredLines = allLines.filter { line ->
-            line.accountId in targetIds && postedHeaders.any { it.id == line.headerId }
+            line.accountId in targetIds && postedHeadersMap.containsKey(line.headerId)
         }
         
         val rowsWithHeader = filteredLines.mapNotNull { line ->
-            val header = postedHeaders.find { it.id == line.headerId } ?: return@mapNotNull null
+            val header = postedHeadersMap[line.headerId] ?: return@mapNotNull null
             header to line
         }.sortedWith(compareBy<Pair<VoucherHeader, VoucherLine>> { it.first.date }.thenBy { it.first.id }.thenBy { it.second.id })
         
@@ -1129,11 +1162,13 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                     val cashIds = cashAccounts.map { it.id }.toSet()
                     
                     val headers = vouchers.value.filter { it.isPosted }
+                    val headersMap = headers.associateBy { it.id }
+                    val accountsMap = accounts.value.associateBy { it.id }
                     val allLines = repository.getAllVoucherLines()
                     
                     // 1. Calculate opening balance (all cash entries before start date)
                     val openingCash = allLines.filter { line ->
-                        line.accountId in cashIds && headers.find { it.id == line.headerId }?.let { h -> h.date < trialBalanceStart.value } == true
+                        line.accountId in cashIds && headersMap[line.headerId]?.let { h -> h.date < trialBalanceStart.value } == true
                     }.sumOf { if (it.debit > 0) it.amountBase else -it.amountBase }
                     
                     // 2. Identify all lines of posted vouchers in the current period
@@ -1161,7 +1196,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                         val companionLines = lines.filter { it.accountId !in cashIds }
                         
                         for (line in companionLines) {
-                            val acc = accounts.value.find { it.id == line.accountId } ?: continue
+                            val acc = accountsMap[line.accountId] ?: continue
                             when (acc.accountType) {
                                 AccountType.REVENUE -> {
                                     if (netCashChange > 0) opIn += line.amountBase else opOut += line.amountBase
@@ -1572,6 +1607,341 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
                 _uiMessage.value = if (currentLanguage.value == "ar") "تم ترحيل الفاتورة بنجاح كقيد يومية رقم $voucherNoCalculated" else "Invoice posted successfully as Voucher $voucherNoCalculated!"
             } catch (e: Exception) {
                 _uiMessage.value = if (currentLanguage.value == "ar") "فشل الترحيل للحسابات: ${e.localizedMessage}" else "Posting failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    // Invoice Management Integration
+    val invoices = repository.allInvoices.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    fun getInvoiceLines(invoiceId: Long): Flow<List<InvoiceLine>> {
+        return repository.getInvoiceLinesForHeaderFlow(invoiceId)
+    }
+
+    suspend fun getInvoiceLinesSuspend(invoiceId: Long): List<InvoiceLine> {
+        return repository.getInvoiceLinesForHeader(invoiceId)
+    }
+
+    fun saveInvoice(header: InvoiceHeader, lines: List<InvoiceLine>, onFinish: () -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                repository.saveInvoice(header, lines)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم حفظ الفاتورة بنجاح" else "Invoice saved successfully!"
+                onFinish()
+            } catch (e: Exception) {
+                _uiMessage.value = if (currentLanguage.value == "ar") "فشل حفظ الفاتورة: ${e.localizedMessage}" else "Error saving invoice: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteInvoice(header: InvoiceHeader) {
+        viewModelScope.launch {
+            try {
+                repository.deleteInvoice(header)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم حذف الفاتورة بنجاح" else "Invoice deleted successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = e.localizedMessage
+            }
+        }
+    }
+
+    fun postInvoiceToLedger(header: InvoiceHeader) {
+        viewModelScope.launch {
+            try {
+                _uiMessage.value = if (currentLanguage.value == "ar") "جاري ترحيل الفاتورة كقيد محاسبي..." else "Posting invoice to ledger..."
+                
+                val baseCurrency = repository.getBaseCurrency()
+                val activeFy = repository.getActiveFiscalYearsSuspend().firstOrNull() ?: throw IllegalStateException("No active fiscal year.")
+                
+                // For Sales, credit account is Sales Income "4101" Table
+                val salesIncomeAccount = accounts.value.find { it.accountCode == "4101" }
+                    ?: throw IllegalStateException("Revenue account Sales Income (4101) not found.")
+                
+                // For Purchase, debit account is Purchases Cost "5104"
+                val purchasesCostAccount = accounts.value.find { it.accountCode == "5104" }
+                    ?: throw IllegalStateException("Expense account Purchases Cost (5104) not found.")
+
+                // Cash account "1101"
+                val cashAccount = accounts.value.find { it.accountCode == "1101" }
+                    ?: throw IllegalStateException("Cash account (1101) not found.")
+
+                val isSales = header.type == InvoiceType.SALES
+                val isCash = header.paymentMode == "CASH"
+
+                // Identify which accounts are debited and credited
+                val debitAccountId: Long
+                val creditAccountId: Long
+
+                if (isSales) {
+                    debitAccountId = if (isCash) cashAccount.id else header.accountId
+                    creditAccountId = salesIncomeAccount.id
+                } else {
+                    debitAccountId = purchasesCostAccount.id
+                    creditAccountId = if (isCash) cashAccount.id else header.accountId
+                }
+
+                val memoTextAr = if (isSales) {
+                    if (isCash) "مبيعات نقدية فاتورة #${header.invoiceNo}" else "مبيعات آجل فاتورة #${header.invoiceNo} للعميل: ${header.counterPartyName}"
+                } else {
+                    if (isCash) "مشتريات نقدية فاتورة #${header.invoiceNo}" else "مشتريات آجل فاتورة #${header.invoiceNo} من المورد: ${header.counterPartyName}"
+                }
+
+                val memoTextEn = if (isSales) {
+                    if (isCash) "Cash Sales Invoice #${header.invoiceNo}" else "Credit Sales Invoice #${header.invoiceNo} for: ${header.counterPartyName}"
+                } else {
+                    if (isCash) "Cash Purchase Invoice #${header.invoiceNo}" else "Credit Purchase Invoice #${header.invoiceNo} from: ${header.counterPartyName}"
+                }
+
+                val voucherLinesList = listOf(
+                    VoucherLine(
+                        headerId = 0,
+                        accountId = debitAccountId,
+                        debit = header.totalAmount,
+                        credit = 0L,
+                        currencyId = baseCurrency?.id ?: 1L,
+                        exchangeRate = 1.0,
+                        amountBase = header.totalAmount,
+                        memo = if (currentLanguage.value == "ar") memoTextAr else memoTextEn
+                    ),
+                    VoucherLine(
+                        headerId = 0,
+                        accountId = creditAccountId,
+                        debit = 0L,
+                        credit = header.totalAmount,
+                        currencyId = baseCurrency?.id ?: 1L,
+                        exchangeRate = 1.0,
+                        amountBase = header.totalAmount,
+                        memo = if (currentLanguage.value == "ar") memoTextAr else memoTextEn
+                    )
+                )
+
+                val prefix = if (isSales) "SL-" else "PR-"
+                val voucherNoCalculated = prefix + header.invoiceNo.ifBlank { System.currentTimeMillis().toString().takeLast(6) }
+                val voucherHeader = VoucherHeader(
+                    voucherNo = voucherNoCalculated,
+                    date = header.date,
+                    type = VoucherType.JOURNAL,
+                    description = if (currentLanguage.value == "ar") "ترحيل تلقائي للفاتورة رقم: ${header.invoiceNo}" else "Auto-posted Invoice #${header.invoiceNo}",
+                    totalAmountBase = header.totalAmount,
+                    isPosted = true,
+                    fiscalYearId = activeFy.id
+                )
+
+                // Save balanced Voucher Draft first
+                val savedVoucherId = repository.saveDraftVoucher(voucherHeader, voucherLinesList)
+                
+                // Post the Voucher Draft
+                val result = repository.postVoucher(savedVoucherId)
+                if (result is com.example.util.VoucherValidationEngine.ValidationResult.Error) {
+                    throw IllegalStateException(result.message)
+                }
+                
+                // Update header as posted
+                val updatedHeader = header.copy(
+                    isPosted = true,
+                    voucherHeaderId = savedVoucherId
+                )
+                repository.updateInvoiceHeader(updatedHeader)
+                
+                // Recalculate balances Snapshot
+                repository.recalculateSnapshots()
+                
+                _uiMessage.value = if (currentLanguage.value == "ar") {
+                    "تم ترحيل الفاتورة بنجاح كقيد محاسبي رقم $voucherNoCalculated"
+                } else {
+                    "Invoice posted successfully as Voucher $voucherNoCalculated!"
+                }
+            } catch (e: Exception) {
+                _uiMessage.value = if (currentLanguage.value == "ar") "فشل ترحيل الفاتورة: ${e.localizedMessage}" else "Posting failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    // Inventory management StateFlows
+    val warehouses = repository.allWarehouses.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    val itemCategories = repository.allItemCategories.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    val itemUnits = repository.allItemUnits.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    val items = repository.allItems.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    // Warehouses Operations
+    fun addWarehouse(name: String, location: String, manager: String, phone: String) {
+        viewModelScope.launch {
+            try {
+                repository.addWarehouse(Warehouse(name = name, location = location, manager = manager, phone = phone))
+                _uiMessage.value = if (currentLanguage.value == "ar") "تمت إضافة المخزن بنجاح" else "Warehouse added successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error adding warehouse: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateWarehouse(warehouse: Warehouse) {
+        viewModelScope.launch {
+            try {
+                repository.updateWarehouse(warehouse)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم تعديل المخزن بنجاح" else "Warehouse updated successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error updating warehouse: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteWarehouse(warehouse: Warehouse) {
+        viewModelScope.launch {
+            try {
+                repository.deleteWarehouse(warehouse)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم حذف المخزن بنجاح" else "Warehouse deleted successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error deleting warehouse: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    // Categories Operations
+    fun addItemCategory(name: String, description: String) {
+        viewModelScope.launch {
+            try {
+                repository.addItemCategory(ItemCategory(name = name, description = description))
+                _uiMessage.value = if (currentLanguage.value == "ar") "تمت إضافة الفئة بنجاح" else "Category added successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error adding category: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateItemCategory(category: ItemCategory) {
+        viewModelScope.launch {
+            try {
+                repository.updateItemCategory(category)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم تعديل الفئة بنجاح" else "Category updated successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error updating category: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteItemCategory(category: ItemCategory) {
+        viewModelScope.launch {
+            try {
+                repository.deleteItemCategory(category)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم حذف الفئة بنجاح" else "Category deleted successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error deleting category: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    // Units Operations
+    fun addItemUnit(name: String, description: String) {
+        viewModelScope.launch {
+            try {
+                repository.addItemUnit(ItemUnit(name = name, description = description))
+                _uiMessage.value = if (currentLanguage.value == "ar") "تمت إضافة الوحدة بنجاح" else "Unit added successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error adding unit: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateItemUnit(unit: ItemUnit) {
+        viewModelScope.launch {
+            try {
+                repository.updateItemUnit(unit)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم تعديل الوحدة بنجاح" else "Unit updated successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error updating unit: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteItemUnit(unit: ItemUnit) {
+        viewModelScope.launch {
+            try {
+                repository.deleteItemUnit(unit)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم حذف الوحدة بنجاح" else "Unit deleted successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error deleting unit: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    // Items Operations
+    fun addItem(
+        code: String,
+        name: String,
+        categoryId: Long?,
+        unitId: Long?,
+        defaultWarehouseId: Long?,
+        purchasePrice: Double,
+        salePrice: Double,
+        minLimit: Double,
+        currentStock: Double,
+        notes: String
+    ) {
+        viewModelScope.launch {
+            try {
+                repository.addItem(
+                    Item(
+                        code = code,
+                        name = name,
+                        categoryId = categoryId,
+                        unitId = unitId,
+                        defaultWarehouseId = defaultWarehouseId,
+                        purchasePrice = purchasePrice,
+                        salePrice = salePrice,
+                        minLimit = minLimit,
+                        currentStock = currentStock,
+                        notes = notes
+                    )
+                )
+                _uiMessage.value = if (currentLanguage.value == "ar") "تمت إضافة الصنف بنجاح" else "Item added successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error adding item: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateItem(item: Item) {
+        viewModelScope.launch {
+            try {
+                repository.updateItem(item)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم تعديل الصنف بنجاح" else "Item updated successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error updating item: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun deleteItem(item: Item) {
+        viewModelScope.launch {
+            try {
+                repository.deleteItem(item)
+                _uiMessage.value = if (currentLanguage.value == "ar") "تم حذف الصنف بنجاح" else "Item deleted successfully!"
+            } catch (e: Exception) {
+                _uiMessage.value = "Error deleting item: ${e.localizedMessage}"
             }
         }
     }
